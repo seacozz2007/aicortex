@@ -79,6 +79,7 @@ type Config struct {
 	AgentIdleWatchdog              time.Duration // force-stop a run when the backend goes silent this long with an empty queue (0 = disabled)
 	ClaudeArgs                     []string
 	CodexArgs                      []string
+	PinnedProjectWorkdir           bool // when true, tasks with a project_id reuse a fixed workdir per (project, agent)
 }
 
 // Overrides allows CLI flags to override environment variables and defaults.
@@ -330,6 +331,10 @@ func LoadConfig(overrides Overrides) (Config, error) {
 	// Keep env after task: env > default (false)
 	keepEnv := os.Getenv("AICORTEX_KEEP_ENV_AFTER_TASK") == "true" || os.Getenv("AICORTEX_KEEP_ENV_AFTER_TASK") == "1"
 
+	// Pinned project workdir: env > default (false)
+	// When enabled, tasks belonging to a project reuse a fixed workdir per (project, agent).
+	pinnedProjectWorkdir := os.Getenv("AICORTEX_PINNED_PROJECT_WORKDIR") == "true" || os.Getenv("AICORTEX_PINNED_PROJECT_WORKDIR") == "1"
+
 	// GC config: env > defaults
 	gcEnabled := true
 	if v := os.Getenv("AICORTEX_GC_ENABLED"); v == "false" || v == "0" {
@@ -379,6 +384,7 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		Agents:                         agents,
 		WorkspacesRoot:                 workspacesRoot,
 		KeepEnvAfterTask:               keepEnv,
+		PinnedProjectWorkdir:           pinnedProjectWorkdir,
 		GCEnabled:                      gcEnabled,
 		GCInterval:                     gcInterval,
 		GCTTL:                          gcTTL,

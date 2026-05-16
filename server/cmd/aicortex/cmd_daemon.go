@@ -70,6 +70,15 @@ var daemonDiskUsageCmd = &cobra.Command{
 	RunE: runDaemonDiskUsage,
 }
 
+var daemonVersionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show the CLI version that the daemon would report",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println(version)
+		return nil
+	},
+}
+
 func init() {
 	f := daemonStartCmd.Flags()
 	f.Bool("foreground", false, "Run in the foreground instead of background")
@@ -116,6 +125,7 @@ func init() {
 	daemonCmd.AddCommand(daemonStatusCmd)
 	daemonCmd.AddCommand(daemonLogsCmd)
 	daemonCmd.AddCommand(daemonDiskUsageCmd)
+	daemonCmd.AddCommand(daemonVersionCmd)
 }
 
 // daemonDirForProfile returns the state directory for the given profile.

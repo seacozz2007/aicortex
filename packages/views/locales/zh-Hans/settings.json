@@ -153,6 +153,8 @@
     "co_authored_by_label": "Co-authored-by trailer",
     "co_authored_by_description_prefix": "自动给智能体的 commit 加上",
     "co_authored_by_description_suffix": "。",
+    "pinned_workdir_label": "固定项目工作目录",
+    "pinned_workdir_description": "每个项目的每个智能体使用固定的工作目录。任务完成后自动 commit 并 push，下次任务开始前自动 pull 最新代码。支持多智能体协作同一代码库。",
     "toast_failed": "更新设置失败"
   },
   "integrations": {
@@ -161,7 +163,7 @@
     "github_description_prefix": "自动把 issue 关联到 Pull Request。当 PR 的分支、标题或正文中包含",
     "github_description_suffix": "并被合并时，对应的 issue 会自动转为",
     "github_description_done": "Done",
-    "github_identifier_example": "MUL-123",
+    "github_identifier_example": "ACX-123",
     "connect_github": "连接 GitHub",
     "connect_opening": "正在打开…",
     "connect_disabled_tooltip": "服务端未配置 GitHub App",

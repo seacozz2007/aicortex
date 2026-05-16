@@ -270,7 +270,7 @@ cli: ## Run the aicortex CLI with ARGS or AICORTEX_ARGS from source
 	@$(MAKE) aicortex AICORTEX_ARGS="$(AICORTEX_ARGS)"
 
 aicortex: ## Run the aicortex CLI entrypoint directly from the Go source tree
-	cd server && go run ./cmd/aicortex $(AICORTEX_ARGS)
+	cd server && go run -ldflags "-X main.version=$(VERSION)" ./cmd/aicortex $(AICORTEX_ARGS)
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)

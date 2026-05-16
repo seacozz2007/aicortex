@@ -153,6 +153,8 @@
     "co_authored_by_label": "Co-authored-by trailer",
     "co_authored_by_description_prefix": "Automatically add",
     "co_authored_by_description_suffix": "to commits made by agents.",
+    "pinned_workdir_label": "Pinned project workdir",
+    "pinned_workdir_description": "Reuse a fixed working directory per project per agent. Agents auto-commit and push after each task, and pull the latest before the next one. Enables multi-agent collaboration on the same codebase.",
     "toast_failed": "Failed to update setting"
   },
   "integrations": {
@@ -161,7 +163,7 @@
     "github_description_prefix": "Link issues to pull requests automatically. When a PR with",
     "github_description_suffix": "in its branch, title, or body is merged, the corresponding issue moves to",
     "github_description_done": "Done",
-    "github_identifier_example": "MUL-123",
+    "github_identifier_example": "ACX-123",
     "connect_github": "Connect GitHub",
     "connect_opening": "Opening…",
     "connect_disabled_tooltip": "GitHub App is not configured on this server",

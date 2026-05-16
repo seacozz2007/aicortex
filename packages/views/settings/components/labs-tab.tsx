@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GitCommitHorizontal } from "lucide-react";
+import { GitCommitHorizontal, FolderSync } from "lucide-react";
 import { Card, CardContent } from "@aicortex/ui/components/ui/card";
 import { Switch } from "@aicortex/ui/components/ui/switch";
 import { Label } from "@aicortex/ui/components/ui/label";
@@ -19,18 +19,16 @@ export function LabsTab() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
 
-  const coAuthoredByEnabled =
-    (workspace?.settings as Record<string, unknown>)?.co_authored_by_enabled !== false;
+  const settings = (workspace?.settings as Record<string, unknown>) ?? {};
+  const coAuthoredByEnabled = settings.co_authored_by_enabled !== false;
+  const pinnedProjectWorkdirEnabled = settings.pinned_project_workdir === true;
 
-  const handleToggle = async (checked: boolean) => {
+  const updateSetting = async (key: string, value: unknown) => {
     if (!workspace || saving) return;
     setSaving(true);
     try {
       const updated = await api.updateWorkspace(workspace.id, {
-        settings: {
-          ...((workspace.settings as Record<string, unknown>) ?? {}),
-          co_authored_by_enabled: checked,
-        },
+        settings: { ...settings, [key]: value },
       });
       qc.setQueryData(workspaceKeys.list(), (old: Workspace[] | undefined) =>
         old?.map((ws) => (ws.id === updated.id ? updated : ws)),
@@ -77,7 +75,36 @@ export function LabsTab() {
               <Switch
                 id="co-authored-by"
                 checked={coAuthoredByEnabled}
-                onCheckedChange={handleToggle}
+                onCheckedChange={(checked) => updateSetting("co_authored_by_enabled", checked)}
+                disabled={saving}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-md border bg-muted/50 p-2 text-muted-foreground">
+                  <FolderSync className="h-4 w-4" />
+                </div>
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="pinned-project-workdir"
+                    className="text-sm font-medium"
+                  >
+                    {t(($) => $.labs.pinned_workdir_label)}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t(($) => $.labs.pinned_workdir_description)}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="pinned-project-workdir"
+                checked={pinnedProjectWorkdirEnabled}
+                onCheckedChange={(checked) => updateSetting("pinned_project_workdir", checked)}
                 disabled={saving}
               />
             </div>
