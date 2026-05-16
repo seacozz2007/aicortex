@@ -589,7 +589,7 @@ const TranscriptEventRow = ({
   const summary = getEventSummary(item);
 
   const hasDetail =
-    (item.type === "tool_use" && item.input && Object.keys(item.input).length > 0) ||
+    (item.type === "tool_use" && ((item.input && Object.keys(item.input).length > 0) || (item.output && item.output.length > 0))) ||
     (item.type === "tool_result" && item.output && item.output.length > 0) ||
     (item.type === "thinking" && item.content && item.content.length > 0) ||
     (item.type === "text" && item.content && item.content.length > 0) ||
@@ -666,9 +666,23 @@ function EventDetailContent({ item }: { item: TimelineItem }) {
   switch (item.type) {
     case "tool_use":
       return (
-        <pre className="max-h-60 overflow-auto p-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
-          {item.input ? redactSecrets(JSON.stringify(item.input, null, 2)) : ""}
-        </pre>
+        <div className="max-h-60 overflow-auto">
+          {item.input && Object.keys(item.input).length > 0 && (
+            <pre className="p-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
+              {redactSecrets(JSON.stringify(item.input, null, 2))}
+            </pre>
+          )}
+          {item.output && (
+            <>
+              <div className="border-t mx-3" />
+              <pre className="p-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
+                {item.output.length > 4000
+                  ? redactSecrets(item.output.slice(0, 4000)) + "\n... (truncated)"
+                  : redactSecrets(item.output)}
+              </pre>
+            </>
+          )}
+        </div>
       );
     case "tool_result":
       return (

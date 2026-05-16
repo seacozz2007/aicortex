@@ -156,22 +156,41 @@ export function AgentLiveCard({ issueId }: AgentLiveCardProps) {
       if (seenSeqs.current.has(key)) return;
       seenSeqs.current.add(key);
 
-      const item: TimelineItem = {
-        seq: msg.seq,
-        type: msg.type,
-        tool: msg.tool,
-        content: msg.content,
-        input: msg.input,
-        output: msg.output,
-      };
+      // Filter empty messages.
+      const hasContent = msg.content && msg.content.trim().length > 0;
+      const hasOutput = msg.output && msg.output.trim().length > 0;
+      const hasInput = msg.input && Object.keys(msg.input).length > 0;
+      const hasTool = msg.tool && msg.tool.trim().length > 0;
+      if (!hasContent && !hasOutput && !hasInput && !hasTool) return;
 
       setTaskStates((prev) => {
         const next = new Map(prev);
         const existing = next.get(msg.task_id);
-        if (existing) {
-          const items = [...existing.items, item].sort((a, b) => a.seq - b.seq);
-          next.set(msg.task_id, { ...existing, items });
+        if (!existing) return prev;
+
+        // If this is a tool_result, try to merge into the last tool_use with the same tool name.
+        if (msg.type === "tool_result" && msg.tool) {
+          const items = [...existing.items];
+          const lastToolUseIdx = items.findLastIndex(
+            (i) => i.type === "tool_use" && i.tool === msg.tool && !i.output,
+          );
+          if (lastToolUseIdx >= 0) {
+            items[lastToolUseIdx] = { ...items[lastToolUseIdx]!, output: msg.output };
+            next.set(msg.task_id, { ...existing, items });
+            return next;
+          }
         }
+
+        const item: TimelineItem = {
+          seq: msg.seq,
+          type: msg.type,
+          tool: msg.tool,
+          content: msg.content,
+          input: msg.input,
+          output: msg.output,
+        };
+        const items = [...existing.items, item].sort((a, b) => a.seq - b.seq);
+        next.set(msg.task_id, { ...existing, items });
         return next;
       });
     }, [issueId]),
