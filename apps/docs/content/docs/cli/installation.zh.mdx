@@ -1,6 +1,6 @@
 ---
 title: CLI Installation
-description: Install the Multica CLI and start the agent daemon.
+description: Install the AICortex CLI and start the agent daemon.
 ---
 
 ## Installation
@@ -8,16 +8,16 @@ description: Install the Multica CLI and start the agent daemon.
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install multica-ai/tap/multica
+brew install aicortex/tap/aicortex
 ```
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/multica-ai/multica.git
-cd multica
+git clone https://github.com/aicortex/aicortex.git
+cd aicortex
 make build
-cp server/bin/multica /usr/local/bin/multica
+cp server/bin/aicortex /usr/local/bin/aicortex
 ```
 
 ### Download from GitHub Releases
@@ -34,46 +34,46 @@ if [ "$ARCH" = "x86_64" ]; then
 fi
 
 # Get the latest release tag from GitHub
-LATEST=$(curl -sI https://github.com/multica-ai/multica/releases/latest \
+LATEST=$(curl -sI https://github.com/aicortex/aicortex/releases/latest \
   | grep -i '^location:' | sed 's/.*tag\///' | tr -d '\r\n')
 
 # Download and extract
-curl -sL "https://github.com/multica-ai/multica/releases/download/${LATEST}/multica_${OS}_${ARCH}.tar.gz" \
-  -o /tmp/multica.tar.gz
-tar -xzf /tmp/multica.tar.gz -C /tmp multica
-sudo mv /tmp/multica /usr/local/bin/multica
-rm /tmp/multica.tar.gz
+curl -sL "https://github.com/aicortex/aicortex/releases/download/${LATEST}/aicortex_${OS}_${ARCH}.tar.gz" \
+  -o /tmp/aicortex.tar.gz
+tar -xzf /tmp/aicortex.tar.gz -C /tmp aicortex
+sudo mv /tmp/aicortex /usr/local/bin/aicortex
+rm /tmp/aicortex.tar.gz
 ```
 
 ### Update
 
 ```bash
-brew upgrade multica-ai/tap/multica
+brew upgrade aicortex/tap/aicortex
 ```
 
 For install script or manual installs, use:
 
 ```bash
-multica update
+aicortex update
 ```
 
-`multica update` auto-detects your installation method and upgrades accordingly.
+`aicortex update` auto-detects your installation method and upgrades accordingly.
 
 ## Quick Start
 
 ```bash
 # One command: configure, authenticate, and start the daemon
-multica setup
+aicortex setup
 ```
 
-This configures the CLI for Multica Cloud, opens your browser for login, discovers your workspaces, and starts the agent daemon.
+This configures the CLI for AICortex Cloud, opens your browser for login, discovers your workspaces, and starts the agent daemon.
 
-For self-hosted servers, use `multica setup self-host` instead. See [Self-Hosting](/getting-started/self-hosting) for details.
+For self-hosted servers, use `aicortex setup self-host` instead. See [Self-Hosting](/getting-started/self-hosting) for details.
 
 ## Verify
 
 ```bash
-multica daemon status
+aicortex daemon status
 ```
 
 Confirm:
@@ -94,5 +94,5 @@ If the agents list is empty, install at least one supported AI agent CLI:
 Then restart the daemon:
 
 ```bash
-multica daemon stop && multica daemon start
+aicortex daemon stop && aicortex daemon start
 ```
