@@ -96,9 +96,9 @@ export const BoardCardContent = memo(function BoardCardContent({
   const showLabels = storeProperties.labels && labels.length > 0;
 
   return (
-    <div className="rounded-lg border-[0.5px] border-border bg-card py-3 px-2.5 shadow-[0_3px_6px_-2px_rgba(0,0,0,0.02),0_1px_1px_0_rgba(0,0,0,0.04)] transition-colors group-hover/card:border-accent group-hover/card:bg-accent group-data-[popup-open]/card:border-accent group-data-[popup-open]/card:bg-accent">
+    <div className="rounded-lg border-[0.5px] border-border bg-card py-3 px-2.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08),0_1px_2px_0_rgba(0,0,0,0.06)] transition-all duration-200 group-hover/card:-translate-y-0.5 group-hover/card:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.12),0_2px_4px_0_rgba(0,0,0,0.08)] group-hover/card:border-accent group-hover/card:bg-accent group-data-[popup-open]/card:border-accent group-data-[popup-open]/card:bg-accent">
       {/* Row 1: Identifier */}
-      <p className="text-xs text-muted-foreground">{issue.identifier}</p>
+      <p className="font-mono text-xs text-muted-foreground">{issue.identifier}</p>
 
       {/* Row 2: Title */}
       <p className="mt-1 text-sm font-medium leading-snug line-clamp-2">
@@ -221,6 +221,12 @@ export const BoardCardContent = memo(function BoardCardContent({
               )}
             </div>
           )}
+        </div>
+      )}
+      {/* Agent working indicator — indeterminate progress bar */}
+      {issue.status === "in_progress" && issue.assignee_type === "agent" && (
+        <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full w-1/3 animate-nav-progress-sweep rounded-full bg-brand" />
         </div>
       )}
     </div>

@@ -32,12 +32,14 @@ export function DashboardLayout({
         </div>
       }
     >
-      <SidebarProvider className="h-svh">
+      <SidebarProvider defaultOpen={false} className="h-svh">
         <WorkspacePresencePrefetch />
         <AppSidebar searchSlot={searchSlot} />
         <SidebarInset className="relative overflow-hidden">
           <NavigationProgress />
-          {children}
+          <div className="animate-page-enter flex min-h-0 flex-1 flex-col">
+            {children}
+          </div>
           <ModalRegistry />
           {extra}
         </SidebarInset>

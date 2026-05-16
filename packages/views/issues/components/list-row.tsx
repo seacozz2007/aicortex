@@ -56,7 +56,7 @@ export const ListRow = memo(function ListRow({
   return (
     <IssueActionsContextMenu issue={issue}>
       <div
-        className={`group/row flex h-9 items-center gap-2 px-4 text-sm transition-colors hover:not-data-[popup-open]:bg-accent/60 data-[popup-open]:bg-accent ${
+        className={`group/row flex h-11 items-center gap-2 rounded-lg px-4 text-sm transition-colors hover:not-data-[popup-open]:bg-accent/60 data-[popup-open]:bg-accent ${
           selected ? "bg-accent/30" : ""
         }`}
       >
@@ -78,7 +78,7 @@ export const ListRow = memo(function ListRow({
           href={p.issueDetail(issue.id)}
           className="flex flex-1 items-center gap-2 min-w-0"
         >
-          <span className="w-16 shrink-0 text-xs text-muted-foreground">
+          <span className="w-16 shrink-0 font-mono text-xs text-muted-foreground">
             {issue.identifier}
           </span>
           <span className="flex min-w-0 flex-1 items-center gap-1.5">

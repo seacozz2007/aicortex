@@ -6,11 +6,13 @@
     "pages": "页面",
     "commands": "命令",
     "members": "成员",
+    "agents": "智能体",
     "projects": "项目",
     "issues": "issue",
     "recent": "最近"
   },
   "pages": {
+    "home": "首页",
     "inbox": "收件箱",
     "my_issues": "我的 issue",
     "issues": "issue",

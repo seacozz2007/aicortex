@@ -25,6 +25,47 @@
   animation: entrance-spin 0.6s ease-out forwards;
 }
 
+/* Page enter: subtle fade + slide from right on route change */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateX(8px); }
+}
+
+.animate-page-enter {
+  animation: page-enter 0.2s ease-out both;
+}
+
+/* Agent pulse: breathing glow ring when agent is working */
+@keyframes agent-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.65 0.20 285 / 0.4); }
+  50% { box-shadow: 0 0 0 4px oklch(0.65 0.20 285 / 0); }
+}
+
+.animate-agent-pulse {
+  animation: agent-pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton shimmer: gradient sweep for loading states */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 5%) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* List item stagger: fade-in with slight rise, use --stagger-index for delay */
+@keyframes list-item-enter {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+.animate-list-item {
+  animation: list-item-enter 0.2s ease-out both;
+  animation-delay: calc(var(--stagger-index, 0) * 30ms);
+}
+
 /* Onboarding: step / phase entry — 400ms fade + 4px rise.
  * Matches the design prototype's .fade-in. Applied on mount so every new
  * step (and intra-step phase switch, via key=phase remount) plays once.

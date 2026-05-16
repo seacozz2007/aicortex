@@ -17,6 +17,7 @@ describe("paths.workspace() shape", () => {
     expect(new Set(parameterlessRoutes)).toEqual(
       new Set([
         "root",
+        "home",
         "usage",
         "issues",
         "projects",

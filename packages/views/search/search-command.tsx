@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Plus,
   SearchIcon,
+  Home,
   Inbox,
   CircleUser,
   ListTodo,
@@ -42,6 +43,7 @@ import { useWorkspacePaths } from "@aicortex/core/paths";
 import type { WorkspacePaths } from "@aicortex/core/paths";
 import { useModalStore } from "@aicortex/core/modals";
 import { memberListOptions } from "@aicortex/core/workspace/queries";
+import { agentListOptions } from "@aicortex/core/workspace/queries";
 import { StatusIcon } from "../issues/components";
 import { ProjectIcon } from "../projects/components/project-icon";
 import { STATUS_CONFIG } from "@aicortex/core/issues/config";
@@ -101,6 +103,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
 // against the current workspace slug at render time (see SearchCommand body).
 // Only parameterless paths are valid nav destinations.
 type NavKey =
+  | "home"
   | "inbox"
   | "myIssues"
   | "issues"
@@ -115,6 +118,7 @@ interface NavPage {
   label: string;
   icon: LucideIcon;
   keywords: string[];
+  shortcut?: string;
 }
 
 type ThemeValue = "light" | "dark" | "system";
@@ -154,9 +158,10 @@ interface SearchResults {
 export function SearchCommand() {
   const { t } = useT("search");
   const navPages: NavPage[] = [
-    { key: "inbox", label: t(($) => $.pages.inbox), icon: Inbox, keywords: ["inbox", "notifications", "收件箱"] },
-    { key: "myIssues", label: t(($) => $.pages.my_issues), icon: CircleUser, keywords: ["my", "issues", "assigned", "我的"] },
-    { key: "issues", label: t(($) => $.pages.issues), icon: ListTodo, keywords: ["issues", "tasks", "bugs"] },
+    { key: "home", label: t(($) => $.pages.home), icon: Home, keywords: ["home", "dashboard", "mission", "首页"], shortcut: "G H" },
+    { key: "inbox", label: t(($) => $.pages.inbox), icon: Inbox, keywords: ["inbox", "notifications", "收件箱"], shortcut: "G N" },
+    { key: "myIssues", label: t(($) => $.pages.my_issues), icon: CircleUser, keywords: ["my", "issues", "assigned", "我的"], shortcut: "G M" },
+    { key: "issues", label: t(($) => $.pages.issues), icon: ListTodo, keywords: ["issues", "tasks", "bugs"], shortcut: "G I" },
     { key: "projects", label: t(($) => $.pages.projects), icon: FolderKanban, keywords: ["projects", "kanban", "项目"] },
     { key: "agents", label: t(($) => $.pages.agents), icon: Bot, keywords: ["agents", "bots", "ai"] },
     { key: "runtimes", label: t(($) => $.pages.runtimes), icon: Monitor, keywords: ["runtimes", "environments"] },
@@ -171,6 +176,7 @@ export function SearchCommand() {
   const p: WorkspacePaths = useWorkspacePaths();
   const { theme, setTheme } = useTheme();
   const { data: members = [] } = useQuery(memberListOptions(wsId));
+  const { data: agents = [] } = useQuery(agentListOptions(wsId));
 
   // Resolve each recent issue via its cached detail entry. Recent items are
   // typically already in the detail cache because the user has opened them;
@@ -339,10 +345,19 @@ export function SearchCommand() {
       .slice(0, 10);
   }, [members, query]);
 
+  const filteredAgents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return agents
+      .filter((a) => !a.archived_at && a.name.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [agents, query]);
+
   const hasResults =
     results.issues.length > 0 ||
     results.projects.length > 0 ||
-    filteredMembers.length > 0;
+    filteredMembers.length > 0 ||
+    filteredAgents.length > 0;
 
   // Global Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -468,6 +483,14 @@ export function SearchCommand() {
     [push, setOpen, p],
   );
 
+  const handleAgentSelect = useCallback(
+    (agentId: string) => {
+      push(p.agentDetail(agentId));
+      setOpen(false);
+    },
+    [push, setOpen, p],
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
@@ -518,6 +541,11 @@ export function SearchCommand() {
                     <span className="truncate">
                       <HighlightText text={page.label} query={query} />
                     </span>
+                    {page.shortcut && (
+                      <kbd className="ml-auto hidden shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+                        {page.shortcut}
+                      </kbd>
+                    )}
                   </CommandPrimitive.Item>
                 ))}
               </CommandPrimitive.Group>
@@ -572,6 +600,27 @@ export function SearchCommand() {
                         <HighlightText text={member.email} query={query} />
                       </div>
                     </div>
+                  </CommandPrimitive.Item>
+                ))}
+              </CommandPrimitive.Group>
+            )}
+
+            {filteredAgents.length > 0 && (
+              <CommandPrimitive.Group className="p-2">
+                <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  {t(($) => $.groups.agents)}
+                </div>
+                {filteredAgents.map((agent) => (
+                  <CommandPrimitive.Item
+                    key={agent.id}
+                    value={`agent:${agent.id}`}
+                    onSelect={() => handleAgentSelect(agent.id)}
+                    className="flex cursor-default select-none items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-accent"
+                  >
+                    <Bot className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">
+                      <HighlightText text={agent.name} query={query} />
+                    </span>
                   </CommandPrimitive.Item>
                 ))}
               </CommandPrimitive.Group>

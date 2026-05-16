@@ -19,6 +19,16 @@ import { useT } from "../../i18n";
 
 const EMPTY_PROGRESS_MAP = new Map<string, ChildProgress>();
 
+const STATUS_BORDER_COLOR: Record<string, string> = {
+  backlog: "border-l-muted-foreground/40",
+  todo: "border-l-muted-foreground/40",
+  in_progress: "border-l-warning",
+  in_review: "border-l-success",
+  done: "border-l-info",
+  blocked: "border-l-destructive",
+  cancelled: "border-l-muted-foreground/40",
+};
+
 export function ListView({
   issues,
   visibleStatuses,
@@ -126,7 +136,7 @@ function StatusAccordionItem({
 
   return (
     <Accordion.Item value={status}>
-      <Accordion.Header className="group/header flex h-10 items-center rounded-lg bg-muted/40 transition-colors hover:bg-accent/30">
+      <Accordion.Header className={`group/header flex h-10 items-center rounded-lg border-l-3 bg-muted/20 transition-colors hover:bg-accent/30 ${STATUS_BORDER_COLOR[status] ?? "border-l-muted-foreground/40"}`}>
         <div className="pl-3 flex items-center">
           <input
             type="checkbox"
@@ -173,8 +183,10 @@ function StatusAccordionItem({
       <Accordion.Panel className="pt-1">
         {issues.length > 0 ? (
           <>
-            {issues.map((issue) => (
-              <ListRow key={issue.id} issue={issue} childProgress={childProgressMap.get(issue.id)} />
+            {issues.map((issue, i) => (
+              <div key={issue.id} className="animate-list-item" style={{ "--stagger-index": i } as React.CSSProperties}>
+                <ListRow issue={issue} childProgress={childProgressMap.get(issue.id)} />
+              </div>
             ))}
             {hasMore && (
               <InfiniteScrollSentinel onVisible={loadMore} loading={isLoading} />

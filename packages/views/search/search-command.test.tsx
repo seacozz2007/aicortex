@@ -98,6 +98,7 @@ vi.mock("@aicortex/core", () => ({
 
 vi.mock("@aicortex/core/paths", () => ({
   useWorkspacePaths: () => ({
+    home: () => "/ws-test",
     inbox: () => "/ws-test/inbox",
     myIssues: () => "/ws-test/my-issues",
     issues: () => "/ws-test/issues",
@@ -109,6 +110,7 @@ vi.mock("@aicortex/core/paths", () => ({
     issueDetail: (id: string) => `/ws-test/issues/${id}`,
     memberDetail: (id: string) => `/ws-test/members/${id}`,
     projectDetail: (id: string) => `/ws-test/projects/${id}`,
+    agentDetail: (id: string) => `/ws-test/agents/${id}`,
   }),
 }));
 
@@ -120,6 +122,7 @@ vi.mock("@aicortex/core/issues/queries", () => ({
 
 vi.mock("@aicortex/core/workspace/queries", () => ({
   memberListOptions: () => ({ queryKey: ["workspaces", "ws-test", "members"] }),
+  agentListOptions: () => ({ queryKey: ["workspaces", "ws-test", "agents"] }),
 }));
 
 vi.mock("@aicortex/core/modals", () => ({
@@ -142,6 +145,9 @@ vi.mock("@tanstack/react-query", () => ({
     const key = opts.queryKey;
     if (key[0] === "workspaces" && key[2] === "members") {
       return { data: mockMembers.current };
+    }
+    if (key[0] === "workspaces" && key[2] === "agents") {
+      return { data: [] };
     }
     if (opts.enabled === false) return { data: undefined };
     return { data: resolveIssue(key) };

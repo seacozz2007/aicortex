@@ -6,11 +6,13 @@
     "pages": "Pages",
     "commands": "Commands",
     "members": "Members",
+    "agents": "Agents",
     "projects": "Projects",
     "issues": "Issues",
     "recent": "Recent"
   },
   "pages": {
+    "home": "Home",
     "inbox": "Inbox",
     "my_issues": "My Issues",
     "issues": "Issues",
