@@ -102,6 +102,8 @@ function getEventSummary(item: TimelineItem): string {
     case "tool_use": {
       if (!item.input) return "";
       const inp = item.input as Record<string, string>;
+      // Kiro includes __tool_use_purpose as a human-readable description.
+      if (inp.__tool_use_purpose) return inp.__tool_use_purpose;
       if (inp.query) return inp.query;
       if (inp.file_path) return shortenPath(inp.file_path);
       if (inp.path) return shortenPath(inp.path);
@@ -662,6 +664,16 @@ const TranscriptEventRow = ({
 
 // ─── Event detail content ───────────────────────────────────────────────────
 
+// Filter out internal metadata fields from tool input for display.
+function filterToolInput(input: Record<string, unknown>): Record<string, unknown> {
+  const filtered: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (k.startsWith("__")) continue; // skip __tool_use_purpose etc.
+    filtered[k] = v;
+  }
+  return filtered;
+}
+
 function EventDetailContent({ item }: { item: TimelineItem }) {
   switch (item.type) {
     case "tool_use":
@@ -669,7 +681,7 @@ function EventDetailContent({ item }: { item: TimelineItem }) {
         <div className="max-h-60 overflow-auto">
           {item.input && Object.keys(item.input).length > 0 && (
             <pre className="p-3 text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
-              {redactSecrets(JSON.stringify(item.input, null, 2))}
+              {redactSecrets(JSON.stringify(filterToolInput(item.input), null, 2))}
             </pre>
           )}
           {item.output && (
