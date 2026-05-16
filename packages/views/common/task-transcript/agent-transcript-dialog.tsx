@@ -169,6 +169,7 @@ export function AgentTranscriptDialog({
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState("");
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<"timeline" | "chat">("chat");
   const [agentInfo, setAgentInfo] = useState<Agent | null>(null);
   const [runtimeInfo, setRuntimeInfo] = useState<AgentRuntime | null>(null);
   const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
@@ -442,49 +443,83 @@ export function AgentTranscriptDialog({
           </div>
         </div>
 
-        {/* ── Timeline progress bar ─────────────────────────────── */}
-        {filteredItems.length > 0 && (
-          <div className="border-b px-4 py-2.5 shrink-0">
-            <TimelineBar
-              items={filteredItems}
-              selectedSeq={selectedSeq}
-              onSegmentClick={handleSegmentClick}
-            />
-          </div>
-        )}
+        {/* ── View mode tabs ─────────────────────────────────────── */}
+        <div className="border-b px-4 shrink-0 flex items-center gap-0">
+          <button
+            onClick={() => setViewMode("chat")}
+            className={cn(
+              "px-3 py-2 text-xs font-medium border-b-2 transition-colors",
+              viewMode === "chat"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Chat
+          </button>
+          <button
+            onClick={() => setViewMode("timeline")}
+            className={cn(
+              "px-3 py-2 text-xs font-medium border-b-2 transition-colors",
+              viewMode === "timeline"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Timeline
+          </button>
+        </div>
 
-        {/* ── Event list ─────────────────────────────────────────── */}
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto min-h-0"
-        >
-          {filteredItems.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-              {isLive ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t(($) => $.transcript.waiting_events)}
+        {viewMode === "timeline" && (
+          <>
+            {/* ── Timeline progress bar ─────────────────────────────── */}
+            {filteredItems.length > 0 && (
+              <div className="border-b px-4 py-2.5 shrink-0">
+                <TimelineBar
+                  items={filteredItems}
+                  selectedSeq={selectedSeq}
+                  onSegmentClick={handleSegmentClick}
+                />
+              </div>
+            )}
+
+            {/* ── Event list ─────────────────────────────────────────── */}
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto min-h-0"
+            >
+              {filteredItems.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  {isLive ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t(($) => $.transcript.waiting_events)}
+                    </div>
+                  ) : (
+                    t(($) => $.transcript.no_data)
+                  )}
                 </div>
               ) : (
-                t(($) => $.transcript.no_data)
+                <div className="divide-y">
+                  {filteredItems.map((item) => (
+                    <TranscriptEventRow
+                      key={item.seq}
+                      ref={(el) => {
+                        if (el) eventRefs.current.set(item.seq, el);
+                        else eventRefs.current.delete(item.seq);
+                      }}
+                      item={item}
+                      isSelected={selectedSeq === item.seq}
+                    />
+                  ))}
+                </div>
               )}
             </div>
-          ) : (
-            <div className="divide-y">
-              {filteredItems.map((item) => (
-                <TranscriptEventRow
-                  key={item.seq}
-                  ref={(el) => {
-                    if (el) eventRefs.current.set(item.seq, el);
-                    else eventRefs.current.delete(item.seq);
-                  }}
-                  item={item}
-                  isSelected={selectedSeq === item.seq}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+          </>
+        )}
+
+        {viewMode === "chat" && (
+          <ChatBoxView items={filteredItems} agentName={agentName} isLive={isLive} />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -672,6 +707,153 @@ function filterToolInput(input: Record<string, unknown>): Record<string, unknown
     filtered[k] = v;
   }
   return filtered;
+}
+
+// ─── Chat Box View ──────────────────────────────────────────────────────────
+
+function ChatBoxView({
+  items,
+  agentName,
+  isLive,
+}: {
+  items: TimelineItem[];
+  agentName: string;
+  isLive?: boolean;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [items.length]);
+
+  if (items.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+        {isLive ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Waiting for agent...
+          </div>
+        ) : (
+          "No messages"
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
+      {items.map((item) => (
+        <ChatBubble key={item.seq} item={item} agentName={agentName} />
+      ))}
+      {isLive && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pl-10">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>{agentName} is working...</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChatBubble({ item, agentName }: { item: TimelineItem; agentName: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (item.type === "text") {
+    if (!item.content?.trim()) return null;
+    return (
+      <div className="flex gap-3">
+        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-info/10 text-info shrink-0 mt-0.5">
+          <Bot className="h-3.5 w-3.5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-medium text-muted-foreground mb-1">{agentName}</div>
+          <div className="rounded-lg bg-muted/50 border px-3 py-2 text-sm whitespace-pre-wrap break-words">
+            {item.content}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "thinking") {
+    if (!item.content?.trim()) return null;
+    return (
+      <div className="flex gap-3">
+        <div className="w-6 shrink-0" />
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1.5 text-[11px] text-violet-600 dark:text-violet-400 hover:underline"
+        >
+          <Brain className="h-3 w-3" />
+          <span>Thinking...</span>
+          <ChevronRight className={cn("h-3 w-3 transition-transform", expanded && "rotate-90")} />
+        </button>
+      </div>
+    );
+  }
+
+  if (item.type === "tool_use") {
+    const inp = (item.input ?? {}) as Record<string, string>;
+    const command = inp.command || inp.path || inp.file_path || item.tool || "";
+    const purpose = inp.__tool_use_purpose || "";
+    return (
+      <div className="flex gap-3">
+        <div className="w-6 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400 hover:bg-accent rounded px-1.5 py-0.5 -ml-1.5"
+          >
+            <Monitor className="h-3 w-3 shrink-0" />
+            <span className="font-mono truncate">{purpose || command}</span>
+            <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform", expanded && "rotate-90")} />
+          </button>
+          {expanded && (
+            <div className="mt-1 rounded border bg-muted/30 overflow-hidden">
+              {command && (
+                <pre className="px-3 py-2 text-[11px] text-muted-foreground whitespace-pre-wrap break-all border-b">
+                  $ {command}
+                </pre>
+              )}
+              {item.output && (
+                <pre className="px-3 py-2 text-[11px] text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                  {item.output.length > 2000 ? item.output.slice(0, 2000) + "\n..." : item.output}
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "error") {
+    return (
+      <div className="flex gap-3">
+        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-destructive/10 text-destructive shrink-0 mt-0.5">
+          <AlertCircle className="h-3.5 w-3.5" />
+        </div>
+        <div className="rounded-lg bg-destructive/5 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+          {item.content}
+        </div>
+      </div>
+    );
+  }
+
+  // tool_result without a merged parent (rare)
+  if (item.type === "tool_result" && item.output?.trim()) {
+    return (
+      <div className="flex gap-3">
+        <div className="w-6 shrink-0" />
+        <pre className="rounded border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-auto flex-1">
+          {item.output.length > 2000 ? item.output.slice(0, 2000) + "\n..." : item.output}
+        </pre>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function EventDetailContent({ item }: { item: TimelineItem }) {
