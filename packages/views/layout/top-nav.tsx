@@ -1,0 +1,212 @@
+"use client";
+
+import { cn } from "@aicortex/ui/lib/utils";
+import {
+  Home,
+  Inbox,
+  ListTodo,
+  FolderKanban,
+  Zap,
+  Bot,
+  Users,
+  BarChart3,
+  Search,
+  SquarePen,
+  ChevronDown,
+  User,
+  Settings,
+  Monitor,
+  BookOpenText,
+  FolderGit2,
+  Plug,
+  FlaskConical,
+  Bell,
+  Key,
+  SlidersHorizontal,
+  LogOut,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@aicortex/ui/components/ui/dropdown-menu";
+import { AppLink, useNavigation } from "../navigation";
+import { useWorkspacePaths } from "@aicortex/core/paths";
+import { useAuthStore } from "@aicortex/core/auth";
+import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
+import { AICortexIcon } from "@aicortex/ui/components/common/aicortex-icon";
+import { openCreateIssueWithPreference } from "@aicortex/core/issues/stores/create-mode-store";
+import { useSearchStore } from "../search/search-store";
+import { useLogout } from "../auth";
+import { useT } from "../i18n";
+
+interface TopNavProps {
+  className?: string;
+}
+
+export function TopNav({ className }: TopNavProps) {
+  const { t } = useT("layout");
+  const { pathname } = useNavigation();
+  const p = useWorkspacePaths();
+  const user = useAuthStore((s) => s.user);
+  const logout = useLogout();
+
+  const navItems = [
+    { key: "home", label: t(($) => $.nav.home), href: p.home(), icon: Home },
+    { key: "inbox", label: t(($) => $.nav.inbox), href: p.inbox(), icon: Inbox },
+    { key: "issues", label: t(($) => $.nav.issues), href: p.issues(), icon: ListTodo },
+    { key: "projects", label: t(($) => $.nav.projects), href: p.projects(), icon: FolderKanban },
+    { key: "autopilots", label: t(($) => $.nav.autopilots), href: p.autopilots(), icon: Zap },
+    { key: "agents", label: t(($) => $.nav.agents), href: p.agents(), icon: Bot },
+    { key: "squads", label: t(($) => $.nav.squads), href: p.squads(), icon: Users },
+    { key: "usage", label: t(($) => $.nav.usage), href: p.usage(), icon: BarChart3 },
+  ];
+
+  return (
+    <header className={cn("flex h-12 shrink-0 items-center border-b bg-card px-4", className)}>
+      {/* Left: Logo + Nav */}
+      <div className="flex items-center gap-1">
+        <AppLink href={p.home()}>
+          <AICortexIcon className="mr-3 size-5" />
+        </AppLink>
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <AppLink key={item.key} href={item.href}>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
+                  isActive
+                    ? "bg-accent text-foreground font-medium"
+                    : "text-muted-foreground"
+                )}
+              >
+                <item.icon className="size-3.5" />
+                <span className="hidden lg:inline">{item.label}</span>
+              </span>
+            </AppLink>
+          );
+        })}
+      </div>
+
+      {/* Right: Search + New Issue + User menu */}
+      <div className="ml-auto flex items-center gap-2">
+        {/* Search */}
+        <button
+          type="button"
+          onClick={() => useSearchStore.getState().setOpen(true)}
+          className="inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Search className="size-3.5" />
+          <span className="hidden md:inline">Search</span>
+          <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline">⌘K</kbd>
+        </button>
+
+        {/* New Issue */}
+        <button
+          type="button"
+          onClick={() => openCreateIssueWithPreference()}
+          className="inline-flex items-center gap-1.5 rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
+        >
+          <SquarePen className="size-3.5" />
+          <span className="hidden sm:inline">New</span>
+        </button>
+
+        {/* User dropdown (我的) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+              >
+                <ActorAvatar
+                  name={user?.name ?? ""}
+                  initials={user?.name?.charAt(0) ?? "U"}
+                  avatarUrl={user?.avatar_url ?? null}
+                  size={24}
+                />
+                <ChevronDown className="size-3 text-muted-foreground" />
+              </button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-56">
+            {/* My Account */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{t(($) => $.topnav.my_account)}</DropdownMenuLabel>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=profile`} />}>
+                <User className="size-4" />
+                {t(($) => $.topnav.profile)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=preferences`} />}>
+                <SlidersHorizontal className="size-4" />
+                {t(($) => $.topnav.preferences)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=notifications`} />}>
+                <Bell className="size-4" />
+                {t(($) => $.topnav.notifications)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=tokens`} />}>
+                <Key className="size-4" />
+                {t(($) => $.topnav.tokens)}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            {/* Workspace Settings */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{t(($) => $.topnav.workspace_settings)}</DropdownMenuLabel>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=workspace`} />}>
+                <Settings className="size-4" />
+                {t(($) => $.topnav.general)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=repositories`} />}>
+                <FolderGit2 className="size-4" />
+                {t(($) => $.topnav.repositories)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=integrations`} />}>
+                <Plug className="size-4" />
+                {t(($) => $.topnav.integrations)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=labs`} />}>
+                <FlaskConical className="size-4" />
+                {t(($) => $.topnav.labs)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={`${p.settings()}?tab=members`} />}>
+                <Users className="size-4" />
+                {t(($) => $.topnav.members)}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            {/* System Settings */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{t(($) => $.topnav.system_settings)}</DropdownMenuLabel>
+              <DropdownMenuItem render={<AppLink href={p.runtimes()} />}>
+                <Monitor className="size-4" />
+                {t(($) => $.nav.runtimes)}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<AppLink href={p.skills()} />}>
+                <BookOpenText className="size-4" />
+                {t(($) => $.nav.skills)}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem onClick={logout}>
+              <LogOut className="size-4" />
+              {t(($) => $.topnav.logout)}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
+}

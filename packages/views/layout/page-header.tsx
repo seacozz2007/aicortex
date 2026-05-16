@@ -1,16 +1,6 @@
 "use client";
 
 import { cn } from "@aicortex/ui/lib/utils";
-import { SidebarTrigger, useSidebar } from "@aicortex/ui/components/ui/sidebar";
-
-function MobileSidebarTrigger() {
-  try {
-    useSidebar();
-  } catch {
-    return null;
-  }
-  return <SidebarTrigger className="mr-2 md:hidden" />;
-}
 
 interface PageHeaderProps {
   children: React.ReactNode;
@@ -19,8 +9,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ children, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex h-14 shrink-0 items-center border-b px-4", className)}>
-      <MobileSidebarTrigger />
+    <div className={cn("flex h-12 shrink-0 items-center border-b px-4", className)}>
       {children}
     </div>
   );

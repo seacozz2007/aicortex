@@ -27,8 +27,8 @@
     "all_description": "工作区内的全部 issue",
     "members_label": "成员",
     "members_description": "分配给成员的 issue",
-    "agents_label": "智能体",
-    "agents_description": "分配给智能体的 issue"
+    "agents_label": "Agent",
+    "agents_description": "分配给Agent的 issue"
   },
   "filters": {
     "tooltip": "筛选",
@@ -44,8 +44,8 @@
     "section_project": "项目",
     "section_label": "标签",
     "members_group": "成员",
-    "agents_group": "智能体",
-    "squads_group": "小队",
+    "agents_group": "Agent",
+    "squads_group": "Teams",
     "issue_count_other": "{{count}} 个 issue",
     "reset": "重置全部筛选"
   },
@@ -82,11 +82,11 @@
     "scope": {
       "assigned": {
         "label": "已分配",
-        "description": "分配给这个成员或智能体的 issue"
+        "description": "分配给这个成员或Agent的 issue"
       },
       "created": {
         "label": "已创建",
-        "description": "这个成员或智能体创建的 issue"
+        "description": "这个成员或Agent创建的 issue"
       }
     },
     "empty": {
@@ -154,7 +154,7 @@
     "no_subscribers_results": "未找到结果",
     "change_subscribers_placeholder": "更改订阅者...",
     "members_group": "成员",
-    "agents_group": "智能体",
+    "agents_group": "Agent",
     "mark_done_tooltip": "标记为已完成",
     "archive_tooltip": "归档",
     "pin_tooltip": "固定到侧边栏",
@@ -188,7 +188,7 @@
     "task_completed_other": "完成了 task（{{count}} 次）",
     "task_failed_one": "task 失败",
     "task_failed_other": "task 失败（{{count}} 次）",
-    "squad_leader_evaluated": "评估了小队触发",
+    "squad_leader_evaluated": "评估了Teams触发",
     "squad_leader_action": "已评估并采取了操作",
     "squad_leader_action_reason": "已评估并采取了操作：{{reason}}",
     "squad_leader_no_action": "已评估：无需操作",
@@ -239,11 +239,11 @@
     "is_working": "{{name}} 正在处理",
     "is_queued": "{{name}} 排队中",
     "queued_elapsed_prefix": "已排队 {{elapsed}}",
-    "fallback_name": "智能体",
+    "fallback_name": "Agent",
     "tool_count_other": "{{count}} 次工具调用",
     "transcript_button": "查看记录",
     "stop_button": "停止",
-    "stop_tooltip": "停止智能体",
+    "stop_tooltip": "停止Agent",
     "cancel_failed": "取消 task 失败"
   },
   "execution_log": {
@@ -261,7 +261,7 @@
     "trigger_retry_attempt": "重试 #{{attempt}}",
     "trigger_retry_attempt_prefix": "重试 #{{attempt}} · ",
     "trigger_retry_prefix": "重试 · ",
-    "trigger_autopilot": "自动化运行",
+    "trigger_autopilot": "定时任务运行",
     "trigger_comment": "评论触发",
     "trigger_initial": "首次运行",
     "status_queued": "排队中",
@@ -323,8 +323,8 @@
       "trigger_unassigned": "未分配",
       "search_placeholder": "分配给...",
       "members_group": "成员",
-      "agents_group": "智能体",
-      "squads_group": "小队"
+      "agents_group": "Agent",
+      "squads_group": "Teams"
     },
     "due_date": {
       "trigger_label": "截止日期",
@@ -363,12 +363,12 @@
     "delete_failed": "删除标签失败"
   },
   "backlog_hint": {
-    "title": "智能体在 backlog 状态下暂停",
-    "description": "这个 issue 处于待规划状态，被分配的智能体会等待。准备启动时把它移到 todo。",
+    "title": "Agent在 backlog 状态下暂停",
+    "description": "这个 issue 处于待规划状态，被分配的Agent会等待。准备启动时把它移到 todo。",
     "row_backlog_label": "Backlog",
-    "row_backlog_hint": "智能体保持暂停",
+    "row_backlog_hint": "Agent保持暂停",
     "row_todo_label": "Todo",
-    "row_todo_hint": "启动智能体",
+    "row_todo_hint": "启动Agent",
     "dont_show_again": "不再提示",
     "keep_in_backlog": "保持在 Backlog",
     "move_to_todo": "移到 Todo"

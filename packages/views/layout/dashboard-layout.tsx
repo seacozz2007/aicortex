@@ -1,18 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { SidebarProvider, SidebarInset } from "@aicortex/ui/components/ui/sidebar";
 import { ModalRegistry } from "../modals/registry";
-import { AppSidebar } from "./app-sidebar";
 import { DashboardGuard } from "./dashboard-guard";
 import { NavigationProgress } from "./navigation-progress";
 import { WorkspacePresencePrefetch } from "./workspace-presence-prefetch";
+import { TopNav } from "./top-nav";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  /** Rendered inside SidebarInset (e.g. ChatWindow, ChatFab — absolute-positioned overlays) */
+  /** Rendered as absolute-positioned overlays (e.g. ChatWindow, ChatFab) */
   extra?: ReactNode;
-  /** Rendered inside sidebar header as a search trigger */
+  /** @deprecated No longer used — search is in TopNav */
   searchSlot?: ReactNode;
   /** Loading indicator */
   loadingIndicator?: ReactNode;
@@ -21,7 +20,6 @@ interface DashboardLayoutProps {
 export function DashboardLayout({
   children,
   extra,
-  searchSlot,
   loadingIndicator,
 }: DashboardLayoutProps) {
   return (
@@ -32,18 +30,18 @@ export function DashboardLayout({
         </div>
       }
     >
-      <SidebarProvider defaultOpen={false} className="h-svh">
+      <div className="flex h-svh flex-col">
         <WorkspacePresencePrefetch />
-        <AppSidebar searchSlot={searchSlot} />
-        <SidebarInset className="relative overflow-hidden">
-          <NavigationProgress />
+        <TopNav />
+        <NavigationProgress />
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
           <div className="animate-page-enter flex min-h-0 flex-1 flex-col">
             {children}
           </div>
           <ModalRegistry />
           {extra}
-        </SidebarInset>
-      </SidebarProvider>
+        </main>
+      </div>
     </DashboardGuard>
   );
 }

@@ -62,8 +62,8 @@
         "description": "你订阅的 issue 优先级或截止日期变更时"
       },
       "agent_activity": {
-        "label": "智能体活动",
-        "description": "智能体 task 完成或失败时"
+        "label": "Agent活动",
+        "description": "Agent task 完成或失败时"
       }
     },
     "system": {
@@ -114,7 +114,7 @@
     "description_label": "描述",
     "description_placeholder": "这个工作区主要做什么？",
     "context_label": "上下文",
-    "context_placeholder": "供工作区中的智能体参考的背景信息和上下文",
+    "context_placeholder": "供工作区中的Agent参考的背景信息和上下文",
     "slug_label": "Slug",
     "save": "保存",
     "saving": "保存中...",
@@ -141,7 +141,7 @@
   },
   "delete_workspace_dialog": {
     "title": "删除工作区",
-    "description": "此操作不可撤销。所有 issue、智能体和数据都将被永久删除。",
+    "description": "此操作不可撤销。所有 issue、Agent和数据都将被永久删除。",
     "type_to_confirm_prefix": "确认请输入",
     "type_to_confirm_suffix": "。",
     "cancel": "取消",
@@ -151,10 +151,10 @@
   "labs": {
     "section_git": "Git",
     "co_authored_by_label": "Co-authored-by trailer",
-    "co_authored_by_description_prefix": "自动给智能体的 commit 加上",
+    "co_authored_by_description_prefix": "自动给Agent的 commit 加上",
     "co_authored_by_description_suffix": "。",
     "pinned_workdir_label": "固定项目工作目录",
-    "pinned_workdir_description": "每个项目的每个智能体使用固定的工作目录。任务完成后自动 commit 并 push，下次任务开始前自动 pull 最新代码。支持多智能体协作同一代码库。",
+    "pinned_workdir_description": "每个项目的每个Agent使用固定的工作目录。任务完成后自动 commit 并 push，下次任务开始前自动 pull 最新代码。支持多Agent协作同一代码库。",
     "toast_failed": "更新设置失败"
   },
   "integrations": {
@@ -175,7 +175,7 @@
   },
   "repositories": {
     "section_title": "代码仓库",
-    "description": "与该工作区关联的 Git 仓库。智能体会从这里 clone 代码并完成工作。",
+    "description": "与该工作区关联的 Git 仓库。Agent会从这里 clone 代码并完成工作。",
     "url_placeholder": "https://git.example.com/org/repo.git 或 git@git.example.com:org/repo.git",
     "url_empty": "（空 URL）",
     "description_placeholder": "描述（例如：Go 后端 + Next.js 前端）",

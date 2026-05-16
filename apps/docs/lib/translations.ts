@@ -35,7 +35,7 @@ export const homeCopy = {
   },
   zh: {
     eyebrow: "AICortex 文档",
-    titleLead: "人与智能体，",
+    titleLead: "人与Agent，",
     titleAccent: "共处一方。",
     byline: ["开始使用", "2026 年 4 月更新", "阅读约 6 分钟"],
   },
