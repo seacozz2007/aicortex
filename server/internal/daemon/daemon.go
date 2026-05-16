@@ -2039,8 +2039,9 @@ func (d *Daemon) handleTask(ctx context.Context, task Task, slot int) {
 	// Auto-commit and push any uncommitted changes the agent left behind.
 	// Best-effort: failures are logged but never block task completion.
 	// Enabled when pinned project workdir is active for this workspace.
+	// Skipped when using local_path (user manages their own directory).
 	pinnedEnabled := d.workspacePinnedProjectWorkdir(task.WorkspaceID) || d.cfg.PinnedProjectWorkdir
-	if result.Status == "completed" && result.WorkDir != "" && pinnedEnabled && task.ProjectID != "" {
+	if result.Status == "completed" && result.WorkDir != "" && pinnedEnabled && task.ProjectID != "" && extractLocalPath(task.ProjectResources) == "" {
 		agentName := "agent"
 		if task.Agent != nil {
 			agentName = task.Agent.Name
@@ -2223,10 +2224,30 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		openclawBin = entry.Path
 	}
 
-	// Pinned project workdir: when enabled in workspace labs settings and the
-	// task belongs to a project, use a fixed directory per (project, agent).
+	// Priority 1: local_path project resource — use the specified path directly.
+	// No git sync, no auto-commit. The user manages the directory themselves.
+	localPath := extractLocalPath(task.ProjectResources)
+	if localPath != "" {
+		taskLog.Info("using local_path project resource as workdir", "path", localPath)
+		env = execenv.Reuse(execenv.ReuseParams{
+			WorkDir:      localPath,
+			Provider:     provider,
+			CodexVersion: codexVersion,
+			OpenclawBin:  openclawBin,
+			Task:         taskCtx,
+		}, d.logger)
+		if env == nil {
+			// Directory might not have been used before — wrap it as a fresh env.
+			env = &execenv.Environment{
+				RootDir: localPath,
+				WorkDir: localPath,
+			}
+		}
+	}
+
+	// Priority 2: Pinned project workdir — fixed directory per (project, agent).
 	pinnedWorkdirEnabled := d.workspacePinnedProjectWorkdir(task.WorkspaceID) || d.cfg.PinnedProjectWorkdir
-	if pinnedWorkdirEnabled && task.ProjectID != "" {
+	if env == nil && pinnedWorkdirEnabled && task.ProjectID != "" {
 		pinnedDir, err := preparePinnedWorkdir(d.cfg.WorkspacesRoot, task.WorkspaceID, task.ProjectID, agentName, taskLog)
 		if err != nil {
 			return TaskResult{}, fmt.Errorf("prepare pinned workdir: %w", err)

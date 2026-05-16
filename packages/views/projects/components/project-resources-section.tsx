@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, FolderGit, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, FolderGit, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   projectResourcesOptions,
@@ -161,6 +161,21 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
                   setAddOpen(false);
                 }}
               />
+              <LocalPathForm
+                onSubmit={async (path) => {
+                  try {
+                    await createResource.mutateAsync({
+                      resource_type: "local_path",
+                      resource_ref: { path },
+                    });
+                    toast.success(t(($) => $.resources.toast_attached));
+                    setAddOpen(false);
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : t(($) => $.resources.toast_attach_failed);
+                    toast.error(msg);
+                  }
+                }}
+              />
             </PopoverContent>
           </Popover>
         </div>
@@ -196,6 +211,30 @@ function ResourceRow({
             }
           />
           <TooltipContent side="top">{ref.url}</TooltipContent>
+        </Tooltip>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="opacity-0 group-hover:opacity-100 transition-opacity rounded-sm p-0.5 hover:bg-accent"
+          title={t(($) => $.resources.remove_tooltip)}
+        >
+          <Trash2 className="size-3 text-muted-foreground" />
+        </button>
+      </div>
+    );
+  }
+  if (resource.resource_type === "local_path") {
+    const ref = resource.resource_ref as { path: string };
+    return (
+      <div className="flex items-center gap-2 text-xs group">
+        <FolderOpen className="size-3.5 text-muted-foreground shrink-0" />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span className="truncate flex-1">{resource.label || ref.path}</span>
+            }
+          />
+          <TooltipContent side="top">{ref.path}</TooltipContent>
         </Tooltip>
         <button
           type="button"
@@ -260,6 +299,49 @@ function CustomRepoForm({
         variant="ghost"
         className="h-6 px-2 text-xs"
         disabled={!url.trim() || submitting}
+      >
+        {t(($) => $.resources.url_submit)}
+      </Button>
+    </form>
+  );
+}
+
+function LocalPathForm({
+  onSubmit,
+}: {
+  onSubmit: (path: string) => Promise<void> | void;
+}) {
+  const { t } = useT("projects");
+  const [path, setPath] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const handle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = path.trim();
+    if (!trimmed) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(trimmed);
+      setPath("");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return (
+    <form onSubmit={handle} className="flex items-center gap-1.5 pt-1 border-t">
+      <FolderOpen className="size-3.5 text-muted-foreground shrink-0" />
+      <input
+        type="text"
+        value={path}
+        onChange={(e) => setPath(e.target.value)}
+        placeholder={t(($) => $.resources.local_path_placeholder)}
+        className="flex-1 bg-transparent text-xs px-2 py-1 outline-none placeholder:text-muted-foreground"
+      />
+      <Button
+        type="submit"
+        size="sm"
+        variant="ghost"
+        className="h-6 px-2 text-xs"
+        disabled={!path.trim() || submitting}
       >
         {t(($) => $.resources.url_submit)}
       </Button>

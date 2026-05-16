@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -118,4 +119,20 @@ func sanitizeAgentName(name string) string {
 		name = "agent"
 	}
 	return name
+}
+
+// extractLocalPath returns the path from the first local_path project resource,
+// or empty string if none exists.
+func extractLocalPath(resources []ProjectResourceData) string {
+	for _, r := range resources {
+		if r.ResourceType == "local_path" {
+			var payload struct {
+				Path string `json:"path"`
+			}
+			if err := json.Unmarshal(r.ResourceRef, &payload); err == nil && payload.Path != "" {
+				return payload.Path
+			}
+		}
+	}
+	return ""
 }

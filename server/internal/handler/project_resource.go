@@ -65,6 +65,8 @@ func validateAndNormalizeResourceRef(resourceType string, ref json.RawMessage) (
 	switch resourceType {
 	case "github_repo":
 		return validateGithubRepoRef(ref)
+	case "local_path":
+		return validateLocalPathRef(ref)
 	default:
 		return nil, fmt.Errorf("unknown resource_type %q", resourceType)
 	}
@@ -73,6 +75,26 @@ func validateAndNormalizeResourceRef(resourceType string, ref json.RawMessage) (
 type githubRepoRef struct {
 	URL                string `json:"url"`
 	DefaultBranchHint  string `json:"default_branch_hint,omitempty"`
+}
+
+type localPathRef struct {
+	Path string `json:"path"`
+}
+
+func validateLocalPathRef(ref json.RawMessage) (json.RawMessage, error) {
+	var payload localPathRef
+	if err := json.Unmarshal(ref, &payload); err != nil {
+		return nil, fmt.Errorf("invalid local_path payload: %w", err)
+	}
+	payload.Path = strings.TrimSpace(payload.Path)
+	if payload.Path == "" {
+		return nil, errors.New("local_path: path is required")
+	}
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func validateGithubRepoRef(ref json.RawMessage) (json.RawMessage, error) {

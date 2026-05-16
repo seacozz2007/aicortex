@@ -36,6 +36,16 @@ func formatProjectResource(r ProjectResourceForEnv) string {
 			out += " — " + label
 		}
 		return out
+	case "local_path":
+		var payload struct {
+			Path string `json:"path"`
+		}
+		_ = json.Unmarshal(r.ResourceRef, &payload)
+		out := fmt.Sprintf("**Local path**: `%s`", payload.Path)
+		if label != "" {
+			out += " — " + label
+		}
+		return out
 	default:
 		ref := string(r.ResourceRef)
 		if ref == "" {

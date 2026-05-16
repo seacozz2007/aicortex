@@ -70,6 +70,7 @@
     "remove_tooltip": "Remove",
     "url_placeholder": "https://github.com/owner/repo or git@github.com:owner/repo.git",
     "url_submit": "Add",
+    "local_path_placeholder": "/home/user/code/project",
     "toast_attached": "Repository attached",
     "toast_attach_failed": "Failed to attach",
     "toast_removed": "Resource removed",
