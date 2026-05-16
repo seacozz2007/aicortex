@@ -1,0 +1,85 @@
+# Self-hosting Docker Compose — starts PostgreSQL, backend, and frontend.
+#
+# Usage:
+#   cp .env.example .env
+#   # Edit .env — change JWT_SECRET at minimum
+#   docker compose -f docker-compose.selfhost.yml up -d
+#
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8080 (also used by CLI/daemon)
+
+name: aicortex
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aicortex}
+      POSTGRES_USER: ${POSTGRES_USER:-aicortex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aicortex}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aicortex} -d ${POSTGRES_DB:-aicortex}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${AICORTEX_BACKEND_IMAGE:-ghcr.io/aicortex/aicortex-backend}:${AICORTEX_IMAGE_TAG:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - backend_uploads:/app/data/uploads
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-aicortex}:${POSTGRES_PASSWORD:-aicortex}@postgres:5432/${POSTGRES_DB:-aicortex}?sslmode=disable
+      PORT: "8080"
+      METRICS_ADDR: ${METRICS_ADDR:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@aicortex.ai}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS_INSECURE: ${SMTP_TLS_INSECURE:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/callback}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-west-2}
+      CLOUDFRONT_DOMAIN: ${CLOUDFRONT_DOMAIN:-}
+      CLOUDFRONT_KEY_PAIR_ID: ${CLOUDFRONT_KEY_PAIR_ID:-}
+      CLOUDFRONT_PRIVATE_KEY: ${CLOUDFRONT_PRIVATE_KEY:-}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      APP_ENV: ${APP_ENV:-production}
+      AICORTEX_DEV_VERIFICATION_CODE: ${AICORTEX_DEV_VERIFICATION_CODE:-}
+      AICORTEX_APP_URL: ${AICORTEX_APP_URL:-http://localhost:3000}
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-true}
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
+      ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+    restart: unless-stopped
+
+  frontend:
+    image: ${AICORTEX_WEB_IMAGE:-ghcr.io/aicortex/aicortex-web}:${AICORTEX_IMAGE_TAG:-latest}
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      HOSTNAME: "0.0.0.0"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  backend_uploads:

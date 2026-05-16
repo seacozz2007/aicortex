@@ -1,0 +1,16 @@
+name: aicortex
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: aicortex
+      POSTGRES_USER: ${POSTGRES_USER:-aicortex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aicortex}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
