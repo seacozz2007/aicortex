@@ -72,11 +72,14 @@ export function MissionControlPage() {
 
   const chartData = useMemo(() => {
     if (!dailyData) return [];
-    // API returns UTC dates. Show last 14 entries and format as local short date.
-    return dailyData.slice(-14).map((d) => {
-      const localDate = new Date(d.date + "T00:00:00Z");
+    // Sort by date ascending, take last 14 days. Display date as M/D directly
+    // from the API (UTC-based). No timezone conversion — the backend aggregates
+    // by UTC day, so we show it as-is to avoid confusion.
+    const sorted = [...dailyData].sort((a, b) => a.date.localeCompare(b.date));
+    return sorted.slice(-14).map((d) => {
+      const [, m, day] = d.date.split("-");
       return {
-        date: `${localDate.getMonth() + 1}/${localDate.getDate()}`,
+        date: `${parseInt(m)}/${parseInt(day)}`,
         tasks: d.task_count,
         hours: +(d.total_seconds / 3600).toFixed(1),
       };

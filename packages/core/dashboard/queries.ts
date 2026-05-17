@@ -78,10 +78,11 @@ export function dashboardRunTimeDailyOptions(
   days: number,
   projectId: string | null,
 ) {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return queryOptions({
-    queryKey: dashboardKeys.runTimeDaily(wsId, days, projectId),
+    queryKey: [...dashboardKeys.runTimeDaily(wsId, days, projectId), tz],
     queryFn: () =>
-      api.getDashboardRunTimeDaily({ days, project_id: projectId ?? undefined }),
+      api.getDashboardRunTimeDaily({ days, project_id: projectId ?? undefined, tz }),
     enabled: !!wsId,
     staleTime: STALE_TIME,
   });

@@ -24,6 +24,7 @@ import {
   Key,
   SlidersHorizontal,
   LogOut,
+  Check,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,10 +36,13 @@ import {
   DropdownMenuTrigger,
 } from "@aicortex/ui/components/ui/dropdown-menu";
 import { AppLink, useNavigation } from "../navigation";
-import { useWorkspacePaths } from "@aicortex/core/paths";
+import { useWorkspacePaths, useCurrentWorkspace, paths } from "@aicortex/core/paths";
 import { useAuthStore } from "@aicortex/core/auth";
+import { useQuery } from "@tanstack/react-query";
+import { workspaceListOptions } from "@aicortex/core/workspace/queries";
 import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
 import { AICortexIcon } from "@aicortex/ui/components/common/aicortex-icon";
+import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { openCreateIssueWithPreference } from "@aicortex/core/issues/stores/create-mode-store";
 import { useSearchStore } from "../search/search-store";
 import { useLogout } from "../auth";
@@ -53,6 +57,8 @@ export function TopNav({ className }: TopNavProps) {
   const { pathname } = useNavigation();
   const p = useWorkspacePaths();
   const user = useAuthStore((s) => s.user);
+  const workspace = useCurrentWorkspace();
+  const { data: workspaces = [] } = useQuery(workspaceListOptions());
   const logout = useLogout();
 
   const navItems = [
@@ -68,11 +74,45 @@ export function TopNav({ className }: TopNavProps) {
 
   return (
     <header className={cn("flex h-12 shrink-0 items-center border-b bg-card px-4", className)}>
-      {/* Left: Logo + Nav */}
+      {/* Left: Logo + Workspace Switcher + Nav */}
       <div className="flex items-center gap-1">
         <AppLink href={p.home()}>
-          <AICortexIcon className="mr-3 size-5" />
+          <AICortexIcon className="mr-2 size-5" />
         </AppLink>
+
+        {/* Workspace Switcher */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="mr-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                <WorkspaceAvatar name={workspace?.name ?? "W"} size="sm" />
+                <span className="max-w-[120px] truncate">{workspace?.name}</span>
+                <ChevronDown className="size-3 text-muted-foreground" />
+              </button>
+            }
+          />
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{t(($) => $.sidebar.workspaces_label)}</DropdownMenuLabel>
+              {workspaces.map((ws) => (
+                <DropdownMenuItem
+                  key={ws.id}
+                  render={<AppLink href={paths.workspace(ws.slug).home()} />}
+                >
+                  <WorkspaceAvatar name={ws.name} size="sm" />
+                  <span className="flex-1 truncate">{ws.name}</span>
+                  {ws.id === workspace?.id && (
+                    <Check className="size-3.5 text-brand" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

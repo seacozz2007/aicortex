@@ -166,9 +166,10 @@ ORDER BY agent_id, model;
 -- completed_at (terminal time) — same anchor as ListDashboardAgentRunTime
 -- so the day boundaries line up with the per-agent run-time card. Only
 -- terminal tasks (completed or failed) with both started_at and
--- completed_at populated contribute.
+-- completed_at populated contribute. The @tz param (IANA zone name)
+-- controls day-boundary alignment so users see dates in their local time.
 SELECT
-    DATE(atq.completed_at) AS date,
+    DATE(atq.completed_at AT TIME ZONE @tz::text) AS date,
     COALESCE(
         SUM(EXTRACT(EPOCH FROM (atq.completed_at - atq.started_at)))::bigint,
         0
@@ -182,10 +183,10 @@ WHERE a.workspace_id = $1
   AND atq.status IN ('completed', 'failed')
   AND atq.started_at IS NOT NULL
   AND atq.completed_at IS NOT NULL
-  AND atq.completed_at >= DATE_TRUNC('day', @since::timestamptz)
+  AND atq.completed_at >= @since::timestamptz
   AND (sqlc.narg('project_id')::uuid IS NULL OR i.project_id = sqlc.narg('project_id'))
-GROUP BY DATE(atq.completed_at)
-ORDER BY DATE(atq.completed_at) DESC;
+GROUP BY DATE(atq.completed_at AT TIME ZONE @tz::text)
+ORDER BY DATE(atq.completed_at AT TIME ZONE @tz::text) DESC;
 
 -- name: ListDashboardAgentRunTime :many
 -- Per-agent total task run time and task count for the workspace, optionally

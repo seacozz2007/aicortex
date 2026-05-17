@@ -298,12 +298,17 @@ func (h *Handler) GetDashboardRunTimeDaily(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	since := parseSinceParam(r, 30)
+	tz := r.URL.Query().Get("tz")
+	if tz == "" {
+		tz = "UTC"
+	}
+	since := parseSinceParamInTZ(r, 30, tz)
 
 	rows, err := h.Queries.ListDashboardRunTimeDaily(r.Context(), db.ListDashboardRunTimeDailyParams{
 		WorkspaceID: parseUUID(workspaceID),
 		Since:       since,
 		ProjectID:   projectID,
+		Tz:          tz,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list daily runtime")
