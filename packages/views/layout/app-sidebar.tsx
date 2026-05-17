@@ -35,6 +35,7 @@ import {
   Zap,
   Users,
   Home,
+  Building2,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
@@ -111,6 +112,7 @@ type NavKey =
   | "projects"
   | "autopilots"
   | "agents"
+  | "office"
   | "squads"
   | "usage"
   | "runtimes"
@@ -126,6 +128,7 @@ type NavLabelKey =
   | "projects"
   | "autopilots"
   | "agents"
+  | "office"
   | "squads"
   | "usage"
   | "runtimes"
@@ -143,6 +146,7 @@ const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[]
   { key: "projects", labelKey: "projects", icon: FolderKanban },
   { key: "autopilots", labelKey: "autopilots", icon: Zap },
   { key: "agents", labelKey: "agents", icon: Bot },
+  { key: "office", labelKey: "office", icon: Building2 },
   { key: "squads", labelKey: "squads", icon: Users },
   { key: "usage", labelKey: "usage", icon: BarChart3 },
 ];
