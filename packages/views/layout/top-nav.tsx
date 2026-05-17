@@ -26,6 +26,7 @@ import {
   LogOut,
   Check,
   MessageSquare,
+  Plus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -48,6 +49,7 @@ import { openCreateIssueWithPreference } from "@aicortex/core/issues/stores/crea
 import { useSearchStore } from "../search/search-store";
 import { useLogout } from "../auth";
 import { useT } from "../i18n";
+import { useModalStore } from "@aicortex/core/modals";
 
 interface TopNavProps {
   className?: string;
@@ -110,6 +112,12 @@ export function TopNav({ className }: TopNavProps) {
                   )}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem
+                onClick={() => useModalStore.getState().open("create-workspace")}
+              >
+                <Plus className="size-3.5" />
+                {t(($) => $.sidebar.create_workspace)}
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

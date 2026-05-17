@@ -488,7 +488,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                   }
                 />
                 <DropdownMenuContent
-                  className="w-auto min-w-56"
+                  className="w-auto min-w-56 max-h-[70vh] overflow-y-auto"
                   align="start"
                   side="bottom"
                   sideOffset={4}
