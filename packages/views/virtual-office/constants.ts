@@ -6,52 +6,52 @@ export interface Position {
 }
 
 /** Canvas dimensions (logical pixels, rendered at 2x). */
-export const CANVAS_WIDTH = 640;
-export const CANVAS_HEIGHT = 400;
-export const CANVAS_SCALE = 2;
+export const CANVAS_WIDTH = 960;
+export const CANVAS_HEIGHT = 600;
+export const CANVAS_SCALE = 1.5;
 
 /** Zone bounding boxes. */
 export const ZONES = {
-  meeting: { x: 30, y: 95, w: 170, h: 200 },
-  workspace: { x: 215, y: 95, w: 250, h: 200 },
-  lounge: { x: 480, y: 95, w: 135, h: 200 },
+  meeting: { x: 45, y: 142, w: 255, h: 300 },
+  workspace: { x: 322, y: 142, w: 375, h: 300 },
+  lounge: { x: 720, y: 142, w: 202, h: 300 },
 } as const;
 
 /** Fixed desk positions (3×3 grid). */
 export const DESKS: Position[] = [];
 for (let r = 0; r < 3; r++)
   for (let c = 0; c < 3; c++)
-    DESKS.push({ x: 255 + c * 80, y: 125 + r * 65 });
+    DESKS.push({ x: 382 + c * 120, y: 187 + r * 97 });
 
 export const MAX_DESKS = DESKS.length;
 
 /** Lounge rest spots. */
 export const LOUNGE_SPOTS: Position[] = [
-  { x: 510, y: 140 },
-  { x: 555, y: 160 },
-  { x: 520, y: 200 },
-  { x: 560, y: 230 },
-  { x: 530, y: 265 },
+  { x: 765, y: 210 },
+  { x: 832, y: 240 },
+  { x: 780, y: 300 },
+  { x: 840, y: 345 },
+  { x: 795, y: 397 },
 ];
 
 /** Meeting room seats (leader + 5 members). */
 export const MEETING_SPOTS: Position[] = [
-  { x: 65, y: 155 },
-  { x: 110, y: 155 },
-  { x: 155, y: 155 },
-  { x: 65, y: 210 },
-  { x: 110, y: 210 },
-  { x: 155, y: 210 },
+  { x: 97, y: 232 },
+  { x: 165, y: 232 },
+  { x: 232, y: 232 },
+  { x: 97, y: 315 },
+  { x: 165, y: 315 },
+  { x: 232, y: 315 },
 ];
 
 /** Outside / door position for offline agents. */
-export const OUTSIDE: Position = { x: 320, y: 380 };
+export const OUTSIDE: Position = { x: 480, y: 570 };
 
 /** Waypoint nodes for routing between zones. */
-const DESK_EXIT: Position = { x: 340, y: 280 };
-const LOUNGE_ENTRY: Position = { x: 480, y: 200 };
-const MEETING_ENTRY: Position = { x: 200, y: 180 };
-const CORRIDOR_MID: Position = { x: 340, y: 300 };
+const DESK_EXIT: Position = { x: 510, y: 420 };
+const LOUNGE_ENTRY: Position = { x: 720, y: 300 };
+const MEETING_ENTRY: Position = { x: 300, y: 270 };
+const CORRIDOR_MID: Position = { x: 510, y: 450 };
 
 export type ZoneId = "desks" | "lounge" | "meeting" | "outside";
 
@@ -78,7 +78,7 @@ export const TIMING = {
   /** Minimum time an agent stays in a state before transitioning. */
   MIN_STAY_MS: 500,
   /** Agent movement speed (pixels per frame at 60fps). */
-  MOVE_SPEED: 1.8,
+  MOVE_SPEED: 2.7,
   /** Bubble display duration (frames). */
   BUBBLE_DURATION: 100,
   /** Meeting heuristic: seconds leader must be working + members queued. */

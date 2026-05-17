@@ -194,7 +194,7 @@ function drawAgent(ctx: CanvasRenderingContext2D, agent: AgentSpriteData) {
   ctx.globalAlpha = 1;
 
   // Name tag
-  ctx.font = "7px monospace";
+  ctx.font = "11px monospace";
   const tw = ctx.measureText(agent.name).width;
   ctx.fillStyle = "rgba(0,0,0,0.7)";
   ctx.fillRect(x - tw / 2 - 2, y + 4, tw + 4, 9);
@@ -204,10 +204,11 @@ function drawAgent(ctx: CanvasRenderingContext2D, agent: AgentSpriteData) {
 
   // Bubble
   if (agent.bubble && agent.bubble.timer > 0) {
-    const by = y - 30;
+    const by = y - 34;
     const bText = agent.bubble.text;
-    const bw = bText ? Math.max(14, ctx.measureText(bText).width + 8) : 14;
-    const bh = bText ? 20 : 11;
+    ctx.font = "12px monospace";
+    const bw = bText ? Math.max(18, ctx.measureText(bText).width + 12) : 18;
+    const bh = bText ? 26 : 16;
     ctx.fillStyle = "rgba(20,20,40,0.9)";
     ctx.fillRect(x - bw / 2, by - bh / 2 - 2, bw, bh);
     ctx.fillStyle = "rgba(127,219,202,0.6)";
@@ -215,13 +216,13 @@ function drawAgent(ctx: CanvasRenderingContext2D, agent: AgentSpriteData) {
     ctx.fillStyle = "rgba(20,20,40,0.9)";
     ctx.fillRect(x - 1, by + bh / 2 - 2, 3, 4);
     ctx.fillStyle = "#fff";
-    ctx.font = "8px monospace";
+    ctx.font = "12px monospace";
     ctx.textAlign = "center";
     ctx.fillText(agent.bubble.emoji, x, by - (bText ? 2 : 0));
     if (bText) {
       ctx.fillStyle = "#7fdbca";
-      ctx.font = "6px monospace";
-      ctx.fillText(bText, x, by + 7);
+      ctx.font = "11px monospace";
+      ctx.fillText(bText, x, by + 9);
     }
   }
 }
@@ -237,13 +238,13 @@ interface FurnitureItem {
 
 const FURNITURE: FurnitureItem[] = [
   ...DESKS.map((d) => ({ type: "desk" as const, x: d.x, y: d.y, sortY: d.y + 14 })),
-  { type: "whiteboard", x: 110, y: 130, sortY: 145 },
-  { type: "sofa", x: 520, y: 150, sortY: 158 },
-  { type: "sofa", x: 545, y: 250, sortY: 258 },
-  { type: "coffee", x: 580, y: 125, sortY: 133 },
-  { type: "plant", x: 35, y: 275, sortY: 283 },
-  { type: "plant", x: 600, y: 275, sortY: 283 },
-  { type: "plant", x: 195, y: 110, sortY: 118 },
+  { type: "whiteboard", x: 165, y: 195, sortY: 217 },
+  { type: "sofa", x: 780, y: 225, sortY: 237 },
+  { type: "sofa", x: 817, y: 375, sortY: 387 },
+  { type: "coffee", x: 870, y: 187, sortY: 199 },
+  { type: "plant", x: 52, y: 412, sortY: 424 },
+  { type: "plant", x: 900, y: 412, sortY: 424 },
+  { type: "plant", x: 292, y: 165, sortY: 177 },
 ];
 
 const DRAW_FURNITURE: Record<FurnitureItem["type"], (ctx: CanvasRenderingContext2D, x: number, y: number) => void> = {
@@ -281,7 +282,7 @@ export function renderFrame(
 
   // Zone labels
   ctx.fillStyle = "rgba(255,255,255,0.2)";
-  ctx.font = "9px monospace";
+  ctx.font = "12px monospace";
   ctx.textAlign = "center";
   ctx.fillText("MEETING", ZONES.meeting.x + ZONES.meeting.w / 2, ZONES.meeting.y + ZONES.meeting.h + 12);
   ctx.fillText("WORKSPACE", ZONES.workspace.x + ZONES.workspace.w / 2, ZONES.workspace.y + ZONES.workspace.h + 12);
@@ -304,17 +305,17 @@ export function renderFrame(
 
   // HUD bar
   ctx.fillStyle = "rgba(0,0,0,0.8)";
-  ctx.fillRect(0, 385, CANVAS_WIDTH, 15);
+  ctx.fillRect(0, CANVAS_HEIGHT - 20, CANVAS_WIDTH, 20);
   ctx.fillStyle = "#7fdbca";
-  ctx.font = "9px monospace";
+  ctx.font = "12px monospace";
   ctx.textAlign = "left";
   const working = sprites.filter((s) => s.state === "working" || s.state === "meeting").length;
   const idle = sprites.filter((s) => s.state === "idle" || s.state === "waiting" || s.state === "celebrating").length;
   const offline = sprites.filter((s) => s.state === "offline").length;
   ctx.fillText(
     `⚡ Working: ${working}   ☕ Idle: ${idle}   💤 Offline: ${offline}   👥 Total: ${sprites.length}`,
-    12,
-    395,
+    16,
+    CANVAS_HEIGHT - 6,
   );
 }
 

@@ -52,23 +52,25 @@ export function VirtualOfficePage() {
     }
   }, [agents]);
 
-  // Animation loop
+  // Animation loop — re-run when loading changes (canvas may mount/unmount)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    let running = true;
     function loop() {
+      if (!running) return;
       const sprites = Array.from(spritesRef.current.values());
-      for (const s of sprites) tickSprite(s);
+      for (const s of sprites) tickSprite(s, sprites);
       renderFrame(ctx!, sprites);
       rafRef.current = requestAnimationFrame(loop);
     }
 
     rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+  }, [loading]);
 
   // Mouse hover for tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

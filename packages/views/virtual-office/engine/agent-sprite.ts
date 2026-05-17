@@ -1,5 +1,5 @@
 /**
- * Agent sprite state machine + waypoint-based movement.
+ * Agent sprite state machine + waypoint-based movement + idle behaviors.
  * Pure logic — no rendering. Consumed by the canvas renderer.
  */
 
@@ -7,9 +7,21 @@ import {
   WAYPOINTS,
   OUTSIDE,
   TIMING,
+  LOUNGE_SPOTS,
   type Position,
   type ZoneId,
 } from "../constants";
+import {
+  pickTaskStart,
+  pickTaskComplete,
+  pickIdleChatter,
+  pickArgument,
+  pickWatchingTV,
+  pickLookingAtPlant,
+  pickMeetingStart,
+  pickOnline,
+  pickOffline,
+} from "./phrases";
 
 export type SpriteState =
   | "idle"
@@ -37,114 +49,142 @@ export interface AgentSpriteData {
   opacity: number;
   frame: number;
   bubble: Bubble | null;
-  /** Internal: path waypoints being traversed. */
   path: Position[] | null;
   pathIdx: number;
-  /** Internal: minimum-stay timer (frames remaining). */
   stayTimer: number;
+  /** Countdown to next idle behavior (frames). */
+  idleTimer: number;
+  /** Previous zone — used to detect transitions for bubbles. */
+  prevZone: ZoneId;
 }
 
-/** Resolve the sprite state from zone. */
 function zoneToState(zone: ZoneId): SpriteState {
   switch (zone) {
-    case "desks":
-      return "working";
-    case "lounge":
-      return "idle";
-    case "meeting":
-      return "meeting";
-    case "outside":
-      return "offline";
+    case "desks": return "working";
+    case "lounge": return "idle";
+    case "meeting": return "meeting";
+    case "outside": return "offline";
   }
 }
 
-/** Build the full waypoint path from current position to target. */
-function buildPath(
-  from: Position,
-  fromZone: ZoneId,
-  toZone: ZoneId,
-  target: Position,
-): Position[] {
+function buildPath(from: Position, fromZone: ZoneId, toZone: ZoneId, target: Position): Position[] {
   const key = `${fromZone}→${toZone}`;
   const waypoints = WAYPOINTS[key] ?? [];
   return [from, ...waypoints, target];
 }
 
-/** Create initial sprite data for an agent. */
+/** Random idle timer: 300–900 frames (~5–15s at 60fps). */
+function randomIdleTimer(): number {
+  return 300 + Math.floor(Math.random() * 600);
+}
+
 export function createSprite(
-  id: string,
-  name: string,
-  color: string,
-  zone: ZoneId,
-  target: Position,
+  id: string, name: string, color: string, zone: ZoneId, target: Position,
 ): AgentSpriteData {
   const pos = zone === "outside" ? OUTSIDE : target;
   return {
-    id,
-    name,
-    color,
-    x: pos.x,
-    y: pos.y,
+    id, name, color,
+    x: pos.x, y: pos.y,
     state: zoneToState(zone),
-    zone,
+    zone, prevZone: zone,
     opacity: zone === "outside" ? 0.4 : 1,
     frame: (Math.random() * 100) | 0,
     bubble: null,
-    path: null,
-    pathIdx: 0,
+    path: null, pathIdx: 0,
     stayTimer: 0,
+    idleTimer: randomIdleTimer(),
   };
 }
 
-/** Trigger a zone transition for a sprite. */
-export function transitionSprite(
-  sprite: AgentSpriteData,
-  newZone: ZoneId,
-  target: Position,
-): void {
+/** Trigger a zone transition with contextual bubble phrases. */
+export function transitionSprite(sprite: AgentSpriteData, newZone: ZoneId, target: Position): void {
   if (sprite.zone === newZone) {
-    // Same zone, just update target if needed
-    if (sprite.path === null) {
-      sprite.x = target.x;
-      sprite.y = target.y;
-    }
+    if (sprite.path === null) { sprite.x = target.x; sprite.y = target.y; }
     return;
   }
 
-  // Offline is high-priority — interrupt immediately
+  const oldZone = sprite.zone;
+  sprite.prevZone = oldZone;
+
+  // Offline — high priority interrupt
   if (newZone === "outside") {
-    sprite.bubble = { emoji: "💤", text: "Disconnected", timer: TIMING.BUBBLE_DURATION };
-    sprite.path = buildPath({ x: sprite.x, y: sprite.y }, sprite.zone, "outside", OUTSIDE);
+    sprite.bubble = { emoji: "💤", text: pickOffline(), timer: TIMING.BUBBLE_DURATION };
+    sprite.path = buildPath({ x: sprite.x, y: sprite.y }, oldZone, "outside", OUTSIDE);
     sprite.pathIdx = 1;
     sprite.zone = "outside";
     return;
   }
 
-  // If still in min-stay, queue will be handled by caller debounce
   if (sprite.stayTimer > 0 && sprite.path === null) return;
 
-  // Build path and start walking
-  const bubbles: Record<ZoneId, Bubble | null> = {
-    desks: { emoji: "📋", timer: 80 },
-    lounge: null,
-    meeting: { emoji: "🗣", timer: 80 },
-    outside: null,
-  };
+  // Contextual bubbles based on transition direction
+  if (newZone === "desks" && oldZone === "lounge") {
+    // Starting work
+    sprite.bubble = { emoji: "💪", text: pickTaskStart(), timer: TIMING.BUBBLE_DURATION };
+  } else if (newZone === "lounge" && oldZone === "desks") {
+    // Finished work
+    sprite.state = "celebrating";
+    sprite.bubble = { emoji: "✅", text: pickTaskComplete(), timer: TIMING.BUBBLE_DURATION };
+  } else if (newZone === "meeting") {
+    sprite.bubble = { emoji: "🗣", text: pickMeetingStart(), timer: 80 };
+  } else if (newZone === "desks" && oldZone === "outside") {
+    sprite.bubble = { emoji: "🟢", text: pickOnline(), timer: 80 };
+  }
 
-  sprite.bubble = bubbles[newZone];
-  sprite.path = buildPath({ x: sprite.x, y: sprite.y }, sprite.zone, newZone, target);
+  sprite.path = buildPath({ x: sprite.x, y: sprite.y }, oldZone, newZone, target);
   sprite.pathIdx = 1;
   sprite.zone = newZone;
 }
 
-/** Show a celebration bubble (task completed). */
-export function celebrateSprite(sprite: AgentSpriteData): void {
-  sprite.state = "celebrating";
-  sprite.bubble = { emoji: "✅", text: "Done!", timer: TIMING.BUBBLE_DURATION };
+/** Trigger idle behavior on a sprite. Called by the idle behavior system. */
+function triggerIdleBehavior(sprite: AgentSpriteData, allSprites: AgentSpriteData[]): void {
+  if (sprite.bubble) return; // Don't interrupt existing bubble
+
+  const roll = Math.random();
+
+  if (roll < 0.3) {
+    // Chatter
+    sprite.bubble = { emoji: "💬", text: pickIdleChatter(), timer: 120 };
+  } else if (roll < 0.45) {
+    // Argument with another idle agent — move closer first
+    const others = allSprites.filter(
+      (s) => s.id !== sprite.id && s.zone === "lounge" && !s.bubble && !s.path,
+    );
+    if (others.length > 0) {
+      const target = others[Math.floor(Math.random() * others.length)]!;
+      const [line1, line2] = pickArgument();
+      // Move both toward midpoint
+      const midX = (sprite.x + target.x) / 2;
+      const midY = (sprite.y + target.y) / 2;
+      sprite.path = [{ x: sprite.x, y: sprite.y }, { x: midX - 12, y: midY }];
+      sprite.pathIdx = 1;
+      target.path = [{ x: target.x, y: target.y }, { x: midX + 12, y: midY }];
+      target.pathIdx = 1;
+      // Show bubbles (slightly delayed via shorter timer offset)
+      sprite.bubble = { emoji: "😤", text: line1, timer: 160 };
+      target.bubble = { emoji: "😡", text: line2, timer: 130 };
+    } else {
+      sprite.bubble = { emoji: "💬", text: pickIdleChatter(), timer: 120 };
+    }
+  } else if (roll < 0.55) {
+    // Watch TV
+    sprite.bubble = { emoji: "📺", text: pickWatchingTV(), timer: 100 };
+  } else if (roll < 0.65) {
+    // Look at plant
+    sprite.bubble = { emoji: "🌱", text: pickLookingAtPlant(), timer: 90 };
+  } else if (roll < 0.85) {
+    // Wander — small random movement within lounge
+    const spot = LOUNGE_SPOTS[Math.floor(Math.random() * LOUNGE_SPOTS.length)]!;
+    const jitterX = spot.x + (Math.random() - 0.5) * 20;
+    const jitterY = spot.y + (Math.random() - 0.5) * 16;
+    sprite.path = [{ x: sprite.x, y: sprite.y }, { x: jitterX, y: jitterY }];
+    sprite.pathIdx = 1;
+  }
+  // else: do nothing this cycle
 }
 
 /** Advance sprite one frame. Call at 60fps. */
-export function tickSprite(sprite: AgentSpriteData): void {
+export function tickSprite(sprite: AgentSpriteData, allSprites: AgentSpriteData[]): void {
   sprite.frame++;
 
   // Tick bubble
@@ -155,6 +195,15 @@ export function tickSprite(sprite: AgentSpriteData): void {
 
   // Tick stay timer
   if (sprite.stayTimer > 0) sprite.stayTimer--;
+
+  // Idle behavior timer (only when settled in lounge)
+  if (sprite.zone === "lounge" && !sprite.path && sprite.state === "idle") {
+    sprite.idleTimer--;
+    if (sprite.idleTimer <= 0) {
+      triggerIdleBehavior(sprite, allSprites);
+      sprite.idleTimer = randomIdleTimer();
+    }
+  }
 
   // Move along path
   if (sprite.path && sprite.pathIdx < sprite.path.length) {
@@ -168,11 +217,10 @@ export function tickSprite(sprite: AgentSpriteData): void {
       sprite.y = target.y;
       sprite.pathIdx++;
       if (sprite.pathIdx >= sprite.path.length) {
-        // Arrived
         sprite.path = null;
         sprite.state = zoneToState(sprite.zone);
         sprite.opacity = sprite.zone === "outside" ? 0.4 : 1;
-        sprite.stayTimer = (TIMING.MIN_STAY_MS / 16) | 0; // ~30 frames
+        sprite.stayTimer = (TIMING.MIN_STAY_MS / 16) | 0;
       }
     } else {
       const spd = TIMING.MOVE_SPEED;
@@ -182,9 +230,7 @@ export function tickSprite(sprite: AgentSpriteData): void {
       sprite.opacity = 1;
     }
   } else if (!sprite.path) {
-    // Settled — ensure correct state
     if (sprite.state === "celebrating") {
-      // Stay celebrating until bubble expires
       if (!sprite.bubble) sprite.state = zoneToState(sprite.zone);
     } else {
       sprite.state = zoneToState(sprite.zone);
