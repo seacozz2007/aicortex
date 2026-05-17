@@ -1,4 +1,4 @@
-/** Phrase picker utilities — reads from data/phrases.ts */
+/** Phrase picker utilities */
 
 import {
   TASK_START_PHRASES,
@@ -10,7 +10,7 @@ import {
   MEETING_START_PHRASES,
   ONLINE_PHRASES,
   OFFLINE_PHRASES,
-} from "../data/phrases";
+} from "./phrase-data";
 
 function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
