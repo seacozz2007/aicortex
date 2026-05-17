@@ -1,166 +1,227 @@
 # Production Build & Deployment
 
-AICortex 分为两部分：**Server**（中心化服务）和 **Client**（Agent 执行节点）。
+AICortex 分为两部分：**Server**（Go 后端 + Next.js 前端 + PostgreSQL）和 **Client**（本机 Daemon + Agent CLI）。
+
+本地改代码、调试用 [DEV.md](DEV.md)。本文说明 **开发模式与生产部署的区别**，以及云服务器 / 公网 IP 要注意的配置。
 
 ---
 
-## Server（服务端）
+## 开发 vs 生产（先看这张表）
 
-服务端包含 Go Backend + Next.js Frontend + PostgreSQL。
+| | **开发** | **生产 / 正常对外部署** |
+|---|----------|-------------------------|
+| 典型命令 | `make setup` → `make start` 或 `make dev` | `make selfhost` / `make selfhost-build`，或 `pnpm build` + `pnpm start` |
+| 前端 | `next dev`（Turbopack） | `next build` + `next start` |
+| 后端 | `go run ./cmd/server` | `server/bin/server` 或 Docker 镜像 |
+| 热更新 HMR | **有**（`/_next/webpack-hmr`） | **无** |
+| 适用场景 | 本机或内网改代码 | 云服务器、公网域名、长期运行 |
 
-### 快速启动
+> **常见误区**：`make start` 不是生产部署。它启动的是 **dev 模式**，用公网 IP 访问时 Console 可能出现 `webpack-hmr` WebSocket 报错，属正常现象（见下文 [公网 IP 访问](#公网-ip--云服务器)）。
+
+### Make 命令对照
+
+| 命令 | 作用 | 是否启动服务 |
+|------|------|----------------|
+| `make setup` | 安装依赖、确保 Postgres、跑迁移 | 否 |
+| `make start` | 开发模式：迁移 + `go run` 后端 + `pnpm dev:web` | 是（dev） |
+| `make dev` | 同 `scripts/dev.sh`，效果类似 `make start` | 是（dev） |
+| `make stop` | 停止本机 8080 / 3000 进程 | — |
+| `make build` | 编译 Go → `server/bin/`（不含前端 dev） | 否 |
+| `make selfhost` | Docker 拉官方镜像并启动全栈 | 是（生产） |
+| `make selfhost-build` | 从当前源码构建 Docker 镜像并启动 | 是（生产） |
+
+`make start` 打印的 `Backend: http://localhost:8080` 只是**固定提示文案**，不表示 `.env` 里的 `FRONTEND_ORIGIN` 无效；对外仍可用 `http://<公网IP>:3000` 访问（需安全组放行 3000 / 8080）。
+
+---
+
+## Server：生产部署
+
+### 方式 A — Docker（推荐，云服务器首选）
 
 ```bash
-make db-up                              # 启动 PostgreSQL
-cd server && go run ./cmd/migrate up    # 运行数据库迁移
-make start                              # 启动 Backend + Frontend
+cp .env.example .env   # 编辑 JWT_SECRET、FRONTEND_ORIGIN、邮件等
+make selfhost          # 拉 GHCR 镜像并启动
+# 若镜像未发布：
+make selfhost-build
 ```
 
-### 构建
+停止：`make selfhost-stop`
+
+### 方式 B — 本机构建后运行（裸机）
 
 ```bash
-# Frontend
-pnpm install && pnpm build
+make db-up
+cp .env.example .env   # 按需编辑
 
-# Backend
-cd server
-go build -o bin/aicortex-server ./cmd/server
+pnpm install
+make build             # Go → server/bin/server、migrate、aicortex
+pnpm build             # 前端生产包 → apps/web/.next
+
+server/bin/migrate up
+server/bin/server &    # 后端 :8080
+
+cd apps/web && pnpm start   # 前端生产模式 :3000（不是 next dev）
 ```
 
-### 运行
+停止进程：`make stop`（不关闭 Docker 里的 Postgres）。
 
-```bash
-# 方式 1: make
-make start                    # 启动 (Backend :8080 + Frontend :3000)
-make stop                     # 停止
-
-# 方式 2: Docker 自建
-make selfhost-build           # 从源码构建镜像 + 启动全栈
-make selfhost-stop            # 停止
-
-# 方式 3: 手动
-cd server && ./bin/aicortex-server          # Backend
-cd apps/web && node .next/standalone/server.js   # Frontend
-```
-
-### 环境变量 (.env)
+### 生产环境变量（`.env` 要点）
 
 ```env
 DATABASE_URL=postgres://aicortex:aicortex@localhost:5432/aicortex?sslmode=disable
 PORT=8080
 FRONTEND_PORT=3000
-JWT_SECRET=<random-32-chars>
-ENCRYPTION_KEY=<random-32-chars>
+JWT_SECRET=<随机字符串，务必修改>
+
+# 对外访问的完整 URL（不要用 localhost）
+FRONTEND_ORIGIN=http://<你的公网IP或域名>:3000
+CORS_ALLOWED_ORIGINS=http://<你的公网IP或域名>:3000
+ALLOWED_ORIGINS=http://<你的公网IP或域名>:3000
+
+# 浏览器直连后端 WebSocket（实时功能；dev 用公网 IP 时尤其需要）
+NEXT_PUBLIC_WS_URL=ws://<你的公网IP或域名>:8080/ws
+
+# 上传文件外链（勿写 localhost）
+LOCAL_UPLOAD_BASE_URL=http://<你的公网IP或域名>:8080
+
+# CLI / Daemon（在 Agent 机器上配置，可与 Server 同机）
+AICORTEX_APP_URL=http://<你的公网IP或域名>:3000
+AICORTEX_SERVER_URL=ws://<你的公网IP或域名>:8080/ws
+```
+
+生产环境 **不要** 设置 `AICORTEX_DEV_VERIFICATION_CODE`（固定验证码仅用于私有本地开发）。
+
+更多变量见 [SELF_HOSTING.md](SELF_HOSTING.md)、[SELF_HOSTING_ADVANCED.md](SELF_HOSTING_ADVANCED.md)。
+
+### 公网 IP / 云服务器
+
+1. **不要用 `make start` 对外提供服务** — 用上一节的 Docker 或 `pnpm build` + `pnpm start`。
+2. 安全组放行 **3000**（Web）、**8080**（API / WebSocket）。
+3. 若坚持用 `make start`（仅临时调试）：
+   - `.env` 设置 `FRONTEND_ORIGIN` 与 `CORS_ALLOWED_ORIGINS` 为公网 URL；
+   - 修改后必须 `make stop` 再 `make start`；
+   - Console 里 `/_next/webpack-hmr` 失败一般**不影响登录**，可忽略。
+4. 登录页「继续」灰色：多为浏览器自动填充未触发 React 状态，请**手输邮箱**再点。
+
+### 健康检查
+
+```bash
+curl http://localhost:8080/health              # 后端（公网同理换 IP）
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login   # 前端
+curl http://localhost:3000/api/config          # 经前端代理的后端配置
 ```
 
 ### 数据库
 
 ```bash
-make db-up                    # 启动 PostgreSQL 容器
-make db-down                  # 停止
-make db-reset                 # 重置（删库 + 重建 + 迁移）
-cd server && go run ./cmd/migrate up    # 仅运行迁移
-```
-
-### 健康检查
-
-```bash
-curl http://localhost:8080/api/health    # Backend
-curl http://localhost:3000               # Frontend
+make db-up
+make db-down
+make db-reset                 # 删库重建 + 迁移
+server/bin/migrate up         # 仅迁移（生产常用）
 ```
 
 ---
 
-## Client（客户端 / Agent 执行节点）
+## Server：开发模式（简要）
 
-Client 是 Daemon 进程，运行在有 AI CLI 的机器上（开发者笔记本、CI Runner、云 VM）。它连接 Server，领取任务，调用 Agent CLI 执行。
-
-### 构建
+仅在本机或内网改代码时使用；细节见 [DEV.md](DEV.md)。
 
 ```bash
-cd server
-go build -o bin/aicortex ./cmd/aicortex
+make setup      # 一次性：依赖 + DB + 迁移
+make start      # 或 make dev
 ```
 
-### 首次配置
+- 前端：`next dev`，有 HMR。
+- 后端：`go run ./cmd/server`。
+- 可选：`AICORTEX_DEV_VERIFICATION_CODE=888888` + `APP_ENV=development`（仅私有环境）。
+
+---
+
+## Client（Agent 执行节点）
+
+Daemon 跑在装有 Agent CLI 的机器上，连接已部署的 Server。
+
+### 构建 CLI
 
 ```bash
-# 连接 AICortex Cloud（默认）
-aicortex setup
-
-# 连接自建 Server
-aicortex setup self-host --server-url http://your-server:8080
-
-# 或通过环境变量
-export AICORTEX_SERVER_URL=http://your-server:8080
-aicortex setup self-host
-
-# 或通过 config 命令
-aicortex config set server_url http://your-server:8080
+make build    # → server/bin/aicortex
 ```
+
+### 首次配置（自建 Server，一行示例）
+
+```bash
+server/bin/aicortex setup self-host --server-url http://<Server地址>:8080 --app-url http://<Server地址>:3000
+```
+
+提示 `Current configuration: localhost...` 是**旧配置预览**，输入 `y` 后才会写入新地址。`--server-url` / `--app-url` **必须带端口**。
+
+CLI 与浏览器不在同一台机器时，在本机 CLI 上加：`--callback-host localhost`（或本机局域网 IP）。
 
 ### 运行
 
 ```bash
-# 后台模式
-aicortex daemon start
-
-# 前台模式（适合 systemd / supervisor）
-aicortex daemon start --foreground
-
-# 查看状态
-aicortex daemon status
+server/bin/aicortex daemon start
+server/bin/aicortex daemon status
 ```
 
-### 健康检查
+### Daemon 健康检查
 
 ```bash
 curl http://localhost:19514/health
 ```
 
-### 前提条件
-
-Client 机器上需要安装至少一个 Agent CLI：
-- `kiro-cli`
-- `claude` (Claude Code)
-- `codex`
-- `copilot`
-- 其他支持的 CLI
-
-Daemon 启动时自动检测 PATH 上的可用 CLI。
+机器上需至少安装一种 Agent CLI（`claude`、`codex`、`copilot` 等，在 `PATH` 中）。
 
 ---
 
 ## 常用命令汇总
 
-| 命令 | 说明 | 角色 |
+| 命令 | 模式 | 说明 |
 |------|------|------|
-| `make dev` | 一键开发环境 | Server |
-| `make build` | 构建前后端 | Server |
-| `make start` / `make stop` | 启动/停止服务 | Server |
-| `make db-up` / `make db-down` | 启动/停止数据库 | Server |
-| `make selfhost-build` | Docker 自建部署 | Server |
-| `aicortex setup` | 首次配置 | Client |
-| `aicortex daemon start` | 启动 Daemon | Client |
-| `aicortex daemon status` | 查看 Daemon 状态 | Client |
+| `make setup` | — | 准备环境，不启动 |
+| `make start` / `make dev` | 开发 | `next dev` + `go run`，有 HMR |
+| `make build` | 构建 | 编译 Go 二进制 |
+| `pnpm build` + `apps/web` 下 `pnpm start` | 生产 | 裸机前端 |
+| `make selfhost` / `make selfhost-build` | 生产 | Docker 全栈 |
+| `make stop` | — | 停本机 8080/3000 进程 |
+| `server/bin/aicortex setup self-host` | Client | 配置并登录 CLI |
 
 ---
 
 ## 升级
 
-### Server
+### Server（生产，Docker）
+
+```bash
+git pull
+# 若用 selfhost：改 .env 中 AICORTEX_IMAGE_TAG 或重新 make selfhost
+docker compose -f docker-compose.selfhost.yml pull
+docker compose -f docker-compose.selfhost.yml up -d
+```
+
+### Server（生产，裸机）
 
 ```bash
 git pull
 pnpm install && pnpm build
-cd server && go build -o bin/aicortex-server ./cmd/server
-cd server && go run ./cmd/migrate up
+make build
+server/bin/migrate up
+make stop
+server/bin/server &
+cd apps/web && pnpm start
+```
+
+### Server（开发）
+
+```bash
+git pull
+pnpm install
 make stop && make start
 ```
 
 ### Client
 
 ```bash
-cd server && go build -o bin/aicortex ./cmd/aicortex
-aicortex daemon start    # 自动重启
+make build
+server/bin/aicortex daemon start
 ```
