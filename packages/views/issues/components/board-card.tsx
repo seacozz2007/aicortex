@@ -25,6 +25,17 @@ import { IssueActionsContextMenu } from "../actions";
 import { LabelChip } from "../../labels/label-chip";
 import { useT } from "../../i18n";
 
+// Status-based card tinting — gives each status a subtle distinct look
+const STATUS_CARD_STYLE: Record<string, string> = {
+  backlog: "bg-card opacity-70",
+  todo: "bg-card",
+  in_progress: "bg-card border-l-2 border-l-warning",
+  in_review: "bg-card border-l-2 border-l-success",
+  done: "bg-card/60 opacity-75 border-l-2 border-l-info",
+  blocked: "bg-card border-l-2 border-l-destructive",
+  cancelled: "bg-card opacity-50",
+};
+
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -95,8 +106,10 @@ export const BoardCardContent = memo(function BoardCardContent({
   const showChildProgress = storeProperties.childProgress && childProgress;
   const showLabels = storeProperties.labels && labels.length > 0;
 
+  const statusCardStyle = STATUS_CARD_STYLE[issue.status] ?? "";
+
   return (
-    <div className="rounded-lg border-[0.5px] border-border bg-card py-3 px-2.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08),0_1px_2px_0_rgba(0,0,0,0.06)] transition-all duration-200 group-hover/card:-translate-y-0.5 group-hover/card:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.12),0_2px_4px_0_rgba(0,0,0,0.08)] group-hover/card:border-accent group-hover/card:bg-accent group-data-[popup-open]/card:border-accent group-data-[popup-open]/card:bg-accent">
+    <div className={`rounded-lg border-[0.5px] border-border py-3 px-2.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08),0_1px_2px_0_rgba(0,0,0,0.06)] transition-all duration-200 group-hover/card:-translate-y-0.5 group-hover/card:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.12),0_2px_4px_0_rgba(0,0,0,0.08)] group-hover/card:border-accent group-hover/card:bg-accent group-data-[popup-open]/card:border-accent group-data-[popup-open]/card:bg-accent ${statusCardStyle}`}>
       {/* Row 1: Identifier */}
       <p className="font-mono text-xs text-muted-foreground">{issue.identifier}</p>
 
