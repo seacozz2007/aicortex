@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { Minus, Maximize2, Minimize2, ChevronDown, ChevronRight, Plus, Check, Trash2, Pencil } from "lucide-react";
+import { Minus, Maximize2, Minimize2, ChevronDown, ChevronRight, Plus, Check, Trash2, Pencil, FolderKanban } from "lucide-react";
 import { Button } from "@aicortex/ui/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@aicortex/ui/components/ui/tooltip";
 import {
@@ -28,6 +28,7 @@ import {
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useAuthStore } from "@aicortex/core/auth";
 import { agentListOptions, memberListOptions } from "@aicortex/core/workspace/queries";
+import { projectListOptions } from "@aicortex/core/projects/queries";
 import { canAssignAgent } from "@aicortex/views/issues/components";
 import { api } from "@aicortex/core/api";
 import { useAgentPresenceDetail, useWorkspaceAgentAvailability } from "@aicortex/core/agents";
@@ -217,6 +218,7 @@ export function ChatWindow() {
   // `setActiveSession(sessionId)`, otherwise the first useQuery subscription
   // for the new key reports `isLoading: true` and renders ChatMessageSkeleton
   // for one frame (the "new-chat first-message" white flash).
+  const selectedProjectId = useChatStore((s) => s.selectedProjectId);
   const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
   const ensureSession = useCallback(
     async (titleSeed: string): Promise<string | null> => {
@@ -229,6 +231,7 @@ export function ChatWindow() {
           const session = await createSession.mutateAsync({
             agent_id: activeAgent.id,
             title: titleSeed.slice(0, 50),
+            ...(selectedProjectId ? { project_id: selectedProjectId } : {}),
           });
           return session.id;
         } finally {
@@ -238,7 +241,7 @@ export function ChatWindow() {
       sessionPromiseRef.current = promise;
       return promise;
     },
-    [activeSessionId, activeAgent, createSession],
+    [activeSessionId, activeAgent, createSession, selectedProjectId],
   );
 
   const handleUploadFile = useCallback(
@@ -578,12 +581,15 @@ export function ChatWindow() {
         agentName={activeAgent?.name}
         topSlot={<ContextAnchorCard />}
         leftAdornment={
-          <AgentDropdown
-            agents={availableAgents}
-            activeAgent={activeAgent}
-            userId={user?.id}
-            onSelect={handleSelectAgent}
-          />
+          <>
+            <AgentDropdown
+              agents={availableAgents}
+              activeAgent={activeAgent}
+              userId={user?.id}
+              onSelect={handleSelectAgent}
+            />
+            {!activeSessionId && <ProjectPicker />}
+          </>
         }
         rightAdornment={<ContextAnchorButton />}
       />
@@ -694,6 +700,49 @@ function AgentMenuItem({
       <span className="truncate flex-1">{agent.name}</span>
       {isCurrent && <Check className="size-3.5 text-muted-foreground shrink-0" />}
     </DropdownMenuItem>
+  );
+}
+
+/**
+ * Project picker: shown only when creating a new session (no activeSessionId).
+ * Lets the user optionally associate the chat with a project so the agent
+ * works in the project's directory.
+ */
+function ProjectPicker() {
+  const wsId = useWorkspaceId();
+  const { data: projects = [] } = useQuery(projectListOptions(wsId));
+  const selectedProjectId = useChatStore((s) => s.selectedProjectId);
+  const setSelectedProjectId = useChatStore((s) => s.setSelectedProjectId);
+  const { t } = useT("chat");
+
+  const activeProject = projects.find((p) => p.id === selectedProjectId);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-1 rounded-md px-1.5 py-1 cursor-pointer outline-none transition-colors hover:bg-accent aria-expanded:bg-accent text-xs text-muted-foreground">
+        <FolderKanban className="size-3" />
+        <span className="max-w-20 truncate">{activeProject?.title ?? t(($) => $.window.no_project)}</span>
+        <ChevronDown className="size-2.5 shrink-0" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top" className="max-h-60 w-auto max-w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => setSelectedProjectId(null)}>
+            <span className="text-muted-foreground">{t(($) => $.window.no_project)}</span>
+            {!selectedProjectId && <Check className="size-3.5 text-muted-foreground ml-auto" />}
+          </DropdownMenuItem>
+          {projects.map((project) => (
+            <DropdownMenuItem
+              key={project.id}
+              onClick={() => setSelectedProjectId(project.id)}
+              className="flex items-center gap-2"
+            >
+              <span className="truncate flex-1">{project.title}</span>
+              {project.id === selectedProjectId && <Check className="size-3.5 text-muted-foreground shrink-0" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

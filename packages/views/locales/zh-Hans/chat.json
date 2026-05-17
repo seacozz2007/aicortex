@@ -58,6 +58,7 @@
     "my_agents": "我的Agent",
     "others": "其他",
     "no_agents": "暂无Agent",
+    "no_project": "无项目",
     "active_group": "进行中",
     "archived_group_other": "{{count}} 条已归档"
   },

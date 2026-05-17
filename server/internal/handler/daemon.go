@@ -1250,6 +1250,43 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 					resp.Repos = repos
 				}
 			}
+			// If the chat session is linked to a project, populate
+			// ProjectResources so the daemon can resolve the work_dir from
+			// the project's local_path or github_repo resources.
+			if cs.ProjectID.Valid {
+				resp.ProjectID = uuidToString(cs.ProjectID)
+				if proj, err := h.Queries.GetProject(r.Context(), cs.ProjectID); err == nil {
+					resp.ProjectTitle = proj.Title
+				}
+				if rows := h.listProjectResourcesForProject(r.Context(), cs.ProjectID); len(rows) > 0 {
+					out := make([]ProjectResourceData, 0, len(rows))
+					for _, row := range rows {
+						label := ""
+						if row.Label.Valid {
+							label = row.Label.String
+						}
+						ref := json.RawMessage(row.ResourceRef)
+						if len(ref) == 0 {
+							ref = json.RawMessage("{}")
+						}
+						out = append(out, ProjectResourceData{
+							ID:           uuidToString(row.ID),
+							ResourceType: row.ResourceType,
+							ResourceRef:  ref,
+							Label:        label,
+						})
+						if row.ResourceType == "github_repo" {
+							var payload struct {
+								URL string `json:"url"`
+							}
+							if json.Unmarshal(row.ResourceRef, &payload) == nil && payload.URL != "" {
+								resp.Repos = append(resp.Repos, RepoData{URL: payload.URL})
+							}
+						}
+					}
+					resp.ProjectResources = out
+				}
+			}
 			// Resume chat sessions only when the stored pointer was produced
 			// by the same runtime as the claiming task. When the chat_session
 			// pointer is missing (legacy NULL runtime_id), stale (last task

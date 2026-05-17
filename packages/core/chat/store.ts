@@ -87,6 +87,7 @@ export interface ChatState {
   isOpen: boolean;
   activeSessionId: string | null;
   selectedAgentId: string | null;
+  selectedProjectId: string | null;
   /** Drafts per session: sessionId (or DRAFT_NEW_SESSION) → markdown text. */
   inputDrafts: Record<string, string>;
   /**
@@ -103,6 +104,7 @@ export interface ChatState {
   toggle: () => void;
   setActiveSession: (id: string | null) => void;
   setSelectedAgentId: (id: string) => void;
+  setSelectedProjectId: (id: string | null) => void;
   /** sessionId accepts a real session UUID or DRAFT_NEW_SESSION. */
   setInputDraft: (sessionId: string, draft: string) => void;
   clearInputDraft: (sessionId: string) => void;
@@ -134,6 +136,7 @@ export function createChatStore(options: ChatStoreOptions) {
     isOpen: initialIsOpen,
     activeSessionId: storage.getItem(wsKey(SESSION_STORAGE_KEY)),
     selectedAgentId: storage.getItem(wsKey(AGENT_STORAGE_KEY)),
+    selectedProjectId: null,
     inputDrafts: readDrafts(storage, wsKey(DRAFTS_KEY)),
     focusMode: storage.getItem(FOCUS_MODE_KEY) === "true",
     chatWidth: Number(storage.getItem(CHAT_WIDTH_KEY)) || CHAT_DEFAULT_W,
@@ -163,6 +166,9 @@ export function createChatStore(options: ChatStoreOptions) {
       logger.info("setSelectedAgentId", { from: get().selectedAgentId, to: id });
       storage.setItem(wsKey(AGENT_STORAGE_KEY), id);
       set({ selectedAgentId: id });
+    },
+    setSelectedProjectId: (id) => {
+      set({ selectedProjectId: id });
     },
     setInputDraft: (sessionId, draft) => {
       // Debug level — onUpdate fires on every keystroke.

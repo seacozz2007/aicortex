@@ -24,8 +24,9 @@ const chatSessionTitleMaxLen = 200
 // ---------------------------------------------------------------------------
 
 type CreateChatSessionRequest struct {
-	AgentID string `json:"agent_id"`
-	Title   string `json:"title"`
+	AgentID   string `json:"agent_id"`
+	Title     string `json:"title"`
+	ProjectID string `json:"project_id"`
 }
 
 func (h *Handler) CreateChatSession(w http.ResponseWriter, r *http.Request) {
@@ -75,11 +76,21 @@ func (h *Handler) CreateChatSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var projectID pgtype.UUID
+	if req.ProjectID != "" {
+		var ok bool
+		projectID, ok = parseUUIDOrBadRequest(w, req.ProjectID, "project_id")
+		if !ok {
+			return
+		}
+	}
+
 	session, err := h.Queries.CreateChatSession(r.Context(), db.CreateChatSessionParams{
 		WorkspaceID: workspaceUUID,
 		AgentID:     agentID,
 		CreatorID:   parseUUID(userID),
 		Title:       req.Title,
+		ProjectID:   projectID,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create chat session")
@@ -139,6 +150,7 @@ func (h *Handler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
 				CreatorID:   uuidToString(s.CreatorID),
 				Title:       s.Title,
 				Status:      s.Status,
+				ProjectID:   uuidToString(s.ProjectID),
 				HasUnread:   s.HasUnread,
 				CreatedAt:   timestampToString(s.CreatedAt),
 				UpdatedAt:   timestampToString(s.UpdatedAt),
@@ -165,6 +177,7 @@ func (h *Handler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
 				CreatorID:   uuidToString(s.CreatorID),
 				Title:       s.Title,
 				Status:      s.Status,
+				ProjectID:   uuidToString(s.ProjectID),
 				HasUnread:   s.HasUnread,
 				CreatedAt:   timestampToString(s.CreatedAt),
 				UpdatedAt:   timestampToString(s.UpdatedAt),
@@ -747,6 +760,7 @@ type ChatSessionResponse struct {
 	CreatorID   string `json:"creator_id"`
 	Title       string `json:"title"`
 	Status      string `json:"status"`
+	ProjectID   string `json:"project_id,omitempty"`
 	// Only populated by list endpoints — single-session fetches return false.
 	HasUnread bool   `json:"has_unread"`
 	CreatedAt string `json:"created_at"`

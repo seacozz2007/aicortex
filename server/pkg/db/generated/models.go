@@ -184,6 +184,7 @@ type ChatSession struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	UnreadSince pgtype.Timestamptz `json:"unread_since"`
 	RuntimeID   pgtype.UUID        `json:"runtime_id"`
+	ProjectID   pgtype.UUID        `json:"project_id"`
 }
 
 type Comment struct {

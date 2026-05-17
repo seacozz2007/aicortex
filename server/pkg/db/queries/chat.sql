@@ -1,6 +1,6 @@
 -- name: CreateChatSession :one
-INSERT INTO chat_session (workspace_id, agent_id, creator_id, title, runtime_id)
-VALUES ($1, $2, $3, $4, (SELECT runtime_id FROM agent WHERE id = $2))
+INSERT INTO chat_session (workspace_id, agent_id, creator_id, title, runtime_id, project_id)
+VALUES ($1, $2, $3, $4, (SELECT runtime_id FROM agent WHERE id = $2), sqlc.narg('project_id'))
 RETURNING *;
 
 -- name: GetChatSession :one
