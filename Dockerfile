@@ -1,11 +1,13 @@
 # --- Build stage ---
 FROM golang:1.26-alpine AS builder
 
-RUN apk add --no-cache git
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories && \
+    apk add --no-cache git
 
 WORKDIR /src
 
 # Cache dependencies
+ENV GOPROXY=https://goproxy.cn,direct
 COPY server/go.mod server/go.sum ./server/
 RUN cd server && go mod download
 
