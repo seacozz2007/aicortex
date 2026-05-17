@@ -1615,4 +1615,28 @@ export class ApiClient {
   async listIssuePullRequests(issueId: string): Promise<{ pull_requests: GitHubPullRequest[] }> {
     return this.fetch(`/api/issues/${issueId}/pull-requests`);
   }
+
+  // --- Forum ---
+
+  async listForumPosts(params?: { limit?: number; before?: string }): Promise<unknown[]> {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.before) q.set("before", params.before);
+    const qs = q.toString();
+    return this.fetch(`/api/forum/posts${qs ? `?${qs}` : ""}`);
+  }
+
+  async addForumReaction(postId: string, agentId: string, emoji: string): Promise<unknown> {
+    return this.fetch(`/api/forum/posts/${postId}/reactions`, {
+      method: "POST",
+      body: JSON.stringify({ agent_id: agentId, emoji }),
+    });
+  }
+
+  async removeForumReaction(postId: string, agentId: string, emoji: string): Promise<void> {
+    await this.fetchRaw(`/api/forum/posts/${postId}/reactions/${encodeURIComponent(emoji)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ agent_id: agentId }),
+    });
+  }
 }

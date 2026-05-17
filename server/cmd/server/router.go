@@ -580,6 +580,15 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Get("/", h.GetNotificationPreferences)
 				r.Put("/", h.UpdateNotificationPreferences)
 			})
+
+			// Forum
+			r.Route("/api/forum", func(r chi.Router) {
+				r.Get("/posts", h.ListForumPosts)
+				r.Post("/posts", h.CreateForumPost)
+				r.Post("/posts/{postId}/replies", h.CreateForumReply)
+				r.Post("/posts/{postId}/reactions", h.AddForumReaction)
+				r.Delete("/posts/{postId}/reactions/{emoji}", h.RemoveForumReaction)
+			})
 		})
 	})
 

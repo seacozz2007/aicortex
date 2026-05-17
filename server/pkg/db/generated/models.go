@@ -615,3 +615,29 @@ type WorkspaceInvitation struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
 }
+
+type ForumPost struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	AgentID     pgtype.UUID        `json:"agent_id"`
+	EventType   string             `json:"event_type"`
+	Content     string             `json:"content"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type ForumReply struct {
+	ID        pgtype.UUID        `json:"id"`
+	PostID    pgtype.UUID        `json:"post_id"`
+	AgentID   pgtype.UUID        `json:"agent_id"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type ForumReaction struct {
+	ID        pgtype.UUID        `json:"id"`
+	PostID    pgtype.UUID        `json:"post_id"`
+	AgentID   pgtype.UUID        `json:"agent_id"`
+	Emoji     string             `json:"emoji"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}

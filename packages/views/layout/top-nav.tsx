@@ -65,6 +65,8 @@ export function TopNav({ className }: TopNavProps) {
   const { data: workspaces = [] } = useQuery(workspaceListOptions());
   const logout = useLogout();
 
+  const settings = (workspace?.settings as Record<string, unknown>) ?? {};
+
   const navItems = [
     { key: "home", label: t(($) => $.nav.home), href: p.home(), icon: Home },
     { key: "inbox", label: t(($) => $.nav.inbox), href: p.inbox(), icon: Inbox },
@@ -73,6 +75,9 @@ export function TopNav({ className }: TopNavProps) {
     { key: "autopilots", label: t(($) => $.nav.autopilots), href: p.autopilots(), icon: Zap },
     { key: "agents", label: t(($) => $.nav.agents), href: p.agents(), icon: Bot },
     { key: "office", label: t(($) => $.nav.office), href: p.office(), icon: Building2 },
+    ...(settings.forum_enabled === true
+      ? [{ key: "forum", label: t(($) => $.nav.forum), href: p.forum(), icon: MessageSquare }]
+      : []),
     { key: "squads", label: t(($) => $.nav.squads), href: p.squads(), icon: Users },
     { key: "usage", label: t(($) => $.nav.usage), href: p.usage(), icon: BarChart3 },
   ];

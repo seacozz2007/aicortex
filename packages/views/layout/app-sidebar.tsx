@@ -36,6 +36,7 @@ import {
   Users,
   Home,
   Building2,
+  MessageSquare,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
@@ -113,6 +114,7 @@ type NavKey =
   | "autopilots"
   | "agents"
   | "office"
+  | "forum"
   | "squads"
   | "usage"
   | "runtimes"
@@ -129,6 +131,7 @@ type NavLabelKey =
   | "autopilots"
   | "agents"
   | "office"
+  | "forum"
   | "squads"
   | "usage"
   | "runtimes"
@@ -147,6 +150,7 @@ const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[]
   { key: "autopilots", labelKey: "autopilots", icon: Zap },
   { key: "agents", labelKey: "agents", icon: Bot },
   { key: "office", labelKey: "office", icon: Building2 },
+  { key: "forum", labelKey: "forum", icon: MessageSquare },
   { key: "squads", labelKey: "squads", icon: Users },
   { key: "usage", labelKey: "usage", icon: BarChart3 },
 ];
@@ -682,6 +686,10 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {workspaceNav.map((item) => {
+                  if (item.key === "forum") {
+                    const s = (workspace?.settings as Record<string, unknown>) ?? {};
+                    if (s.forum_enabled !== true) return null;
+                  }
                   const href = p[item.key]();
                   const isActive = isNavActive(pathname, href);
                   return (

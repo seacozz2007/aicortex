@@ -26,6 +26,7 @@
     "./skills": "./skills/index.ts",
     "./agents": "./agents/index.ts",
     "./virtual-office": "./virtual-office/index.ts",
+    "./forum": "./forum/index.ts",
     "./members": "./members/index.ts",
     "./inbox": "./inbox/index.ts",
     "./runtimes": "./runtimes/index.ts",

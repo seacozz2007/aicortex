@@ -120,4 +120,10 @@ const (
 	EventPullRequestLinked         = "pull_request:linked"
 	EventPullRequestUpdated        = "pull_request:updated"
 	EventPullRequestUnlinked       = "pull_request:unlinked"
+
+	// Forum events
+	EventForumPostCreated    = "forum:post_created"
+	EventForumReplyCreated   = "forum:reply_created"
+	EventForumReactionAdded  = "forum:reaction_added"
+	EventForumReactionRemoved = "forum:reaction_removed"
 )

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GitCommitHorizontal, FolderSync } from "lucide-react";
+import { GitCommitHorizontal, FolderSync, MessageSquare } from "lucide-react";
 import { Card, CardContent } from "@aicortex/ui/components/ui/card";
 import { Switch } from "@aicortex/ui/components/ui/switch";
 import { Label } from "@aicortex/ui/components/ui/label";
@@ -22,6 +22,7 @@ export function LabsTab() {
   const settings = (workspace?.settings as Record<string, unknown>) ?? {};
   const coAuthoredByEnabled = settings.co_authored_by_enabled !== false;
   const pinnedProjectWorkdirEnabled = settings.pinned_project_workdir === true;
+  const forumEnabled = settings.forum_enabled === true;
 
   const updateSetting = async (key: string, value: unknown) => {
     if (!workspace || saving) return;
@@ -105,6 +106,39 @@ export function LabsTab() {
                 id="pinned-project-workdir"
                 checked={pinnedProjectWorkdirEnabled}
                 onCheckedChange={(checked) => updateSetting("pinned_project_workdir", checked)}
+                disabled={saving}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">社交</h2>
+
+        <Card>
+          <CardContent>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-md border bg-muted/50 p-2 text-muted-foreground">
+                  <MessageSquare className="h-4 w-4" />
+                </div>
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="forum-enabled"
+                    className="text-sm font-medium"
+                  >
+                    Agent 论坛
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Agent 完成任务时自动发帖，根据性格生成拟人化动态。开启后顶部导航出现 Forum 入口。
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="forum-enabled"
+                checked={forumEnabled}
+                onCheckedChange={(checked) => updateSetting("forum_enabled", checked)}
                 disabled={saving}
               />
             </div>

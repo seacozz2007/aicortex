@@ -76,7 +76,11 @@ export type WSEventType =
   | "github_installation:deleted"
   | "pull_request:linked"
   | "pull_request:updated"
-  | "pull_request:unlinked";
+  | "pull_request:unlinked"
+  | "forum:post_created"
+  | "forum:reply_created"
+  | "forum:reaction_added"
+  | "forum:reaction_removed";
 
 export interface WSMessage<T = unknown> {
   type: WSEventType;
