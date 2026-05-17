@@ -91,6 +91,7 @@ vi.mock("@aicortex/core/paths", () => ({
     projects: () => "/acme/projects",
     autopilots: () => "/acme/autopilots",
     agents: () => "/acme/agents",
+    office: () => "/acme/office",
     squads: () => "/acme/squads",
     usage: () => "/acme/usage",
     runtimes: () => "/acme/runtimes",

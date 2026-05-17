@@ -27,6 +27,7 @@ import {
   Check,
   MessageSquare,
   Plus,
+  Building2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -71,6 +72,7 @@ export function TopNav({ className }: TopNavProps) {
     { key: "projects", label: t(($) => $.nav.projects), href: p.projects(), icon: FolderKanban },
     { key: "autopilots", label: t(($) => $.nav.autopilots), href: p.autopilots(), icon: Zap },
     { key: "agents", label: t(($) => $.nav.agents), href: p.agents(), icon: Bot },
+    { key: "office", label: t(($) => $.nav.office), href: p.office(), icon: Building2 },
     { key: "squads", label: t(($) => $.nav.squads), href: p.squads(), icon: Users },
     { key: "usage", label: t(($) => $.nav.usage), href: p.usage(), icon: BarChart3 },
   ];

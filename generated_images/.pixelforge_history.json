@@ -1,0 +1,296 @@
+[
+  {
+    "id": "8b0c09c9",
+    "timestamp": "2026-05-17T10:06:06.607814",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "A serene mountain lake at sunrise, mist rising from water, pine trees, golden light, photorealistic",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/generated_20260517_100547_489.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "212121d3",
+    "timestamp": "2026-05-17T10:08:54.248476",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Pixel art sprite sheet of isometric office furniture items on a transparent/checkered background, arranged in a grid. Include: 1) wooden desk with monitor and keyboard (32x32px), 2) office chair (16x16px), 3) dark blue sofa/couch (32x16px), 4) coffee machine (16x24px), 5) whiteboard with colorful notes (32x32px), 6) potted green plant (16x24px), 7) water cooler (12x24px), 8) bookshelf (32x32px). 2.5D isometric perspective, 16-bit retro pixel art style, clean pixels, warm office colors. Each item clearly separated with space between them.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/furniture-sprites.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "6a790a3a",
+    "timestamp": "2026-05-17T10:08:54.526384",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Pixel art sprite sheet of a tiny office worker character (16x24 pixels per frame), arranged in a horizontal strip on a transparent background. Show 8 frames in a row: 2 frames walking right, 2 frames sitting and typing at computer, 2 frames standing idle holding coffee cup, 1 frame sleeping/offline (grey tint with ZZZ), 1 frame celebrating with arms up. Retro 16-bit pixel art style, clean crisp pixels, no anti-aliasing, dark navy blue outfit, skin tone character. Each frame clearly separated. Top-down isometric perspective.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/agent-sprites.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "4f9101e9",
+    "timestamp": "2026-05-17T10:08:54.831053",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "2.5D isometric pixel art office floor plan, top-down view at 45 degree angle. Dark themed modern tech office with three distinct zones: left side has a glass-walled meeting room with whiteboard and chairs, center is a large open workspace area with a 4x3 grid of empty desk spots (just floor tiles, no furniture), right side has a cozy lounge area. Dark navy/charcoal floor tiles, subtle grid pattern, warm ambient lighting. Pixel art style, 16-bit retro aesthetic. The floor areas should be clearly defined zones with different subtle colors. Size: 640x400 pixels. No characters, just the empty room layout.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/office-background.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "17281d68",
+    "timestamp": "2026-05-17T10:11:50.325435",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art dark blue office sofa/couch. 2.5D perspective, on a completely transparent background (checkered/alpha). Modern minimalist two-seater couch, dark navy blue fabric with subtle cushion detail. 16-bit retro pixel art style, clean crisp pixels, no anti-aliasing. Just ONE sofa, centered in frame, no other objects.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-sofa.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "eab0fe8a",
+    "timestamp": "2026-05-17T10:11:50.721500",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art office desk with computer monitor, keyboard and mouse on it. 2.5D perspective, on a completely transparent background (checkered/alpha). Wooden desk surface, dark monitor with blue screen glow, small keyboard. 16-bit retro pixel art style, clean crisp pixels, no anti-aliasing. Dark warm wood tones. Just ONE desk, centered in frame, no other objects.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-desk.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "56355ab7",
+    "timestamp": "2026-05-17T10:11:52.354973",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "2.5D isometric pixel art office floor plan, 640x400 pixels. Dark themed modern tech office viewed from above at 45 degrees. THREE distinct floor zones separated by subtle borders: LEFT zone is a square area with dark green carpet (meeting area), CENTER is the largest zone with dark navy tile floor in a grid pattern (workspace), RIGHT zone has warm brown carpet (lounge area). Back wall is dark charcoal with subtle texture. Bottom has an exit doorway in the center. NO FURNITURE, NO DESKS, NO CHAIRS - just empty floors and walls. Clean 16-bit pixel art style, crisp pixels, moody ambient lighting with subtle shadows on floor edges.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/office-floor.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "8485cb46",
+    "timestamp": "2026-05-17T10:12:25.284400",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art office coffee machine/espresso maker. 2.5D perspective, on a completely transparent background (checkered/alpha). Black modern coffee machine on a small counter/table, with a coffee cup next to it, small steam wisps. 16-bit retro pixel art style, clean crisp pixels, no anti-aliasing. Just ONE coffee machine setup, centered in frame, no other objects.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-coffee.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "0723b010",
+    "timestamp": "2026-05-17T10:12:25.707725",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Pixel art character sprite sheet showing a small office worker character in different poses, arranged in a single horizontal row on transparent background. 8 frames total, each frame is 32x32 pixels: Frame 1-2: walking right (two step animation), Frame 3-4: sitting at desk typing (two arm positions), Frame 5-6: standing idle holding coffee (slight sway), Frame 7: sleeping/offline (head down, grey tint, ZZZ above), Frame 8: celebrating (arms raised). The character wears a blue shirt, has simple pixel face. 16-bit retro pixel art style, clean crisp pixels, 2.5D isometric perspective. Each frame clearly separated with equal spacing.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-agents.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "fba3555a",
+    "timestamp": "2026-05-17T10:12:26.962373",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art potted office plant. 2.5D perspective, on a completely transparent background (checkered/alpha). Green leafy tropical plant in a brown/terracotta pot. 16-bit retro pixel art style, clean crisp pixels, no anti-aliasing. Just ONE potted plant, centered in frame, no other objects.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-plant.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "8031d178",
+    "timestamp": "2026-05-17T10:12:29.138248",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art office whiteboard on a stand. 2.5D perspective, on a completely transparent background (checkered/alpha). White board surface with colorful sticky notes and diagrams drawn on it, metal frame, on wheeled stand. 16-bit retro pixel art style, clean crisp pixels, no anti-aliasing. Just ONE whiteboard, centered in frame, no other objects.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-whiteboard.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "086ed0af",
+    "timestamp": "2026-05-17T10:48:12.254229",
+    "tool": "remove_background",
+    "params": {
+      "image_path": "/home/eric/code/aicortex-dh/PRD/assets/sprites/sprite-sofa.png"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-sofa-nobg.png"
+    ],
+    "model": null,
+    "error": null
+  },
+  {
+    "id": "d0826d88",
+    "timestamp": "2026-05-17T10:48:13.395619",
+    "tool": "remove_background",
+    "params": {
+      "image_path": "/home/eric/code/aicortex-dh/PRD/assets/sprites/sprite-agents.png"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-agents-nobg.png"
+    ],
+    "model": null,
+    "error": null
+  },
+  {
+    "id": "df323776",
+    "timestamp": "2026-05-17T10:48:13.882838",
+    "tool": "remove_background",
+    "params": {
+      "image_path": "/home/eric/code/aicortex-dh/PRD/assets/sprites/sprite-whiteboard.png"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-whiteboard-nobg.png"
+    ],
+    "model": null,
+    "error": null
+  },
+  {
+    "id": "c3d1e385",
+    "timestamp": "2026-05-17T10:48:15.012888",
+    "tool": "remove_background",
+    "params": {
+      "image_path": "/home/eric/code/aicortex-dh/PRD/assets/sprites/sprite-plant.png"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-plant-nobg.png"
+    ],
+    "model": null,
+    "error": null
+  },
+  {
+    "id": "64aa03b1",
+    "timestamp": "2026-05-17T10:48:15.358331",
+    "tool": "remove_background",
+    "params": {
+      "image_path": "/home/eric/code/aicortex-dh/PRD/assets/sprites/sprite-coffee.png"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-coffee-nobg.png"
+    ],
+    "model": null,
+    "error": null
+  },
+  {
+    "id": "5779f897",
+    "timestamp": "2026-05-17T10:48:17.217274",
+    "tool": "remove_background",
+    "params": {
+      "image_path": "/home/eric/code/aicortex-dh/PRD/assets/sprites/sprite-desk.png"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-desk-nobg.png"
+    ],
+    "model": null,
+    "error": null
+  },
+  {
+    "id": "4040ff26",
+    "timestamp": "2026-05-17T11:19:18.139935",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art office desk with computer monitor, keyboard and mouse. 2.5D perspective. On a solid pure black (#000000) background, nothing else. Wooden desk, dark grey monitor with blue glowing screen, small keyboard. 16-bit retro pixel art style, clean crisp pixels. Warm brown wood tones. Just ONE desk centered in frame.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-desk-black.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "85a02fc0",
+    "timestamp": "2026-05-17T11:19:18.392825",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Single isometric pixel art potted green plant in a terracotta pot. 2.5D perspective. On a solid pure black (#000000) background, nothing else. Tropical green leaves, brown clay pot. 16-bit retro pixel art style, clean crisp pixels. Just ONE plant centered in frame.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-plant-black.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  },
+  {
+    "id": "7bffd206",
+    "timestamp": "2026-05-17T11:19:23.316238",
+    "tool": "generate_image",
+    "params": {
+      "prompt": "Pixel art character sprite sheet of a small office worker, 8 poses in a single horizontal row on a solid pure magenta (#FF00FF) background. Each frame shows: 1) walking right leg forward, 2) walking left leg forward, 3) sitting typing at desk frame 1, 4) sitting typing at desk frame 2, 5) standing holding coffee cup, 6) standing holding coffee cup slight lean, 7) sleeping at desk with ZZZ, 8) celebrating arms raised with confetti. Character wears blue shirt, brown pants, has brown hair. 16-bit pixel art style, isometric 2.5D view. Each frame evenly spaced.",
+      "model": "gemini-3-pro-image-preview"
+    },
+    "success": true,
+    "output_paths": [
+      "generated_images/sprite-agents-magenta.png"
+    ],
+    "model": "gemini-3-pro-image-preview",
+    "error": null
+  }
+]
