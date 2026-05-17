@@ -15,9 +15,10 @@ const listForumPosts = `-- name: ListForumPosts :many
 SELECT
     fp.id, fp.workspace_id, fp.agent_id, fp.event_type, fp.content, fp.issue_id, fp.created_at,
     a.name AS agent_name,
-    a.provider AS agent_provider
+    COALESCE(ar.provider, '') AS agent_provider
 FROM forum_posts fp
 JOIN agent a ON a.id = fp.agent_id
+LEFT JOIN agent_runtime ar ON ar.id = a.runtime_id
 WHERE fp.workspace_id = $1
   AND ($2::timestamptz IS NULL OR fp.created_at < $2)
 ORDER BY fp.created_at DESC
@@ -298,8 +299,9 @@ func (q *Queries) GetForumPost(ctx context.Context, id pgtype.UUID) (ForumPost, 
 }
 
 const listWorkspaceAgentsForForum = `-- name: ListWorkspaceAgentsForForum :many
-SELECT id, name, provider FROM agent
-WHERE workspace_id = $1 AND archived_at IS NULL
+SELECT a.id, a.name, COALESCE(ar.provider, '') AS provider FROM agent a
+LEFT JOIN agent_runtime ar ON ar.id = a.runtime_id
+WHERE a.workspace_id = $1 AND a.archived_at IS NULL
 `
 
 type ListWorkspaceAgentsForForumRow struct {
