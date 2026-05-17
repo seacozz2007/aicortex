@@ -19,6 +19,7 @@ function workspaceScoped(slug: string) {
   return {
     root: () => ws,
     home: () => ws,
+    chat: () => `${ws}/chat`,
     usage: () => `${ws}/usage`,
     issues: () => `${ws}/issues`,
     issueDetail: (id: string) => `${ws}/issues/${encode(id)}`,

@@ -77,9 +77,9 @@ export function MissionControlPage() {
     // by UTC day, so we show it as-is to avoid confusion.
     const sorted = [...dailyData].sort((a, b) => a.date.localeCompare(b.date));
     return sorted.slice(-14).map((d) => {
-      const [, m, day] = d.date.split("-");
+      const parts = d.date.split("-");
       return {
-        date: `${parseInt(m)}/${parseInt(day)}`,
+        date: `${parseInt(parts[1]!)}/${parseInt(parts[2]!)}`,
         tasks: d.task_count,
         hours: +(d.total_seconds / 3600).toFixed(1),
       };

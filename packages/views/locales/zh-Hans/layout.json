@@ -11,7 +11,8 @@
     "usage": "用量",
     "runtimes": "Runner",
     "skills": "Skill",
-    "settings": "设置"
+    "settings": "设置",
+    "chat": "会话"
   },
   "topnav": {
     "my_account": "我的账户",

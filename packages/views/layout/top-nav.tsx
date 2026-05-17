@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   LogOut,
   Check,
+  MessageSquare,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -131,6 +132,21 @@ export function TopNav({ className }: TopNavProps) {
             </AppLink>
           );
         })}
+
+        {/* Chat entry */}
+        <AppLink href={p.chat()}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
+              pathname.startsWith(p.chat())
+                ? "bg-accent text-foreground font-medium"
+                : "text-muted-foreground"
+            )}
+          >
+            <MessageSquare className="size-3.5" />
+            <span className="hidden lg:inline">{t(($) => $.nav.chat)}</span>
+          </span>
+        </AppLink>
       </div>
 
       {/* Right: Search + New Issue + User menu */}
