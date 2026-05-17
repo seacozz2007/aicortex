@@ -70,7 +70,7 @@ export function taskMessagesOptions(taskId: string) {
   return queryOptions({
     queryKey: chatKeys.taskMessages(taskId),
     queryFn: () => api.listTaskMessages(taskId),
-    enabled: !!taskId,
+    enabled: !!taskId && !taskId.startsWith("optimistic-"),
     staleTime: Infinity,
   });
 }
