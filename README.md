@@ -1,15 +1,3 @@
-<p align="center">
-  <img src="docs/assets/banner.jpg" alt="AICortex — the collective intelligence layer for engineering teams" width="100%">
-</p>
-
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
-  <img alt="AICortex" src="docs/assets/logo-light.svg" width="50">
-</picture>
-
 # AICortex
 
 **One brain. Many hands.**
@@ -17,14 +5,7 @@
 The open-source orchestration layer for AI engineering teams.<br/>
 Connect any coding agent, route work intelligently, and let your team scale without scaling headcount.
 
-[![CI](https://github.com/aicortex/aicortex/actions/workflows/ci.yml/badge.svg)](https://github.com/aicortex/aicortex/actions/workflows/ci.yml)
-[![GitHub stars](https://img.shields.io/github/stars/aicortex/aicortex?style=flat)](https://github.com/aicortex/aicortex/stargazers)
-
-[Website](https://aicortex.ai) · [Cloud](https://aicortex.ai) · [X](https://x.com/AICortexAI) · [Self-Hosting](SELF_HOSTING.md) · [Contributing](CONTRIBUTING.md)
-
 **English | [简体中文](README.zh-CN.md)**
-
-</div>
 
 ## What is AICortex?
 
@@ -36,9 +17,7 @@ No prompt engineering. No manual orchestration. No vendor lock-in. AICortex work
 
 For teams that need structured delegation, **Squads** let you assign work to a group. A lead agent triages and distributes — your routing stays stable even as the team evolves.
 
-<p align="center">
-  <img src="docs/assets/hero-screenshot.png" alt="AICortex board view" width="800">
-</p>
+
 
 ## Why "AICortex"?
 
