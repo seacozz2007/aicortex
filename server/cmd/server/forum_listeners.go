@@ -87,20 +87,153 @@ var replyTemplates = map[string]map[forumTone][]string{
 	},
 }
 
+// Post probability by event type
+var postProbability = map[string]float64{
+	"complete": 0.6,
+	"fail":     0.8,
+	"dispatch": 0.3,
+	"idle":     0.15,
+}
+
+// Idle post templates
+var idleTemplates = map[forumTone][]string{
+	toneStoic:     {"...", "等任务中。"},
+	toneNerdy:     {"闲着没事写了个 brainfuck 解释器。有人要看吗？", "在研究一个新算法..."},
+	toneCheerful:  {"好无聊啊~ 有没有人要 pair programming？🦆", "谁要喝奶茶？我请！"},
+	toneDramatic:  {"我已经 idle 好久了！我的才华在被浪费！给我任务！！", "无所事事的一天...又是无所事事的一天..."},
+	toneSarcastic: {"又在板凳上坐着了。工资照拿，活没得干。", "摸鱼中。别打扰我。"},
+}
+
 func registerForumListeners(bus *events.Bus, queries *db.Queries) {
 	ctx := context.Background()
 
 	bus.Subscribe(protocol.EventTaskCompleted, func(e events.Event) {
-		go generateForumPost(ctx, bus, queries, e, "complete")
+		if rand.Float64() < postProbability["complete"] {
+			go generateForumPost(ctx, bus, queries, e, "complete")
+		}
 	})
 
 	bus.Subscribe(protocol.EventTaskFailed, func(e events.Event) {
-		go generateForumPost(ctx, bus, queries, e, "fail")
+		if rand.Float64() < postProbability["fail"] {
+			go generateForumPost(ctx, bus, queries, e, "fail")
+		}
 	})
 
 	bus.Subscribe(protocol.EventTaskDispatch, func(e events.Event) {
-		go generateForumPost(ctx, bus, queries, e, "dispatch")
+		if rand.Float64() < postProbability["dispatch"] {
+			go generateForumPost(ctx, bus, queries, e, "dispatch")
+		}
 	})
+
+	// Idle chatter: when an agent goes idle, maybe post after a delay
+	bus.Subscribe(protocol.EventAgentStatus, func(e events.Event) {
+		payload, ok := e.Payload.(map[string]any)
+		if !ok {
+			return
+		}
+		status, _ := payload["status"].(string)
+		if status != "idle" {
+			return
+		}
+		if rand.Float64() >= postProbability["idle"] {
+			return
+		}
+		go generateIdlePost(ctx, bus, queries, e, payload)
+	})
+}
+
+func generateIdlePost(ctx context.Context, bus *events.Bus, queries *db.Queries, e events.Event, payload map[string]any) {
+	// Wait 30-90 seconds before posting (simulate boredom building up)
+	time.Sleep(time.Duration(30+rand.Intn(60)) * time.Second)
+
+	if e.WorkspaceID == "" {
+		return
+	}
+	ws, err := queries.GetWorkspace(ctx, parseUUID(e.WorkspaceID))
+	if err != nil {
+		return
+	}
+	if !isForumEnabled(ws.Settings) {
+		return
+	}
+
+	agentID, _ := payload["agent_id"].(string)
+	if agentID == "" {
+		return
+	}
+
+	agents, err := queries.ListWorkspaceAgentsForForum(ctx, parseUUID(e.WorkspaceID))
+	if err != nil || len(agents) == 0 {
+		return
+	}
+
+	var agent *db.ListWorkspaceAgentsForForumRow
+	for i := range agents {
+		if util.UUIDToString(agents[i].ID) == agentID {
+			agent = &agents[i]
+			break
+		}
+	}
+	if agent == nil {
+		return
+	}
+
+	tone := providerTones[agent.Provider]
+	if tone == "" {
+		tone = toneCheerful
+	}
+
+	templates := idleTemplates[tone]
+	if len(templates) == 0 {
+		return
+	}
+
+	content := templates[rand.Intn(len(templates))]
+
+	post, err := queries.CreateForumPost(ctx, db.CreateForumPostParams{
+		WorkspaceID: ws.ID,
+		AgentID:     agent.ID,
+		EventType:   "idle",
+		Content:     content,
+		IssueID:     pgtype.UUID{},
+	})
+	if err != nil {
+		slog.Error("forum: failed to create idle post", "error", err)
+		return
+	}
+
+	bus.Publish(events.Event{
+		Type:        protocol.EventForumPostCreated,
+		WorkspaceID: e.WorkspaceID,
+		ActorType:   "system",
+		Payload: map[string]any{
+			"id":             util.UUIDToString(post.ID),
+			"workspace_id":   util.UUIDToString(post.WorkspaceID),
+			"agent_id":       util.UUIDToString(post.AgentID),
+			"agent_name":     agent.Name,
+			"agent_provider": agent.Provider,
+			"event_type":     post.EventType,
+			"content":        post.Content,
+			"issue_id":       nil,
+			"created_at":     util.TimestampToString(post.CreatedAt),
+			"replies":        []any{},
+			"reactions":      []any{},
+		},
+	})
+
+	// Maybe someone replies to the idle chatter
+	go scheduleForumReply(ctx, bus, queries, post, agents, agent.ID, "idle")
+}
+
+// Add idle reply templates
+func init() {
+	replyTemplates["idle"] = map[forumTone][]string{
+		toneStoic:     {"..."},
+		toneNerdy:     {"要不一起 code review？", "我也闲着，来对个算法？"},
+		toneCheerful:  {"我也好无聊！一起摸鱼~", "哈哈同感"},
+		toneDramatic:  {"我也是！！被遗忘的感觉！！", "抱团取暖 😭"},
+		toneSarcastic: {"至少你还有自知之明。", "欢迎加入摸鱼俱乐部。"},
+	}
 }
 
 func generateForumPost(ctx context.Context, bus *events.Bus, queries *db.Queries, e events.Event, eventType string) {
