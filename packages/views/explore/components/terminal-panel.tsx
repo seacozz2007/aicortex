@@ -95,7 +95,7 @@ export function TerminalPanel({ sessionId, onDetach }: TerminalPanelProps) {
         const bytes = new TextEncoder().encode(data);
         let binary = "";
         for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
+          binary += String.fromCharCode(bytes[i]!);
         }
         send({ type: "terminal:data", payload: { session_id: sessionId, data: btoa(binary) } });
       });
