@@ -225,3 +225,31 @@ make stop && make start
 make build
 server/bin/aicortex daemon start
 ```
+
+
+
+# Daemon 1: 连接默认 server（用 ~/.aicortex/config.json）
+  aicortex daemon start
+
+  # Daemon 2: 连接另一个 server（用 ~/.aicortex/profiles/prod/config.json）
+  aicortex daemon start --profile prod
+
+  设置步骤：
+
+  # 1. 为第二个 server 创建 profile
+  aicortex setup self-host --profile prod
+  # 会提示输入 server URL，配置保存到 ~/.aicortex/profiles/prod/config.json
+
+  # 2. 登录
+  aicortex login --profile prod
+
+  # 3. 启动
+  aicortex daemon start --profile prod
+
+  每个 profile 有独立的：
+
+  - 配置文件：~/.aicortex/profiles/<name>/config.json
+  - Daemon ID：~/.aicortex/profiles/<name>/daemon.id（推测）
+  - 工作区目录：~/aicortex_workspaces_<name>/
+
+  两个 daemon 进程互不干扰，可以同时运行。

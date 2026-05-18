@@ -7,7 +7,7 @@ export function useCreateTerminalSession() {
   return useMutation({
     mutationFn: (params: { runtime_id: string; title?: string; shell?: string; cols?: number; rows?: number }) =>
       api.createTerminalSession(params) as Promise<TerminalSession>,
-    onSuccess: () => qc.invalidateQueries({ queryKey: terminalKeys.all }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: terminalKeys.root }),
   });
 }
 
@@ -15,6 +15,6 @@ export function useCloseTerminalSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (sessionId: string) => api.closeTerminalSession(sessionId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: terminalKeys.all }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: terminalKeys.root }),
   });
 }

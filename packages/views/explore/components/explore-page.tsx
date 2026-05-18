@@ -12,13 +12,16 @@ import { TerminalPanel } from "./terminal-panel";
 import { NewSessionDialog } from "./new-session-dialog";
 
 export function ExplorePage() {
-  const { data: sessions = [] } = useQuery(terminalSessionListOptions());
+  const workspace = useCurrentWorkspace();
+  const { data: sessions = [] } = useQuery({
+    ...terminalSessionListOptions(workspace?.id ?? ""),
+    enabled: !!workspace?.id,
+  });
   const activeSessionId = useTerminalStore((s) => s.activeSessionId);
   const setActiveSession = useTerminalStore((s) => s.setActiveSession);
   const closeSession = useCloseTerminalSession();
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const workspace = useCurrentWorkspace();
   const { data: runtimes = [] } = useQuery({
     ...runtimeListOptions(workspace?.id ?? ""),
     enabled: !!workspace?.id,

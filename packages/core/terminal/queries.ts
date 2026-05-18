@@ -17,13 +17,14 @@ export interface TerminalSession {
 }
 
 export const terminalKeys = {
-  all: ["terminal-sessions"] as const,
-  list: () => [...terminalKeys.all, "list"] as const,
+  root: ["terminal-sessions"] as const,
+  all: (wsId: string) => ["terminal-sessions", wsId] as const,
+  list: (wsId: string) => [...terminalKeys.all(wsId), "list"] as const,
 };
 
-export function terminalSessionListOptions() {
+export function terminalSessionListOptions(wsId: string) {
   return queryOptions({
-    queryKey: terminalKeys.list(),
+    queryKey: terminalKeys.list(wsId),
     queryFn: () => api.listTerminalSessions() as Promise<TerminalSession[]>,
   });
 }
