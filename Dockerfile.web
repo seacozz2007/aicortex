@@ -5,6 +5,9 @@ RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 
 WORKDIR /app
 
+# Allow overriding npm registry (e.g. https://registry.npmmirror.com for China)
+ARG NPM_REGISTRY_MIRROR
+
 # Copy workspace config and all package.json files for dependency resolution
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json .npmrc ./
 COPY apps/web/package.json apps/web/
@@ -14,7 +17,10 @@ COPY packages/views/package.json packages/views/
 COPY packages/tsconfig/package.json packages/tsconfig/
 COPY packages/eslint-config/package.json packages/eslint-config/
 
-RUN pnpm install --frozen-lockfile
+RUN if [ -n "$NPM_REGISTRY_MIRROR" ]; then \
+        echo "registry=$NPM_REGISTRY_MIRROR" >> .npmrc; \
+    fi && \
+    pnpm install --frozen-lockfile
 
 # --- Build ---
 FROM node:22-alpine AS builder

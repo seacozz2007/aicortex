@@ -17,3 +17,5 @@ services:
         REMOTE_API_URL: http://backend:8080
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
         NEXT_PUBLIC_APP_VERSION: dev
+        # For Chinese users: set to https://registry.npmmirror.com in a .env file
+        NPM_REGISTRY_MIRROR: ${NPM_REGISTRY_MIRROR:-}

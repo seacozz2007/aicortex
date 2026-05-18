@@ -45,6 +45,14 @@ make selfhost          # 拉 GHCR 镜像并启动
 make selfhost-build
 ```
 
+> 国内用户构建时 npm 下载慢，在 `.env` 里加上 registry 镜像（一劳永逸）：
+>
+> ```env
+> NPM_REGISTRY_MIRROR=https://registry.npmmirror.com
+> ```
+>
+> 也可单次传参：`NPM_REGISTRY_MIRROR=https://registry.npmmirror.com make selfhost-build`
+
 停止：`make selfhost-stop`
 
 ### 方式 B — 本机构建后运行（裸机）
