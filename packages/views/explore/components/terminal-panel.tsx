@@ -12,15 +12,20 @@ export function TerminalPanel({ sessionId, onDetach }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<any>(null);
   const fitAddonRef = useRef<any>(null);
+  const pendingData = useRef<Uint8Array[]>([]);
   const { subscribe, send } = useWS();
 
   // Listen for terminal data from server
   useEffect(() => {
     const unsub = subscribe("terminal:data" as any, (payload: any) => {
-      if (payload?.session_id === sessionId && termRef.current) {
+      if (payload?.session_id === sessionId) {
         try {
           const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0));
-          termRef.current.write(bytes);
+          if (termRef.current) {
+            termRef.current.write(bytes);
+          } else {
+            pendingData.current.push(bytes);
+          }
         } catch { /* ignore */ }
       }
     });
@@ -79,6 +84,12 @@ export function TerminalPanel({ sessionId, onDetach }: TerminalPanelProps) {
 
       termRef.current = term;
       fitAddonRef.current = fitAddon;
+
+      // Flush any data that arrived before term was ready
+      for (const chunk of pendingData.current) {
+        term.write(chunk);
+      }
+      pendingData.current = [];
 
       term.onData((data: string) => {
         const bytes = new TextEncoder().encode(data);
