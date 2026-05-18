@@ -10,8 +10,10 @@ import { api } from "@aicortex/core/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { TerminalPanel } from "./terminal-panel";
 import { NewSessionDialog } from "./new-session-dialog";
+import { useT } from "../../i18n";
 
 export function ExplorePage() {
+  const { t } = useT("runtimes");
   const workspace = useCurrentWorkspace();
   const { data: sessions = [] } = useQuery({
     ...terminalSessionListOptions(workspace?.id ?? ""),
@@ -39,7 +41,7 @@ export function ExplorePage() {
       {sidebarOpen && (
         <div className="w-64 shrink-0 border-r flex flex-col">
           <div className="flex items-center justify-between p-3 border-b">
-            <h2 className="text-sm font-medium">Sessions</h2>
+            <h2 className="text-sm font-medium">{t(($) => $.sessions.list_title)}</h2>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -47,7 +49,7 @@ export function ExplorePage() {
                 className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs bg-brand text-brand-foreground hover:bg-brand/90"
               >
                 <Plus className="size-3" />
-                New
+                {t(($) => $.sessions.new_action)}
               </button>
               <button type="button" onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-accent text-muted-foreground">
                 <PanelLeftClose className="size-4" />
@@ -67,7 +69,7 @@ export function ExplorePage() {
             ))}
             {closedSessions.length > 0 && (
               <>
-                <div className="text-xs text-muted-foreground px-2 pt-3 pb-1">Closed</div>
+                <div className="text-xs text-muted-foreground px-2 pt-3 pb-1">{t(($) => $.sessions.closed_group)}</div>
                 {closedSessions.slice(0, 5).map((session) => (
                   <SessionItem
                     key={session.id}
@@ -91,7 +93,7 @@ export function ExplorePage() {
               <PanelLeftOpen className="size-4" />
             </button>
             <span className="text-xs text-muted-foreground truncate">
-              {activeSession?.title || "Terminal"}
+              {activeSession?.title || t(($) => $.sessions.unnamed)}
             </span>
           </div>
         )}
@@ -105,14 +107,14 @@ export function ExplorePage() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-3">
               <Terminal className="size-12 mx-auto opacity-30" />
-              <p className="text-sm">This session has been closed</p>
+              <p className="text-sm">{t(($) => $.sessions.session_closed)}</p>
             </div>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-3">
               <Terminal className="size-12 mx-auto opacity-30" />
-              <p className="text-sm">Select a session or create a new one</p>
+              <p className="text-sm">{t(($) => $.sessions.empty_prompt)}</p>
             </div>
           </div>
         )}
@@ -144,6 +146,7 @@ function SessionItem({
   onClick: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useT("runtimes");
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(session.title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +192,7 @@ function SessionItem({
       <Circle className={`size-2 mt-1.5 shrink-0 fill-current ${statusColor}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
-          <span className="truncate">{session.title || "Terminal"}</span>
+          <span className="truncate">{session.title || t(($) => $.sessions.unnamed)}</span>
           <Pencil
             className="size-3 opacity-0 group-hover:opacity-100 shrink-0 hover:text-foreground"
             onClick={(e) => { e.stopPropagation(); setEditing(true); }}

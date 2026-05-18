@@ -59,6 +59,8 @@
     "others": "其他",
     "no_agents": "暂无Agent",
     "no_project": "无项目",
+    "select_agent": "选择 Agent",
+    "chats": "会话",
     "active_group": "进行中",
     "archived_group_other": "{{count}} 条已归档"
   },
@@ -70,7 +72,9 @@
     "first_time_actions": "让它做一份总结、规划你的一天，或交给它一个小任务。",
     "returning_title_named": "你好，我是 {{name}}",
     "returning_title_default": "欢迎使用 AICortex",
-    "returning_subtitle": "试试问"
+    "returning_subtitle": "试试问",
+    "chat_with_name": "和 {{name}} 开始对话",
+    "select_agent": "选择一个 Agent 开始对话"
   },
   "starter_prompts": {
     "list_open": "按优先级列出我未完成的任务",

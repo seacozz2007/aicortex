@@ -221,5 +221,21 @@
     "table_cache_r": "缓存读",
     "table_cache_w": "缓存写",
     "no_data": "还没有使用数据"
+  },
+  "sessions": {
+    "new_title": "新建终端会话",
+    "runner_label": "Runner",
+    "select_runner": "选择 Runner...",
+    "title_optional": "标题（可选）",
+    "shell_optional": "Shell（可选）",
+    "creating": "创建中...",
+    "create": "创建",
+    "cancel": "取消",
+    "list_title": "会话",
+    "new_action": "新建",
+    "closed_group": "已关闭",
+    "session_closed": "此会话已关闭",
+    "empty_prompt": "选择一个会话或新建一个",
+    "unnamed": "终端"
   }
 }

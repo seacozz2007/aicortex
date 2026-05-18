@@ -33,6 +33,7 @@ import { api } from "@aicortex/core/api";
 import { canAssignAgent } from "@aicortex/views/issues/components";
 import type { Agent, ChatSession, ChatMessage, ChatPendingTask } from "@aicortex/core/types";
 import { cn } from "@aicortex/ui/lib/utils";
+import { useT } from "../../i18n";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { ChatMessageList, ChatMessageSkeleton } from "./chat-message-list";
 import { ChatInput } from "./chat-input";
@@ -46,6 +47,7 @@ import {
 } from "./context-anchor";
 
 export function ChatPage() {
+  const { t } = useT("chat");
   const wsId = useWorkspaceId();
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
@@ -234,7 +236,7 @@ export function ChatPage() {
       {/* Left: Session list */}
       <aside className="flex w-72 shrink-0 flex-col border-r bg-sidebar">
         <div className="flex h-12 items-center justify-between border-b px-4">
-          <h2 className="text-sm font-medium">会话</h2>
+          <h2 className="text-sm font-medium">{t(($) => $.window.chats)}</h2>
           <button
             type="button"
             onClick={handleNewChat}
@@ -248,7 +250,7 @@ export function ChatPage() {
           {sessions.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
               <MessageSquare className="size-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">暂无会话</p>
+              <p className="text-sm text-muted-foreground">{t(($) => $.window.no_previous)}</p>
             </div>
           ) : (
             <div className="p-2 space-y-0.5">
@@ -267,7 +269,7 @@ export function ChatPage() {
               {archivedSessions.length > 0 && (
                 <>
                   <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
-                    已归档 ({archivedSessions.length})
+                    {t(($) => $.window.archived_group, { count: archivedSessions.length })}
                   </p>
                   {archivedSessions.map((session) => (
                     <SessionItem
@@ -329,7 +331,7 @@ export function ChatPage() {
               <div className="text-center">
                 <MessageSquare className="mx-auto size-10 text-muted-foreground/30" />
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {activeAgent ? `和 ${activeAgent.name} 开始对话` : "选择一个 Agent 开始对话"}
+                  {activeAgent ? t(($) => $.empty_state.chat_with_name, { name: activeAgent.name }) : t(($) => $.empty_state.select_agent)}
                 </p>
               </div>
             </div>
@@ -381,6 +383,7 @@ function AgentPicker({
   activeAgent: Agent | null;
   onSelect: (agent: Agent) => void;
 }) {
+  const { t } = useT("chat");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1 cursor-pointer outline-none transition-colors hover:bg-accent aria-expanded:bg-accent">
@@ -390,7 +393,7 @@ function AgentPicker({
             <span className="text-xs font-medium max-w-24 truncate">{activeAgent.name}</span>
           </>
         ) : (
-          <span className="text-xs text-muted-foreground">选择 Agent</span>
+          <span className="text-xs text-muted-foreground">{t(($) => $.window.select_agent)}</span>
         )}
         <ChevronDown className="size-2.5 text-muted-foreground shrink-0" />
       </DropdownMenuTrigger>
@@ -422,18 +425,19 @@ function ProjectPicker({
   selectedProjectId: string | null;
   onSelect: (id: string | null) => void;
 }) {
+  const { t } = useT("chat");
   const active = projects.find((p) => p.id === selectedProjectId);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1 rounded-md px-1.5 py-1 cursor-pointer outline-none transition-colors hover:bg-accent aria-expanded:bg-accent text-xs text-muted-foreground">
         <FolderKanban className="size-3" />
-        <span className="max-w-20 truncate">{active?.title ?? "无项目"}</span>
+        <span className="max-w-20 truncate">{active?.title ?? t(($) => $.window.no_project)}</span>
         <ChevronDown className="size-2.5 shrink-0" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="max-h-60 w-auto max-w-56">
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => onSelect(null)}>
-            <span className="text-muted-foreground">无项目</span>
+            <span className="text-muted-foreground">{t(($) => $.window.no_project)}</span>
             {!selectedProjectId && <Check className="size-3.5 text-muted-foreground ml-auto" />}
           </DropdownMenuItem>
           {projects.map((project) => (
@@ -465,9 +469,10 @@ function SessionItem({
   onDelete: () => void;
   onRename: (title: string) => void;
 }) {
+  const { t } = useT("chat");
   const agent = agents.find((a) => a.id === session.agent_id);
   const project = session.project_id ? projects.find((p) => p.id === session.project_id) : null;
-  const time = getRelativeTime(session.updated_at || session.created_at);
+  const time = getRelativeTime(session.updated_at || session.created_at, t);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(session.title);
 
@@ -507,7 +512,7 @@ function SessionItem({
     >
       {agent && <ActorAvatar actorType="agent" actorId={agent.id} size={20} />}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{session.title || "Untitled"}</p>
+        <p className="truncate font-medium">{session.title || t(($) => $.session_history.untitled)}</p>
         <p className="truncate text-xs text-muted-foreground">
           {project ? `${project.title} · ` : ""}{time}
         </p>
@@ -533,13 +538,13 @@ function SessionItem({
   );
 }
 
-function getRelativeTime(iso: string): string {
+function getRelativeTime(iso: string, t: (...args: any[]) => any): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins}分钟前`;
+  if (mins < 1) return t(($: any) => $.session_history.time.just_now);
+  if (mins < 60) return t(($: any) => $.session_history.time.minutes, { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}小时前`;
+  if (hours < 24) return t(($: any) => $.session_history.time.hours, { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}天前`;
+  return t(($: any) => $.session_history.time.days, { count: days });
 }

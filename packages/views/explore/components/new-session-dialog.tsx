@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { useT } from "../../i18n";
 import { useCreateTerminalSession } from "@aicortex/core/terminal";
 import { runtimeListOptions } from "@aicortex/core/runtimes/queries";
 import { useCurrentWorkspace } from "@aicortex/core/paths";
@@ -13,6 +14,7 @@ interface NewSessionDialogProps {
 }
 
 export function NewSessionDialog({ onClose, onCreated }: NewSessionDialogProps) {
+  const { t } = useT("runtimes");
   const [runtimeId, setRuntimeId] = useState("");
   const [title, setTitle] = useState("");
   const [shell, setShell] = useState("");
@@ -44,7 +46,7 @@ export function NewSessionDialog({ onClose, onCreated }: NewSessionDialogProps) 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="bg-card border rounded-lg shadow-lg w-96 p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium">New Terminal Session</h3>
+          <h3 className="text-sm font-medium">{t(($) => $.sessions.new_title)}</h3>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="size-4" />
           </button>
@@ -52,14 +54,14 @@ export function NewSessionDialog({ onClose, onCreated }: NewSessionDialogProps) 
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Runner</label>
+            <label className="text-xs text-muted-foreground block mb-1">{t(($) => $.sessions.runner_label)}</label>
             <select
               value={runtimeId}
               onChange={(e) => setRuntimeId(e.target.value)}
               className="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
               required
             >
-              <option value="">Select a runner...</option>
+              <option value="">{t(($) => $.sessions.select_runner)}</option>
               {onlineRuntimes.map((rt) => (
                 <option key={rt.id} value={rt.id}>
                   {rt.name}
@@ -69,7 +71,7 @@ export function NewSessionDialog({ onClose, onCreated }: NewSessionDialogProps) 
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Title (optional)</label>
+            <label className="text-xs text-muted-foreground block mb-1">{t(($) => $.sessions.title_optional)}</label>
             <input
               type="text"
               value={title}
@@ -80,7 +82,7 @@ export function NewSessionDialog({ onClose, onCreated }: NewSessionDialogProps) 
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Shell (optional)</label>
+            <label className="text-xs text-muted-foreground block mb-1">{t(($) => $.sessions.shell_optional)}</label>
             <input
               type="text"
               value={shell}
@@ -92,14 +94,14 @@ export function NewSessionDialog({ onClose, onCreated }: NewSessionDialogProps) 
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-3 py-1.5 text-sm rounded-md hover:bg-accent">
-              Cancel
+              {t(($) => $.sessions.cancel)}
             </button>
             <button
               type="submit"
               disabled={!runtimeId || createSession.isPending}
               className="px-3 py-1.5 text-sm rounded-md bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50"
             >
-              {createSession.isPending ? "Creating..." : "Create"}
+              {createSession.isPending ? t(($) => $.sessions.creating) : t(($) => $.sessions.create)}
             </button>
           </div>
         </form>

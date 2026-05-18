@@ -229,5 +229,21 @@
     "table_cache_r": "Cache R",
     "table_cache_w": "Cache W",
     "no_data": "No usage data yet"
+  },
+  "sessions": {
+    "new_title": "New Terminal Session",
+    "runner_label": "Runner",
+    "select_runner": "Select a runner...",
+    "title_optional": "Title (optional)",
+    "shell_optional": "Shell (optional)",
+    "creating": "Creating...",
+    "create": "Create",
+    "cancel": "Cancel",
+    "list_title": "Sessions",
+    "new_action": "New",
+    "closed_group": "Closed",
+    "session_closed": "This session has been closed",
+    "empty_prompt": "Select a session or create a new one",
+    "unnamed": "Terminal"
   }
 }
