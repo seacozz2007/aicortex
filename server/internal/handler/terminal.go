@@ -146,6 +146,36 @@ func (h *Handler) ListTerminalSessions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sessions)
 }
 
+func (h *Handler) UpdateTerminalSession(w http.ResponseWriter, r *http.Request) {
+	member, ok := middleware.MemberFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	sessionID := chi.URLParam(r, "sessionId")
+	wsID := uuidToString(member.WorkspaceID)
+
+	var req struct {
+		Title string `json:"title"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	_, err := h.DB.Exec(r.Context(),
+		`UPDATE terminal_sessions SET title = $1 WHERE id = $2 AND workspace_id = $3`,
+		req.Title, sessionID, wsID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update session")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) CloseTerminalSession(w http.ResponseWriter, r *http.Request) {
 	member, ok := middleware.MemberFromContext(r.Context())
 	if !ok {

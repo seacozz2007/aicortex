@@ -1,4 +1,4 @@
-.PHONY: help makehelp dev server daemon cli aicortex build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop
+.PHONY: help makehelp dev server daemon cli aicortex build prod test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -280,6 +280,25 @@ build: ## Build the server, CLI, and migrate binaries into server/bin
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o bin/server ./cmd/server
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/aicortex ./cmd/aicortex
 	cd server && go build -o bin/migrate ./cmd/migrate
+
+prod: ## Production build and start (install, build, migrate, launch server + web)
+	$(REQUIRE_ENV)
+	@echo "==> Installing dependencies..."
+	pnpm install
+	@echo "==> Building Go server..."
+	$(MAKE) build
+	@echo "==> Building frontend..."
+	pnpm build
+	@echo "==> Running migrations..."
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	cd server && ./bin/migrate up
+	@echo "==> Starting production services..."
+	@echo "Backend: http://localhost:$(PORT)"
+	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
+	@trap 'kill 0' EXIT; \
+		(cd server && ./bin/server) & \
+		(cd apps/web && pnpm start) & \
+		wait
 
 test: ## Run Go tests after ensuring the target DB exists and migrations are applied
 	$(REQUIRE_ENV)

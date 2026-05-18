@@ -1655,4 +1655,11 @@ export class ApiClient {
   async closeTerminalSession(id: string): Promise<void> {
     await this.fetch(`/api/terminal/sessions/${id}`, { method: "DELETE" });
   }
+
+  async updateTerminalSession(id: string, data: { title: string }): Promise<void> {
+    await this.fetch(`/api/terminal/sessions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
 }

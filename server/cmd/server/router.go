@@ -628,7 +628,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Use(middleware.RequireWorkspaceRole(queries, "owner", "admin"))
 				r.Post("/", h.CreateTerminalSession)
 				r.Get("/", h.ListTerminalSessions)
-				r.Delete("/{sessionId}", h.CloseTerminalSession)
+				r.Route("/{sessionId}", func(r chi.Router) {
+					r.Patch("/", h.UpdateTerminalSession)
+					r.Delete("/", h.CloseTerminalSession)
+				})
 			})
 		})
 	})
