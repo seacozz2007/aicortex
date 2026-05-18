@@ -116,6 +116,20 @@ func (d *Daemon) runTaskWakeupConnection(ctx context.Context, runtimeIDs []strin
 	writerDone := make(chan struct{})
 	go d.runWSWriter(conn, writes, writerDone)
 
+	// Wire terminal manager to send messages through the WS write channel.
+	d.terminalMgr.SetSendFunc(func(msg protocol.Message) {
+		frame, err := json.Marshal(msg)
+		if err != nil {
+			return
+		}
+		select {
+		case writes <- frame:
+		default:
+			d.logger.Debug("terminal ws write dropped (buffer full)")
+		}
+	})
+	defer d.terminalMgr.SetSendFunc(nil)
+
 	heartbeatCtx, cancelHeartbeat := context.WithCancel(ctx)
 	hbDone := make(chan struct{})
 	go func() {
@@ -287,6 +301,55 @@ func (d *Daemon) readTaskWakeupMessages(conn *websocket.Conn, taskWakeups chan<-
 				continue
 			}
 			d.handleWSHeartbeatAck(context.Background(), &ack)
+		case protocol.EventTerminalOpen:
+			var payload protocol.TerminalOpenPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				d.logger.Debug("terminal open invalid payload", "error", err)
+				continue
+			}
+			if d.terminalMgr != nil {
+				d.terminalMgr.HandleOpen(payload)
+			}
+		case protocol.EventTerminalAttach:
+			var payload protocol.TerminalAttachPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				continue
+			}
+			if d.terminalMgr != nil {
+				d.terminalMgr.HandleAttach(payload)
+			}
+		case protocol.EventTerminalData:
+			var payload protocol.TerminalDataPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				continue
+			}
+			if d.terminalMgr != nil {
+				d.terminalMgr.HandleData(payload)
+			}
+		case protocol.EventTerminalResize:
+			var payload protocol.TerminalResizePayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				continue
+			}
+			if d.terminalMgr != nil {
+				d.terminalMgr.HandleResize(payload)
+			}
+		case protocol.EventTerminalDetach:
+			var payload protocol.TerminalClosePayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				continue
+			}
+			if d.terminalMgr != nil {
+				d.terminalMgr.HandleDetach(payload.SessionID)
+			}
+		case protocol.EventTerminalClose:
+			var payload protocol.TerminalClosePayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				continue
+			}
+			if d.terminalMgr != nil {
+				d.terminalMgr.HandleClose(payload)
+			}
 		}
 	}
 }

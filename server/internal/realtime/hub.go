@@ -189,6 +189,10 @@ type Hub struct {
 	// Subscription lifecycle hooks. Both can be nil.
 	onFirstSubscriber SubscriptionCallback
 	onLastSubscriber  SubscriptionCallback
+
+	// onTerminalInbound relays terminal messages from browser to daemon.
+	termMu            sync.RWMutex
+	onTerminalInbound func(raw json.RawMessage, msgType string)
 }
 
 // NewHub creates a new Hub instance.
@@ -218,6 +222,15 @@ func (h *Hub) SetSubscriptionCallbacks(onFirst, onLast SubscriptionCallback) {
 	h.onFirstSubscriber = onFirst
 	h.onLastSubscriber = onLast
 }
+
+// SetTerminalInboundHandler installs the callback for relaying terminal
+// messages from browser clients to the daemon.
+func (h *Hub) SetTerminalInboundHandler(fn func(raw json.RawMessage, msgType string)) {
+	h.termMu.Lock()
+	h.onTerminalInbound = fn
+	h.termMu.Unlock()
+}
+
 
 // Run starts the hub event loop.
 func (h *Hub) Run() {
@@ -789,6 +802,16 @@ func (c *Client) handleFrame(raw []byte) {
 	case "ping":
 		c.sendJSON(map[string]string{"type": "pong"})
 	default:
+		// Terminal messages from browser → relay to daemon.
+		if f.Type == "terminal:data" || f.Type == "terminal:resize" || f.Type == "terminal:attach" || f.Type == "terminal:detach" || f.Type == "terminal:close" {
+			c.hub.termMu.RLock()
+			handler := c.hub.onTerminalInbound
+			c.hub.termMu.RUnlock()
+			if handler != nil {
+				handler(f.Payload, f.Type)
+			}
+			return
+		}
 		// Unknown frame — ignore silently for forward compat.
 		slog.Debug("ws inbound: unknown frame", "type", f.Type, "user_id", c.userID)
 	}

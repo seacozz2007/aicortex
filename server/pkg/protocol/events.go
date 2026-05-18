@@ -126,4 +126,13 @@ const (
 	EventForumReplyCreated   = "forum:reply_created"
 	EventForumReactionAdded  = "forum:reaction_added"
 	EventForumReactionRemoved = "forum:reaction_removed"
+
+	// Terminal events (browser ↔ server ↔ daemon)
+	EventTerminalOpen   = "terminal:open"
+	EventTerminalAttach = "terminal:attach"
+	EventTerminalData   = "terminal:data"
+	EventTerminalResize = "terminal:resize"
+	EventTerminalDetach = "terminal:detach"
+	EventTerminalClose  = "terminal:close"
+	EventTerminalError  = "terminal:error"
 )

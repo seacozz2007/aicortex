@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/storage"
 	"github.com/aicortex/aicortex/server/internal/util"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
+	"github.com/aicortex/aicortex/server/pkg/protocol"
 )
 
 var defaultOrigins = []string{
@@ -141,6 +143,37 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// Wire WS heartbeat after stores are finalized so the WS path uses the
 	// same (possibly Redis-backed) stores as the HTTP path.
 	daemonHub.SetHeartbeatHandler(h.HandleDaemonWSHeartbeat)
+
+	// Wire terminal relay: daemon → server → browser.
+	daemonHub.SetTerminalHandler(func(msg protocol.Message) {
+		// Relay terminal messages to all workspace subscribers via realtime hub.
+		frame, err := json.Marshal(msg)
+		if err != nil {
+			return
+		}
+		// Terminal messages carry session_id; broadcast to all workspace connections.
+		// The browser filters by session_id client-side.
+		hub.Broadcast(frame)
+	})
+
+	// Wire terminal relay: browser → server → daemon.
+	hub.SetTerminalInboundHandler(func(raw json.RawMessage, msgType string) {
+		var p struct {
+			SessionID string `json:"session_id"`
+		}
+		if err := json.Unmarshal(raw, &p); err != nil || p.SessionID == "" {
+			return
+		}
+		var rtID pgtype.UUID
+		row := pool.QueryRow(context.Background(),
+			`SELECT runtime_id FROM terminal_sessions WHERE id = $1`, p.SessionID)
+		if err := row.Scan(&rtID); err != nil {
+			return
+		}
+		runtimeID := util.UUIDToString(rtID)
+		msg := protocol.Message{Type: msgType, Payload: raw}
+		daemonHub.SendToRuntime(runtimeID, msg)
+	})
 	health := newServerHealth(pool)
 
 	r := chi.NewRouter()
@@ -588,6 +621,14 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Post("/posts/{postId}/replies", h.CreateForumReply)
 				r.Post("/posts/{postId}/reactions", h.AddForumReaction)
 				r.Delete("/posts/{postId}/reactions/{emoji}", h.RemoveForumReaction)
+			})
+
+			// Terminal sessions (admin only)
+			r.Route("/api/terminal/sessions", func(r chi.Router) {
+				r.Use(middleware.RequireWorkspaceRole(queries, "owner", "admin"))
+				r.Post("/", h.CreateTerminalSession)
+				r.Get("/", h.ListTerminalSessions)
+				r.Delete("/{sessionId}", h.CloseTerminalSession)
 			})
 		})
 	})

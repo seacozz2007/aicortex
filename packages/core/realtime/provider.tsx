@@ -26,6 +26,7 @@ type EventHandler = (payload: unknown, actorId?: string, actorType?: string) => 
 interface WSContextValue {
   subscribe: (event: WSEventType, handler: EventHandler) => () => void;
   onReconnect: (callback: () => void) => () => void;
+  send: (message: { type: string; payload: unknown }) => void;
 }
 
 const WSContext = createContext<WSContextValue | null>(null);
@@ -136,8 +137,15 @@ export function WSProvider({
     [wsClient],
   );
 
+  const send = useCallback(
+    (message: { type: string; payload: unknown }) => {
+      wsClient?.send(message as any);
+    },
+    [wsClient],
+  );
+
   return (
-    <WSContext.Provider value={{ subscribe, onReconnect: onReconnectCb }}>
+    <WSContext.Provider value={{ subscribe, onReconnect: onReconnectCb, send }}>
       {children}
     </WSContext.Provider>
   );

@@ -168,3 +168,47 @@ type DaemonHeartbeatPendingLocalSkillImport struct {
 	ID       string `json:"id"`
 	SkillKey string `json:"skill_key"`
 }
+
+// --- Terminal payloads ---
+
+// TerminalOpenPayload is sent from server to daemon to start a new PTY session.
+type TerminalOpenPayload struct {
+	SessionID string `json:"session_id"`
+	RuntimeID string `json:"runtime_id"`
+	Title     string `json:"title,omitempty"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+	Shell     string `json:"shell,omitempty"`
+}
+
+// TerminalAttachPayload is sent from server to daemon to re-attach to an existing session.
+type TerminalAttachPayload struct {
+	SessionID string `json:"session_id"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+}
+
+// TerminalDataPayload carries PTY I/O data (base64-encoded) in both directions.
+type TerminalDataPayload struct {
+	SessionID string `json:"session_id"`
+	Data      string `json:"data"`
+}
+
+// TerminalResizePayload is sent from browser to daemon to resize the PTY.
+type TerminalResizePayload struct {
+	SessionID string `json:"session_id"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+}
+
+// TerminalClosePayload is sent by either side to terminate a terminal session.
+type TerminalClosePayload struct {
+	SessionID string `json:"session_id"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// TerminalErrorPayload is sent from daemon to browser when an error occurs.
+type TerminalErrorPayload struct {
+	SessionID string `json:"session_id"`
+	Error     string `json:"error"`
+}

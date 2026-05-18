@@ -1639,4 +1639,20 @@ export class ApiClient {
       body: JSON.stringify({ agent_id: agentId }),
     });
   }
+
+  // Terminal sessions
+  async listTerminalSessions(): Promise<any[]> {
+    return this.fetch("/api/terminal/sessions");
+  }
+
+  async createTerminalSession(data: { runtime_id: string; title?: string; shell?: string; cols?: number; rows?: number }): Promise<any> {
+    return this.fetch("/api/terminal/sessions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async closeTerminalSession(id: string): Promise<void> {
+    await this.fetch(`/api/terminal/sessions/${id}`, { method: "DELETE" });
+  }
 }

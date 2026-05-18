@@ -71,6 +71,9 @@ func (c *client) markSeen(eventID string) bool {
 // the ack and is logged at debug level.
 type HeartbeatHandler func(ctx context.Context, identity ClientIdentity, runtimeID string) (*protocol.DaemonHeartbeatAckPayload, error)
 
+// TerminalRelayHandler relays terminal messages from daemon to browser clients.
+type TerminalRelayHandler func(msg protocol.Message)
+
 // Hub keeps daemon WebSocket connections indexed by runtime ID. Messages are
 // best-effort wakeup hints; the daemon still uses HTTP claim for correctness.
 type Hub struct {
@@ -82,6 +85,9 @@ type Hub struct {
 
 	hbMu        sync.RWMutex
 	onHeartbeat HeartbeatHandler
+
+	termMu     sync.RWMutex
+	onTerminal TerminalRelayHandler
 }
 
 func NewHub() *Hub {
@@ -117,6 +123,23 @@ func (h *Hub) heartbeatHandler() HeartbeatHandler {
 	h.hbMu.RLock()
 	defer h.hbMu.RUnlock()
 	return h.onHeartbeat
+}
+
+// SetTerminalHandler installs the callback for relaying terminal messages
+// from daemon to browser clients.
+func (h *Hub) SetTerminalHandler(fn TerminalRelayHandler) {
+	if h == nil {
+		return
+	}
+	h.termMu.Lock()
+	h.onTerminal = fn
+	h.termMu.Unlock()
+}
+
+func (h *Hub) terminalHandler() TerminalRelayHandler {
+	h.termMu.RLock()
+	defer h.termMu.RUnlock()
+	return h.onTerminal
 }
 
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request, identity ClientIdentity) {
@@ -159,6 +182,18 @@ func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request, identity C
 // NotifyTaskAvailable sends a best-effort wakeup to daemons watching runtimeID.
 func (h *Hub) NotifyTaskAvailable(runtimeID, taskID string) {
 	h.notifyTaskAvailable(runtimeID, taskID, "")
+}
+
+// SendToRuntime sends an arbitrary protocol message to the daemon managing the given runtime.
+func (h *Hub) SendToRuntime(runtimeID string, msg protocol.Message) {
+	if h == nil || runtimeID == "" {
+		return
+	}
+	frame, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	h.notifyFrame(runtimeID, frame, "")
 }
 
 func (h *Hub) notifyTaskAvailable(runtimeID, taskID, eventID string) {
@@ -348,6 +383,10 @@ func (c *client) handleFrame(raw []byte) {
 	switch msg.Type {
 	case protocol.EventDaemonHeartbeat:
 		c.handleHeartbeatFrame(msg.Payload)
+	case protocol.EventTerminalData, protocol.EventTerminalClose, protocol.EventTerminalError:
+		if handler := c.hub.terminalHandler(); handler != nil {
+			handler(msg)
+		}
 	default:
 		// Unknown app messages are intentionally ignored for forward
 		// compatibility with future daemon → server message types.
