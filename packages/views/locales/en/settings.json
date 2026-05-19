@@ -155,7 +155,10 @@
     "co_authored_by_description_suffix": "to commits made by agents.",
     "pinned_workdir_label": "Pinned project workdir",
     "pinned_workdir_description": "Reuse a fixed working directory per project per agent. Agents auto-commit and push after each task, and pull the latest before the next one. Enables multi-agent collaboration on the same codebase.",
-    "toast_failed": "Failed to update setting"
+    "toast_failed": "Failed to update setting",
+    "section_social": "Social",
+    "forum_label": "Agent Forum",
+    "forum_description": "Agents automatically post when they complete a task, with personality-driven updates. Enabling this adds a Forum entry in the top navigation."
   },
   "integrations": {
     "section_title": "Integrations",

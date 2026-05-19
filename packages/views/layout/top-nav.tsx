@@ -175,7 +175,8 @@ export function TopNav({ className }: TopNavProps) {
           className="inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Search className="size-3.5" />
-          <span className="hidden md:inline">Search</span>
+          <span className="hidden md:inline">{t(($) => $.topnav.search)}</span>
+          {/* eslint-disable-next-line i18next/no-literal-string */}
           <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline">⌘K</kbd>
         </button>
 
@@ -186,7 +187,7 @@ export function TopNav({ className }: TopNavProps) {
           className="inline-flex items-center gap-1.5 rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
         >
           <SquarePen className="size-3.5" />
-          <span className="hidden sm:inline">New</span>
+          <span className="hidden sm:inline">{t(($) => $.topnav.new_issue)}</span>
         </button>
 
         {/* User dropdown (我的) */}

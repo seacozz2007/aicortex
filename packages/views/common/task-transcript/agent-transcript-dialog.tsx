@@ -454,7 +454,7 @@ export function AgentTranscriptDialog({
                 : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            Chat
+            {t(($) => $.transcript.view_chat)}
           </button>
           <button
             onClick={() => setViewMode("timeline")}
@@ -465,7 +465,7 @@ export function AgentTranscriptDialog({
                 : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
-            Timeline
+            {t(($) => $.transcript.view_timeline)}
           </button>
         </div>
 

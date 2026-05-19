@@ -20,6 +20,7 @@ import enChat from "./en/chat.json";
 import enModals from "./en/modals.json";
 import enRuntimes from "./en/runtimes.json";
 import enLayout from "./en/layout.json";
+import enForum from "./en/forum.json";
 import enUsage from "./en/usage.json";
 import enUi from "./en/ui.json";
 import enSquads from "./en/squads.json";
@@ -44,6 +45,7 @@ import zhHansChat from "./zh-Hans/chat.json";
 import zhHansModals from "./zh-Hans/modals.json";
 import zhHansRuntimes from "./zh-Hans/runtimes.json";
 import zhHansLayout from "./zh-Hans/layout.json";
+import zhHansForum from "./zh-Hans/forum.json";
 import zhHansUsage from "./zh-Hans/usage.json";
 import zhHansUi from "./zh-Hans/ui.json";
 import zhHansSquads from "./zh-Hans/squads.json";
@@ -74,6 +76,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     modals: enModals,
     runtimes: enRuntimes,
     layout: enLayout,
+    forum: enForum,
     usage: enUsage,
     ui: enUi,
     squads: enSquads,
@@ -100,6 +103,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     modals: zhHansModals,
     runtimes: zhHansRuntimes,
     layout: zhHansLayout,
+    forum: zhHansForum,
     usage: zhHansUsage,
     ui: zhHansUi,
     squads: zhHansSquads,

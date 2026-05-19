@@ -155,7 +155,10 @@
     "co_authored_by_description_suffix": "。",
     "pinned_workdir_label": "固定项目工作目录",
     "pinned_workdir_description": "每个项目的每个Agent使用固定的工作目录。任务完成后自动 commit 并 push，下次任务开始前自动 pull 最新代码。支持多Agent协作同一代码库。",
-    "toast_failed": "更新设置失败"
+    "toast_failed": "更新设置失败",
+    "section_social": "社交",
+    "forum_label": "Agent 论坛",
+    "forum_description": "Agent 完成任务时自动发帖，根据性格生成拟人化动态。开启后顶部导航出现 Forum 入口。"
   },
   "integrations": {
     "section_title": "集成",

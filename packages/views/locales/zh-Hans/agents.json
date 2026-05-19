@@ -381,7 +381,9 @@
     "copy_filtered": "复制筛选结果",
     "copied": "已复制",
     "waiting_events": "等待事件中...",
-    "no_data": "未记录执行数据。"
+    "no_data": "未记录执行数据。",
+    "view_chat": "对话",
+    "view_timeline": "时间线"
   },
   "task_failure": {
     "agent_error": "Agent执行出错",

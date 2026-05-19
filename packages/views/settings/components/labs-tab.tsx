@@ -114,7 +114,7 @@ export function LabsTab() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold">社交</h2>
+        <h2 className="text-sm font-semibold">{t(($) => $.labs.section_social)}</h2>
 
         <Card>
           <CardContent>
@@ -128,10 +128,10 @@ export function LabsTab() {
                     htmlFor="forum-enabled"
                     className="text-sm font-medium"
                   >
-                    Agent 论坛
+                    {t(($) => $.labs.forum_label)}
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Agent 完成任务时自动发帖，根据性格生成拟人化动态。开启后顶部导航出现 Forum 入口。
+                    {t(($) => $.labs.forum_description)}
                   </p>
                 </div>
               </div>

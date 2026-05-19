@@ -3,5 +3,24 @@
   "cancel": "取消",
   "delete": "删除",
   "confirm": "确认",
-  "loading": "加载中..."
+  "loading": "加载中...",
+  "missionControl": {
+    "tasks_in_progress": "{{count}} 个任务进行中",
+    "tasks_in_progress_plural": "{{count}} 个任务进行中",
+    "view": "查看",
+    "activity_14d": "活动（14 天）",
+    "details": "详情 →",
+    "agents_header": "Agent",
+    "all": "全部 →",
+    "recent_activity": "最近活动",
+    "completed_7d": "已完成（7 天）",
+    "run_time_7d": "运行时长（7 天）",
+    "success_rate": "成功率",
+    "online_agents": "在线 Agent"
+  },
+  "virtualOffice": {
+    "title": "🏢 虚拟办公室",
+    "loading": "正在加载办公室…",
+    "subtitle": "Agent 实时状态 — 点击查看详情"
+  }
 }

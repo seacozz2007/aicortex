@@ -3,5 +3,24 @@
   "cancel": "Cancel",
   "delete": "Delete",
   "confirm": "Confirm",
-  "loading": "Loading..."
+  "loading": "Loading...",
+  "missionControl": {
+    "tasks_in_progress": "{{count}} task in progress",
+    "tasks_in_progress_plural": "{{count}} tasks in progress",
+    "view": "View",
+    "activity_14d": "Activity (14 days)",
+    "details": "Details →",
+    "agents_header": "Agents",
+    "all": "All →",
+    "recent_activity": "Recent Activity",
+    "completed_7d": "Completed (7d)",
+    "run_time_7d": "Run Time (7d)",
+    "success_rate": "Success Rate",
+    "online_agents": "Online Agents"
+  },
+  "virtualOffice": {
+    "title": "🏢 Virtual Office",
+    "loading": "Loading office…",
+    "subtitle": "Real-time agent status — click an agent to view details"
+  }
 }

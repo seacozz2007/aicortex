@@ -38,9 +38,11 @@ import type { Agent, AgentTask } from "@aicortex/core/types";
 import type { AgentPresenceDetail } from "@aicortex/core/agents";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { AppLink } from "../../navigation";
+import { useT } from "../../i18n";
 import { useWorkspacePaths } from "@aicortex/core/paths";
 
 export function MissionControlPage() {
+  const { t } = useT("common");
   const wsId = useWorkspaceId();
   const p = useWorkspacePaths();
   const user = useAuthStore((s) => s.user);
@@ -129,7 +131,7 @@ export function MissionControlPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">
-                {activeTasks.length} task{activeTasks.length > 1 ? "s" : ""} in progress
+                {t(($) => $.missionControl.tasks_in_progress, { count: activeTasks.length })}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {activeTasks.slice(0, 3).map((t: AgentTask) => {
@@ -141,7 +143,7 @@ export function MissionControlPage() {
             </div>
             <AppLink href={p.agents()}>
               <span className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-                View <ArrowRight className="size-3" />
+                {t(($) => $.missionControl.view)} <ArrowRight className="size-3" />
               </span>
             </AppLink>
           </div>
@@ -151,25 +153,31 @@ export function MissionControlPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard
             icon={<CheckCircle2 className="size-4 text-success" />}
-            label="Completed (7d)"
+            label={t(($) => $.missionControl.completed_7d)}
             value={stats.tasks}
             loading={!agentRunTime}
           />
           <StatCard
             icon={<Clock className="size-4 text-brand" />}
-            label="Run Time (7d)"
+            label={t(($) => $.missionControl.run_time_7d)}
+            value={stats.tasks}
+            loading={!agentRunTime}
+          />
+          <StatCard
+            icon={<Clock className="size-4 text-brand" />}
+            label={t(($) => $.missionControl.run_time_7d)}
             value={`${stats.hours.toFixed(1)}h`}
             loading={!agentRunTime}
           />
           <StatCard
             icon={<TrendingUp className="size-4 text-success" />}
-            label="Success Rate"
+            label={t(($) => $.missionControl.success_rate)}
             value={`${stats.successRate}%`}
             loading={!agentRunTime}
           />
           <StatCard
             icon={<Bot className="size-4 text-brand" />}
-            label="Online Agents"
+            label={t(($) => $.missionControl.online_agents)}
             value={`${activeAgents.filter((a) => byAgent.get(a.id)?.availability === "online").length}/${activeAgents.length}`}
             loading={!agents}
           />
@@ -180,10 +188,10 @@ export function MissionControlPage() {
           {/* Left: Activity chart */}
           <div className="space-y-4 lg:col-span-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">Activity (14 days)</h2>
+              <h2 className="text-sm font-medium">{t(($) => $.missionControl.activity_14d)}</h2>
               <AppLink href={p.usage()}>
                 <span className="text-xs text-muted-foreground hover:text-foreground">
-                  Details →
+                  {t(($) => $.missionControl.details)}
                 </span>
               </AppLink>
             </div>
@@ -271,10 +279,10 @@ export function MissionControlPage() {
           {/* Center: Agent fleet */}
           <div className="space-y-4 lg:col-span-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">Agents</h2>
+              <h2 className="text-sm font-medium">{t(($) => $.missionControl.agents_header)}</h2>
               <AppLink href={p.agents()}>
                 <span className="text-xs text-muted-foreground hover:text-foreground">
-                  All →
+                  {t(($) => $.missionControl.all)}
                 </span>
               </AppLink>
             </div>
@@ -309,7 +317,7 @@ export function MissionControlPage() {
           {/* Right: Recent activity + quick links */}
           <div className="space-y-4 lg:col-span-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium">Recent Activity</h2>
+              <h2 className="text-sm font-medium">{t(($) => $.missionControl.recent_activity)}</h2>
             </div>
             <div className="rounded-xl bg-card ring-1 ring-border">
               {!taskSnapshot ? (

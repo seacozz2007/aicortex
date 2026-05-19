@@ -391,7 +391,9 @@
     "copy_filtered": "Copy filtered",
     "copied": "Copied",
     "waiting_events": "Waiting for events...",
-    "no_data": "No execution data recorded."
+    "no_data": "No execution data recorded.",
+    "view_chat": "Chat",
+    "view_timeline": "Timeline"
   },
   "task_failure": {
     "agent_error": "Agent execution error",

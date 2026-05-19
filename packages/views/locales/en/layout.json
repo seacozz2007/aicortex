@@ -18,6 +18,8 @@
     "chat": "Chat"
   },
   "topnav": {
+    "search": "Search",
+    "new_issue": "New",
     "my_account": "My Account",
     "profile": "Profile",
     "preferences": "Preferences",

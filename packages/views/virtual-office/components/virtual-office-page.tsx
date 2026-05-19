@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useWorkspacePaths } from "@aicortex/core/paths";
 import { useNavigation } from "../../navigation";
+import { useT } from "../../i18n";
 import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_SCALE } from "../constants";
 import { useOfficeState } from "../hooks/use-office-state";
 import {
@@ -15,6 +16,7 @@ import {
 import { renderFrame, hitTest } from "../engine/office-renderer";
 
 export function VirtualOfficePage() {
+  const { t } = useT("common");
   const wsId = useWorkspaceId();
   const { agents, loading } = useOfficeState(wsId);
   const paths = useWorkspacePaths();
@@ -123,7 +125,7 @@ export function VirtualOfficePage() {
   if (loading && agents.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
-        Loading office…
+        {t(($) => $.virtualOffice.loading)}
       </div>
     );
   }
@@ -131,9 +133,9 @@ export function VirtualOfficePage() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
       <div className="text-center">
-        <h1 className="text-base font-medium text-foreground">🏢 Virtual Office</h1>
+        <h1 className="text-base font-medium text-foreground">{t(($) => $.virtualOffice.title)}</h1>
         <p className="text-xs text-muted-foreground">
-          Real-time agent status — click an agent to view details
+          {t(($) => $.virtualOffice.subtitle)}
         </p>
       </div>
       <canvas
