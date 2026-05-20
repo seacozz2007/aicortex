@@ -1,5 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { useIsMobile } from "@aicortex/ui/hooks/use-mobile";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@aicortex/ui/components/ui/sheet";
 import { cn } from "@aicortex/ui/lib/utils";
 import {
   Home,
@@ -25,6 +34,7 @@ import {
   Key,
   SlidersHorizontal,
   LogOut,
+  Menu,
   Check,
   MessageSquare,
   Plus,
@@ -69,6 +79,9 @@ export function TopNav({ className }: TopNavProps) {
 
   const settings = (workspace?.settings as Record<string, unknown>) ?? {};
 
+  const isMobile = useIsMobile();
+  const [navSheetOpen, setNavSheetOpen] = useState(false);
+
   const navItems = [
     { key: "home", label: t(($) => $.nav.home), href: p.home(), icon: Home },
     { key: "inbox", label: t(($) => $.nav.inbox), href: p.inbox(), icon: Inbox },
@@ -90,6 +103,54 @@ export function TopNav({ className }: TopNavProps) {
     <header className={cn("flex h-12 shrink-0 items-center border-b bg-card px-4", className)}>
       {/* Left: Logo + Workspace Switcher + Nav */}
       <div className="flex items-center gap-1">
+        {/* Mobile hamburger */}
+        {isMobile && (
+          <Sheet open={navSheetOpen} onOpenChange={setNavSheetOpen}>
+            <SheetTrigger
+              render={
+                <button
+                  type="button"
+                  className="inline-flex items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent"
+                  aria-label="Open navigation menu"
+                >
+                  <Menu className="size-4" />
+                </button>
+              }
+            />
+            <SheetContent side="left" className="w-64 p-4">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Navigation</SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col gap-1 pt-6">
+                {[
+                  ...navItems,
+                  { key: "chat", label: t(($) => $.nav.chat), href: p.chat(), icon: MessageSquare },
+                ].map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <AppLink
+                      key={item.key}
+                      href={item.href}
+                      onClick={() => setNavSheetOpen(false)}
+                    >
+                      <span
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-foreground",
+                          isActive
+                            ? "bg-accent text-foreground font-medium"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        <item.icon className="size-4" />
+                        {item.label}
+                      </span>
+                    </AppLink>
+                  );
+                })}
+              </nav>
+            </SheetContent>
+          </Sheet>
+        )}
         <AppLink href={p.home()}>
           <AICortexIcon className="mr-2 size-5" />
         </AppLink>
@@ -133,39 +194,43 @@ export function TopNav({ className }: TopNavProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <AppLink key={item.key} href={item.href}>
+        {!isMobile && (
+          <>
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              return (
+                <AppLink key={item.key} href={item.href}>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
+                      isActive
+                        ? "bg-accent text-foreground font-medium"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <item.icon className="size-3.5" />
+                    <span className="hidden lg:inline">{item.label}</span>
+                  </span>
+                </AppLink>
+              );
+            })}
+
+            {/* Chat entry */}
+            <AppLink href={p.chat()}>
               <span
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
-                  isActive
+                  pathname.startsWith(p.chat())
                     ? "bg-accent text-foreground font-medium"
                     : "text-muted-foreground"
                 )}
               >
-                <item.icon className="size-3.5" />
-                <span className="hidden lg:inline">{item.label}</span>
+                <MessageSquare className="size-3.5" />
+                <span className="hidden lg:inline">{t(($) => $.nav.chat)}</span>
               </span>
             </AppLink>
-          );
-        })}
-
-        {/* Chat entry */}
-        <AppLink href={p.chat()}>
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
-              pathname.startsWith(p.chat())
-                ? "bg-accent text-foreground font-medium"
-                : "text-muted-foreground"
-            )}
-          >
-            <MessageSquare className="size-3.5" />
-            <span className="hidden lg:inline">{t(($) => $.nav.chat)}</span>
-          </span>
-        </AppLink>
+          </>
+        )}
       </div>
 
       {/* Right: Search + New Issue + User menu */}
@@ -177,9 +242,9 @@ export function TopNav({ className }: TopNavProps) {
           className="inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Search className="size-3.5" />
-          <span className="hidden md:inline">{t(($) => $.topnav.search)}</span>
+          <span className="hidden sm:inline">{t(($) => $.topnav.search)}</span>
           {/* eslint-disable-next-line i18next/no-literal-string */}
-          <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] md:inline">⌘K</kbd>
+          <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
         </button>
 
         {/* New Issue */}
