@@ -23,9 +23,44 @@ export function VirtualOfficePage() {
   const { push } = useNavigation();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const spritesRef = useRef<Map<string, AgentSpriteData>>(new Map());
   const rafRef = useRef<number>(0);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [scaleFactor, setScaleFactor] = useState(1);
+
+  // Observe container width and derive a scale factor that never upscales
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width } = entry.contentRect;
+      const maxCssWidth = CANVAS_WIDTH * CANVAS_SCALE;
+      setScaleFactor(Math.min(width / maxCssWidth, 1));
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const effectiveScale = CANVAS_SCALE * scaleFactor;
+
+  // Helper to convert screen coordinates to logical canvas coordinates
+  const screenToLogical = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { mx: 0, my: 0 };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        mx: (clientX - rect.left) / effectiveScale,
+        my: (clientY - rect.top) / effectiveScale,
+      };
+    },
+    [effectiveScale],
+  );
 
   // Sync office state → sprites
   useEffect(() => {
@@ -74,52 +109,87 @@ export function VirtualOfficePage() {
     return () => { running = false; cancelAnimationFrame(rafRef.current); };
   }, [loading]);
 
-  // Mouse hover for tooltip
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) / CANVAS_SCALE;
-    const my = (e.clientY - rect.top) / CANVAS_SCALE;
-
-    const sprites = Array.from(spritesRef.current.values());
-    const hit = hitTest(sprites, mx, my);
-    if (hit) {
-      const stateLabel: Record<string, string> = {
-        working: "⚡ Working",
-        idle: "☕ Idle",
-        offline: "💤 Offline",
-        walking: "🚶 Moving",
-        waiting: "⏳ Waiting",
-        meeting: "🗣 Meeting",
-        celebrating: "🎉 Done!",
-      };
-      setTooltip({
-        x: e.clientX + 12,
-        y: e.clientY - 10,
-        text: `${hit.name} — ${stateLabel[hit.state] ?? hit.state}`,
-      });
-    } else {
-      setTooltip(null);
-    }
+  const makeTooltip = useCallback((hit: AgentSpriteData, clientX: number, clientY: number) => {
+    const stateLabel: Record<string, string> = {
+      working: "⚡ Working",
+      idle: "☕ Idle",
+      offline: "💤 Offline",
+      walking: "🚶 Moving",
+      waiting: "⏳ Waiting",
+      meeting: "🗣 Meeting",
+      celebrating: "🎉 Done!",
+    };
+    setTooltip({
+      x: clientX + 12,
+      y: clientY - 10,
+      text: `${hit.name} — ${stateLabel[hit.state] ?? hit.state}`,
+    });
   }, []);
+
+  // Mouse hover for tooltip
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const { mx, my } = screenToLogical(e.clientX, e.clientY);
+      const sprites = Array.from(spritesRef.current.values());
+      const hit = hitTest(sprites, mx, my);
+      if (hit) {
+        makeTooltip(hit, e.clientX, e.clientY);
+      } else {
+        setTooltip(null);
+      }
+    },
+    [screenToLogical, makeTooltip],
+  );
 
   // Click to navigate to agent detail
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) / CANVAS_SCALE;
-      const my = (e.clientY - rect.top) / CANVAS_SCALE;
-
+      const { mx, my } = screenToLogical(e.clientX, e.clientY);
       const sprites = Array.from(spritesRef.current.values());
       const hit = hitTest(sprites, mx, my);
       if (hit) {
         push(paths.agentDetail(hit.id));
       }
     },
-    [push, paths],
+    [screenToLogical, push, paths],
+  );
+
+  // Touch support for mobile devices
+  const touchTargetRef = useRef<string | null>(null);
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLCanvasElement>) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      const { mx, my } = screenToLogical(touch.clientX, touch.clientY);
+      const sprites = Array.from(spritesRef.current.values());
+      const hit = hitTest(sprites, mx, my);
+      if (hit) {
+        touchTargetRef.current = hit.id;
+        makeTooltip(hit, touch.clientX, touch.clientY);
+      } else {
+        touchTargetRef.current = null;
+        setTooltip(null);
+      }
+    },
+    [screenToLogical, makeTooltip],
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent<HTMLCanvasElement>) => {
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const { mx, my } = screenToLogical(touch.clientX, touch.clientY);
+      const sprites = Array.from(spritesRef.current.values());
+      const hit = hitTest(sprites, mx, my);
+      if (hit && hit.id === touchTargetRef.current) {
+        push(paths.agentDetail(hit.id));
+      }
+      touchTargetRef.current = null;
+      // Clear tooltip with a short delay so the user sees it
+      setTimeout(() => setTooltip(null), 800);
+    },
+    [screenToLogical, push, paths],
   );
 
   if (loading && agents.length === 0) {
@@ -138,20 +208,25 @@ export function VirtualOfficePage() {
           {t(($) => $.virtualOffice.subtitle)}
         </p>
       </div>
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setTooltip(null)}
-        onClick={handleClick}
-        className="cursor-pointer rounded"
-        style={{
-          width: CANVAS_WIDTH * CANVAS_SCALE,
-          height: CANVAS_HEIGHT * CANVAS_SCALE,
-          imageRendering: "pixelated",
-        }}
-      />
+      <div ref={containerRef} className="w-full max-w-[1440px] overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setTooltip(null)}
+          onClick={handleClick}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="mx-auto cursor-pointer rounded"
+          style={{
+            width: CANVAS_WIDTH * CANVAS_SCALE * scaleFactor,
+            height: CANVAS_HEIGHT * CANVAS_SCALE * scaleFactor,
+            imageRendering: "pixelated",
+            touchAction: "none",
+          }}
+        />
+      </div>
       {tooltip && (
         <div
           className="pointer-events-none fixed z-50 rounded border border-border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md"

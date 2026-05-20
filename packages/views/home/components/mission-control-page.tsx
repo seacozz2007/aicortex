@@ -160,12 +160,6 @@ export function MissionControlPage() {
           <StatCard
             icon={<Clock className="size-4 text-brand" />}
             label={t(($) => $.missionControl.run_time_7d)}
-            value={stats.tasks}
-            loading={!agentRunTime}
-          />
-          <StatCard
-            icon={<Clock className="size-4 text-brand" />}
-            label={t(($) => $.missionControl.run_time_7d)}
             value={`${stats.hours.toFixed(1)}h`}
             loading={!agentRunTime}
           />
