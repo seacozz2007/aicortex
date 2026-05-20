@@ -147,7 +147,7 @@ function issueToMeetingWithComments(
   };
 }
 
-function deriveParticipants(
+export function deriveParticipants(
   issue: Issue,
   comments: Comment[],
   getActorName: (type: string, id: string) => string,

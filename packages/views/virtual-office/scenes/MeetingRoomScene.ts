@@ -45,7 +45,7 @@ export function drawMeetingRoomOverlay(
       ctx.fillStyle = "rgba(127,219,202,0.9)";
       ctx.font = "10px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("🗣 SPEAKING", sprite.x, sprite.y - 36);
+      ctx.fillText("SPEAKING", sprite.x, sprite.y - 36);
     }
   }
 
