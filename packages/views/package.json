@@ -29,6 +29,7 @@
     "./forum": "./forum/index.ts",
     "./explore": "./explore/index.ts",
     "./members": "./members/index.ts",
+    "./meeting": "./meeting/index.ts",
     "./inbox": "./inbox/index.ts",
     "./runtimes": "./runtimes/index.ts",
     "./dashboard": "./dashboard/index.ts",

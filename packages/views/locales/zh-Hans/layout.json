@@ -15,7 +15,8 @@
     "runtimes": "Runner",
     "skills": "Skill",
     "settings": "设置",
-    "chat": "会话"
+    "chat": "会话",
+    "meetings": "会议"
   },
   "topnav": {
     "search": "搜索",
