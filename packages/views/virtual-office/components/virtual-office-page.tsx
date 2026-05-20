@@ -7,6 +7,7 @@ import { useNavigation } from "../../navigation";
 import { useT } from "../../i18n";
 import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_SCALE } from "../constants";
 import { useOfficeState } from "../hooks/use-office-state";
+import { useMeetingRoomState } from "../hooks/use-meeting-room-state";
 import {
   createSprite,
   transitionSprite,
@@ -14,11 +15,13 @@ import {
   type AgentSpriteData,
 } from "../engine/agent-sprite";
 import { renderFrame, hitTest } from "../engine/office-renderer";
+import { drawMeetingRoomOverlay } from "../scenes/MeetingRoomScene";
 
 export function VirtualOfficePage() {
   const { t } = useT("common");
   const wsId = useWorkspaceId();
   const { agents, loading } = useOfficeState(wsId);
+  const { speakerIds } = useMeetingRoomState();
   const paths = useWorkspacePaths();
   const { push } = useNavigation();
 
@@ -26,6 +29,8 @@ export function VirtualOfficePage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const spritesRef = useRef<Map<string, AgentSpriteData>>(new Map());
   const rafRef = useRef<number>(0);
+  const speakerIdsRef = useRef<Set<string>>(new Set());
+  speakerIdsRef.current = speakerIds;
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
   const [scaleFactor, setScaleFactor] = useState(1);
 
@@ -102,6 +107,7 @@ export function VirtualOfficePage() {
       const sprites = Array.from(spritesRef.current.values());
       for (const s of sprites) tickSprite(s, sprites);
       renderFrame(ctx!, sprites);
+      drawMeetingRoomOverlay(ctx!, sprites, speakerIdsRef.current);
       rafRef.current = requestAnimationFrame(loop);
     }
 
