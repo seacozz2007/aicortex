@@ -4,6 +4,7 @@ import { cn } from "@aicortex/ui/lib/utils";
 import {
   Home,
   Inbox,
+  CircleUser,
   ListTodo,
   FolderKanban,
   Zap,
@@ -71,6 +72,7 @@ export function TopNav({ className }: TopNavProps) {
   const navItems = [
     { key: "home", label: t(($) => $.nav.home), href: p.home(), icon: Home },
     { key: "inbox", label: t(($) => $.nav.inbox), href: p.inbox(), icon: Inbox },
+    { key: "my-issues", label: t(($) => $.nav.my_issues), href: p.myIssues(), icon: CircleUser },
     { key: "issues", label: t(($) => $.nav.issues), href: p.issues(), icon: ListTodo },
     { key: "projects", label: t(($) => $.nav.projects), href: p.projects(), icon: FolderKanban },
     { key: "autopilots", label: t(($) => $.nav.autopilots), href: p.autopilots(), icon: Zap },
