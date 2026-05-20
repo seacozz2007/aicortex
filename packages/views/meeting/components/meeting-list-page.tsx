@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useWorkspaceId } from "@aicortex/core/hooks";
+import { useState } from "react";
 import { useWorkspacePaths } from "@aicortex/core/paths";
 import { AppLink } from "../../navigation";
-import { issueListOptions } from "@aicortex/core/issues/queries";
 import {
-  issueStatusToMeetingStatus,
   meetingStatusLabel,
   type Meeting,
   type MeetingStatus,
 } from "../types";
+import { useFilteredMeetings } from "../hooks/use-meetings";
 import { Search, Calendar, Users, Clock } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
-
-const MEETING_LABEL = "meeting";
 
 const STATUS_ORDER: MeetingStatus[] = ["in_progress", "upcoming", "completed"];
 
@@ -160,51 +155,7 @@ function MeetingSection({
 
 export function MeetingListPage() {
   const [search, setSearch] = useState("");
-
-  const wsId = useWorkspaceId();
-  const { data: issues = [], isPending } = useQuery({
-    ...issueListOptions(wsId ?? ""),
-    enabled: !!wsId,
-  });
-
-  const meetingIssues = useMemo(
-    () =>
-      issues.filter((issue) =>
-        issue.labels?.some((l) => l.name === MEETING_LABEL),
-      ),
-    [issues],
-  );
-
-  const grouped = useMemo(() => {
-    const groups: Record<string, Meeting[]> = {
-      in_progress: [],
-      upcoming: [],
-      completed: [],
-    };
-    const q = search.toLowerCase();
-    for (const issue of meetingIssues) {
-      if (q && !issue.title.toLowerCase().includes(q)) continue;
-      groups[issueStatusToMeetingStatus(issue.status)]?.push({
-        id: issue.id,
-        title: issue.title,
-        status: issueStatusToMeetingStatus(issue.status),
-        identifier: issue.identifier,
-        participants: [],
-        totalParticipants: 0,
-        spokeCount: 0,
-        currentPhase:
-          issue.status === "in_progress"
-            ? "Discussion"
-            : issue.status === "done"
-              ? "Completed"
-              : null,
-        lastActiveAt: issue.updated_at,
-        createdAt: issue.created_at,
-        labels: issue.labels,
-      });
-    }
-    return groups as Record<MeetingStatus, Meeting[]>;
-  }, [meetingIssues, search]);
+  const { grouped, isPending } = useFilteredMeetings(search);
 
   const totalCount =
     grouped.in_progress.length +

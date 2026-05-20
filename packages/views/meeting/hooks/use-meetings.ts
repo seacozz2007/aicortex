@@ -8,6 +8,7 @@ import {
   issueDetailOptions,
 } from "@aicortex/core/issues/queries";
 import { api } from "@aicortex/core/api";
+import { useActorName } from "@aicortex/core/workspace/hooks";
 import type { Comment, Issue } from "@aicortex/core/types";
 import {
   issueStatusToMeetingStatus,
@@ -67,6 +68,7 @@ export function useMeetings() {
  */
 export function useMeetingDetail(id: string | undefined) {
   const wsId = useWorkspaceId();
+  const { getActorName } = useActorName();
   const { data: issue, isPending: issueLoading } = useQuery({
     ...issueDetailOptions(wsId ?? "", id ?? ""),
     enabled: !!wsId && !!id,
@@ -79,8 +81,8 @@ export function useMeetingDetail(id: string | undefined) {
   });
 
   const meeting = useMemo(
-    () => (issue ? issueToMeetingWithComments(issue, comments) : null),
-    [issue, comments],
+    () => (issue ? issueToMeetingWithComments(issue, comments, getActorName) : null),
+    [issue, comments, getActorName],
   );
 
   return {
@@ -134,8 +136,9 @@ function issueToMeeting(issue: Issue): Meeting {
 function issueToMeetingWithComments(
   issue: Issue,
   comments: Comment[],
+  getActorName: (type: string, id: string) => string,
 ): Meeting {
-  const participants = deriveParticipants(issue, comments);
+  const participants = deriveParticipants(issue, comments, getActorName);
   return {
     ...issueToMeeting(issue),
     participants,
@@ -147,6 +150,7 @@ function issueToMeetingWithComments(
 function deriveParticipants(
   issue: Issue,
   comments: Comment[],
+  getActorName: (type: string, id: string) => string,
 ): MeetingParticipant[] {
   const authorMap = new Map<
     string,
@@ -155,7 +159,7 @@ function deriveParticipants(
 
   if (issue.assignee_id) {
     authorMap.set(issue.assignee_id, {
-      name: issue.assignee_id,
+      name: getActorName(issue.assignee_type ?? "member", issue.assignee_id),
       isAgent: issue.assignee_type === "agent",
       count: 0,
     });
@@ -167,7 +171,7 @@ function deriveParticipants(
       existing.count++;
     } else {
       authorMap.set(c.author_id, {
-        name: c.author_id,
+        name: getActorName(c.author_type ?? "member", c.author_id),
         isAgent: c.author_type === "agent",
         count: 1,
       });

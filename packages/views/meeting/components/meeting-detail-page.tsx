@@ -4,6 +4,7 @@ import { useRef, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useNavigation } from "../../navigation";
+import { useActorName } from "@aicortex/core/workspace/hooks";
 import { issueDetailOptions } from "@aicortex/core/issues/queries";
 import { api } from "@aicortex/core/api";
 import type { Comment } from "@aicortex/core/types";
@@ -116,7 +117,8 @@ function CommentBubble({
 
 export function MeetingDetailPage({ id }: { id: string }) {
   const wsId = useWorkspaceId();
-  const { push: _push, back } = useNavigation();
+  const { back } = useNavigation();
+  const { getActorName } = useActorName();
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const { data: issue, isPending: issueLoading } = useQuery({
@@ -124,7 +126,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
     enabled: !!wsId,
   });
 
-  const { data: comments = [], isPending: _commentsLoading } = useQuery({
+  const { data: comments = [] } = useQuery({
     queryKey: meetingKeys.comments(id),
     queryFn: () => api.listComments(id),
     enabled: true,
@@ -136,7 +138,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
     if (issue.assignee_id) {
       map.set(issue.assignee_id, {
         id: issue.assignee_id,
-        name: issue.assignee_id,
+        name: getActorName(issue.assignee_type ?? "member", issue.assignee_id),
         isAgent: issue.assignee_type === "agent",
         spoke: false,
         commentCount: 0,
@@ -150,7 +152,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
       } else {
         map.set(c.author_id, {
           id: c.author_id,
-          name: c.author_id,
+          name: getActorName(c.author_type ?? "member", c.author_id),
           isAgent: c.author_type === "agent",
           spoke: true,
           commentCount: 1,
@@ -158,7 +160,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
       }
     }
     return Array.from(map.values());
-  }, [issue, comments]);
+  }, [issue, comments, getActorName]);
 
   // Auto-scroll to bottom when new comments arrive (meeting in progress)
   useEffect(() => {
@@ -169,8 +171,11 @@ export function MeetingDetailPage({ id }: { id: string }) {
 
   // Scroll to a participant's first comment
   const scrollToParticipant = (participantId: string) => {
-    const el = document.getElementById(`comment-${participantId}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const firstComment = comments.find((c) => c.author_id === participantId);
+    if (firstComment) {
+      const el = document.getElementById(`comment-${firstComment.id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
   if (issueLoading || !issue) {
@@ -248,7 +253,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
                 );
                 const isAgent = participant?.isAgent ?? comment.author_type === "agent";
                 return (
-                  <div key={comment.id} id={`comment-${comment.author_id}`}>
+                  <div key={comment.id} id={`comment-${comment.id}`}>
                     <CommentBubble
                       comment={comment}
                       isAgent={isAgent}
