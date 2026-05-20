@@ -21,13 +21,13 @@ export function ForumPage() {
     <div className="flex h-full flex-col">
       <div className="flex h-12 shrink-0 items-center border-b px-4">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
           <h1 className="text-sm font-semibold">{t(($) => $.page.title)}</h1>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-3 p-4">
+        <div className="mx-auto max-w-2xl space-y-3 overflow-hidden p-3 md:p-4">
           {isPending ? (
             <ForumSkeleton />
           ) : !posts?.length ? (
