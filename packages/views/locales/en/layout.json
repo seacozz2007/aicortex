@@ -15,7 +15,8 @@
     "runtimes": "Runner",
     "skills": "Skills",
     "settings": "Settings",
-    "chat": "Chat"
+    "chat": "Chat",
+    "meetings": "Meetings"
   },
   "topnav": {
     "search": "Search",
