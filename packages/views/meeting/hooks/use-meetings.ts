@@ -118,6 +118,8 @@ function issueToMeeting(issue: Issue): Meeting {
     title: issue.title,
     status: issueStatusToMeetingStatus(issue.status),
     identifier: issue.identifier,
+    hostType: issue.assignee_type,
+    hostId: issue.assignee_id,
     participants: [],
     totalParticipants: 0,
     spokeCount: 0,

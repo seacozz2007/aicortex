@@ -40,6 +40,7 @@ import {
   Plus,
   Building2,
   Terminal,
+  Video,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -90,6 +91,7 @@ export function TopNav({ className }: TopNavProps) {
     { key: "projects", label: t(($) => $.nav.projects), href: p.projects(), icon: FolderKanban },
     { key: "autopilots", label: t(($) => $.nav.autopilots), href: p.autopilots(), icon: Zap },
     { key: "agents", label: t(($) => $.nav.agents), href: p.agents(), icon: Bot },
+    { key: "meetings", label: t(($) => $.nav.meetings), href: p.meetings(), icon: Video },
     { key: "explore", label: t(($) => $.nav.explore), href: p.explore(), icon: Terminal },
     { key: "office", label: t(($) => $.nav.office), href: p.office(), icon: Building2 },
     ...(settings.forum_enabled === true

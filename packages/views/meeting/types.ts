@@ -18,6 +18,8 @@ export interface Meeting {
   title: string;
   status: MeetingStatus;
   identifier: string;
+  hostType: string | null;
+  hostId: string | null;
   participants: MeetingParticipant[];
   totalParticipants: number;
   spokeCount: number;
@@ -46,6 +48,7 @@ export function issueStatusToMeetingStatus(status: string): MeetingStatus {
     case "todo":
     case "backlog":
       return "upcoming";
+    case "in_review":
     case "done":
     case "cancelled":
       return "completed";
@@ -57,10 +60,10 @@ export function issueStatusToMeetingStatus(status: string): MeetingStatus {
 export function meetingStatusLabel(status: MeetingStatus): string {
   switch (status) {
     case "in_progress":
-      return "In Progress";
+      return "进行中";
     case "upcoming":
-      return "Upcoming";
+      return "待开始";
     case "completed":
-      return "Completed";
+      return "已完成";
   }
 }

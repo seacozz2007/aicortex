@@ -443,6 +443,20 @@ func (h *Handler) SendChatMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the session's agent has been archived since the session was
+	// created. EnqueueChatTask will reject an archived agent, but by then
+	// the message is already persisted. Check early so we can return
+	// a clean 400 instead of an orphaned message + 500.
+	agent, err := h.Queries.GetAgent(r.Context(), session.AgentID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "agent not found")
+		return
+	}
+	if agent.ArchivedAt.Valid {
+		writeError(w, http.StatusBadRequest, "agent is archived")
+		return
+	}
+
 	// Create the user message first so the daemon can always find it.
 	msg, err := h.Queries.CreateChatMessage(r.Context(), db.CreateChatMessageParams{
 		ChatSessionID: session.ID,

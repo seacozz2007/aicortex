@@ -141,6 +141,10 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 	b.WriteString("- `aicortex project get <id> --output json` — Get project details. Includes `resource_count`; the resources themselves live at the sub-collection below.\n")
 	b.WriteString("- `aicortex project resource list <project-id> --output json` — List resources (e.g. github_repo) attached to a project. Use this when `resource_count > 0` and you need the actual refs.\n\n")
 
+	b.WriteString("- `aicortex meeting list [--status X] [--output json] [--full-id]` — List meeting issues (issues with the 'meeting' label), optionally filtered by status\n")
+	b.WriteString("- `aicortex meeting status <issue-id> [--output json]` — Show meeting progress (Discussion/Decision/Action Items/Summary stages)\n\n")
+
+
 	b.WriteString("### Write\n")
 	b.WriteString("- `aicortex issue create --title \"...\" [--description \"...\"] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--project <project-id>] [--due-date <RFC3339>] [--attachment <path>]` — Create a new issue. `--attachment` may be repeated to upload multiple files; labels and subscribers are not accepted here, attach them after create with the commands below.\n")
 	b.WriteString("- `aicortex issue update <id> [--title X] [--description X] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--project <project-id>] [--due-date <RFC3339>]` — Update one or more issue fields in a single call. Use `--parent \"\"` to clear the parent.\n")
@@ -178,6 +182,11 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 	b.WriteString("- `aicortex autopilot update <id> [--title X] [--description X] [--status active|paused] [--mode create_issue|run_only]` — Update an autopilot\n")
 	b.WriteString("- `aicortex autopilot trigger <id>` — Manually trigger an autopilot to run once\n")
 	b.WriteString("- `aicortex autopilot delete <id>` — Delete an autopilot\n\n")
+
+	b.WriteString("- `aicortex meeting create --title \"...\" --participants \"...\" --topic \"...\" [--output json]` — Create a new meeting issue with the 'meeting' label and a formatted stage template (Discussion / Decision / Action Items / Summary)\n")
+	b.WriteString("- `aicortex meeting advance <issue-id>` — Advance meeting to the next incomplete stage\n")
+	b.WriteString("- `aicortex meeting summary <issue-id> [--content \"...\" | --content-stdin | --content-file <path>]` — Append summary text to the meeting description\n")
+	b.WriteString("- `aicortex meeting close <issue-id>` — Mark a meeting issue as done\n")
 
 	if provider == "codex" {
 		b.WriteString("## Codex-Specific Comment Formatting\n\n")
