@@ -56,6 +56,8 @@ import {
   SORT_OPTIONS,
   GROUPING_OPTIONS,
   CARD_PROPERTY_OPTIONS,
+  TIME_RANGE_OPTIONS,
+  TIME_SORT_OPTIONS,
   type ActorFilterValue,
 } from "@aicortex/core/issues/stores/view-store";
 import { useViewStore, useViewStoreApi } from "@aicortex/core/issues/stores/view-store-context";
@@ -552,6 +554,8 @@ export function IssueDisplayControls({ scopedIssues }: { scopedIssues: Issue[] }
   const sortDirection = useViewStore((s) => s.sortDirection);
   const grouping = useViewStore((s) => s.grouping);
   const cardProperties = useViewStore((s) => s.cardProperties);
+  const timeRange = useViewStore((s) => s.timeRange);
+  const timeSortBy = useViewStore((s) => s.timeSortBy);
   const act = useViewStoreApi().getState();
 
   const counts = useIssueCounts(scopedIssues);
@@ -782,6 +786,72 @@ export function IssueDisplayControls({ scopedIssues }: { scopedIssues: Issue[] }
                 </DropdownMenuItem>
               </>
             )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Time range filter */}
+        {timeRange !== "all" && (
+          <div className="bg-accent/50 h-7 w-px mx-0.5" />
+        )}
+        <DropdownMenu>
+          <Tooltip>
+            <DropdownMenuTrigger
+              render={
+                <TooltipTrigger
+                  render={
+                    <Button variant="outline" size="sm" className="relative text-muted-foreground gap-1 text-xs">
+                      <span>{t(($) => $.time_range[(TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.labelKey ?? "time_all") as keyof typeof $.time_range])}</span>
+                      <ChevronDown className="size-3" />
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipContent side="bottom">{t(($) => $.filters.time_range_tooltip)}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-auto min-w-36">
+            {TIME_RANGE_OPTIONS.map((opt) => (
+              <DropdownMenuItem
+                key={opt.value}
+                onClick={() => act.setTimeRange(opt.value)}
+                className={timeRange === opt.value ? "bg-accent text-accent-foreground" : ""}
+              >
+                {t(($) => $.time_range[opt.labelKey as keyof typeof $.time_range])}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Sort toggle */}
+        <DropdownMenu>
+          <Tooltip>
+            <DropdownMenuTrigger
+              render={
+                <TooltipTrigger
+                  render={
+                    <Button variant="outline" size="sm" className="relative text-muted-foreground gap-1 text-xs">
+                      <ArrowDown className="size-3" />
+                      <span className="hidden sm:inline">
+                        {t(($) => $.sort_by[TIME_SORT_OPTIONS.find((o) => o.value === timeSortBy)?.labelKey as keyof typeof $.sort_by])}
+                      </span>
+                      <ChevronDown className="size-3" />
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipContent side="bottom">{t(($) => $.filters.sort_tooltip)}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-auto min-w-36">
+            {TIME_SORT_OPTIONS.map((opt) => (
+              <DropdownMenuItem
+                key={opt.value}
+                onClick={() => act.setTimeSortBy(opt.value)}
+                className={timeSortBy === opt.value ? "bg-accent text-accent-foreground" : ""}
+              >
+                {t(($) => $.sort_by[opt.labelKey as keyof typeof $.sort_by])}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
 

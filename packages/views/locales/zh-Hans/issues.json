@@ -47,7 +47,21 @@
     "agents_group": "Agent",
     "squads_group": "Teams",
     "issue_count_other": "{{count}} 个 issue",
-    "reset": "重置全部筛选"
+    "reset": "重置全部筛选",
+    "time_range_tooltip": "按更新时间筛选",
+    "sort_tooltip": "排序方式"
+  },
+  "time_range": {
+    "time_24h": "最近24小时",
+    "time_3d": "最近3天",
+    "time_7d": "最近7天",
+    "time_30d": "最近30天",
+    "time_all": "全部时间"
+  },
+  "sort_by": {
+    "sort_updated": "更新时间",
+    "sort_created": "创建时间",
+    "sort_priority": "优先级"
   },
   "display": {
     "tooltip": "显示设置",
