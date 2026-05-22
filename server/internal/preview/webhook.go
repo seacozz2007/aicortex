@@ -2,6 +2,9 @@ package preview
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -15,14 +18,16 @@ type WebhookHandler struct {
 	manager   *Manager
 	queries   Querier
 	workspace string // workspace slug or ID to associate PRs with
+	secret    string // HMAC-SHA256 secret for signature verification
 }
 
 // NewWebhookHandler creates a WebhookHandler for GitHub PR events.
-func NewWebhookHandler(manager *Manager, queries Querier, workspace string) *WebhookHandler {
+func NewWebhookHandler(manager *Manager, queries Querier, workspace, secret string) *WebhookHandler {
 	return &WebhookHandler{
 		manager:   manager,
 		queries:   queries,
 		workspace: workspace,
+		secret:    secret,
 	}
 }
 
@@ -129,6 +134,7 @@ func (wh *WebhookHandler) handlePRClosed(ctx context.Context, event GitHubPRWebh
 }
 
 // ServeHTTP handles incoming GitHub webhook HTTP requests.
+// It verifies the X-Hub-Signature-256 HMAC before processing.
 func (wh *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -150,6 +156,19 @@ func (wh *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify HMAC-SHA256 signature when secret is configured
+	if wh.secret != "" {
+		sig := r.Header.Get("X-Hub-Signature-256")
+		if sig == "" {
+			http.Error(w, "missing X-Hub-Signature-256", http.StatusUnauthorized)
+			return
+		}
+		if !verifyHMAC256(bodyBytes, []byte(wh.secret), sig) {
+			http.Error(w, "invalid signature", http.StatusUnauthorized)
+			return
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
@@ -161,6 +180,20 @@ func (wh *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"ok"}`))
+}
+
+// verifyHMAC256 validates an HMAC-SHA256 signature against a payload and secret.
+func verifyHMAC256(payload, secret []byte, expectedSig string) bool {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write(payload)
+	computed := hex.EncodeToString(mac.Sum(nil))
+
+	// Strip "sha256=" prefix if present
+	if len(expectedSig) > 7 && expectedSig[:7] == "sha256=" {
+		expectedSig = expectedSig[7:]
+	}
+
+	return hmac.Equal([]byte(computed), []byte(expectedSig))
 }
 
 // parseRepoFullName extracts owner and name from a repository reference.

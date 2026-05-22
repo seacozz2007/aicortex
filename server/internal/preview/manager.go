@@ -101,34 +101,45 @@ func (m *Manager) Create(ctx context.Context, workspaceID, prID, repoOwner, repo
 		return db.PreviewEnvironment{}, fmt.Errorf("manager: max active environments reached (%d)", m.maxEnvs)
 	}
 
-	// Generate env ID
-	envID := newEnvID()
+	// Create env record first to get the DB-generated UUID
+	env, err := m.queries.CreatePreviewEnvironment(ctx, workspaceID, prID, repoOwner, repoName, prNumber, branch)
+	if err != nil {
+		return db.PreviewEnvironment{}, fmt.Errorf("manager: create env: %w", err)
+	}
 
-	// Allocate a port
+	envID := util.UUIDToString(env.ID)
+
+	// Allocate a port using the DB UUID
 	port, err := m.portPool.Allocate(ctx, envID)
 	if err != nil {
+		m.queries.DeletePreviewEnvironment(ctx, envID)
 		return db.PreviewEnvironment{}, fmt.Errorf("manager: allocate port: %w", err)
 	}
 
+	// Update env record with the allocated port
+	env, err = m.queries.UpdatePreviewEnvironmentPort(ctx, envID, int32(port))
+	if err != nil {
+		m.queries.DeletePreviewEnvironment(ctx, envID)
+		m.portPool.ReleaseByPort(ctx, port)
+		return db.PreviewEnvironment{}, fmt.Errorf("manager: update port: %w", err)
+	}
+
 	// Create the database
-	dbName := ""
 	if m.dbPool != nil {
-		name, dbErr := m.dbPool.CreateFromTemplate(ctx, envID)
+		dbName, dbErr := m.dbPool.CreateFromTemplate(ctx, envID)
 		if dbErr != nil {
+			m.queries.DeletePreviewEnvironment(ctx, envID)
 			m.portPool.ReleaseByPort(ctx, port)
 			return db.PreviewEnvironment{}, fmt.Errorf("manager: create db: %w", dbErr)
 		}
-		dbName = name
-	}
 
-	// Create env record
-	env, err := m.queries.CreatePreviewEnvironment(ctx, workspaceID, prID, repoOwner, repoName, prNumber, branch)
-	if err != nil {
-		m.portPool.ReleaseByPort(ctx, port)
-		if m.dbPool != nil {
+		env, err = m.queries.UpdatePreviewEnvironmentDbName(ctx, envID, dbName)
+		if err != nil {
+			m.queries.DeletePreviewEnvironment(ctx, envID)
+			m.portPool.ReleaseByPort(ctx, port)
 			m.dbPool.DropDatabase(ctx, envID, dbName)
+			return db.PreviewEnvironment{}, fmt.Errorf("manager: update db name: %w", err)
 		}
-		return db.PreviewEnvironment{}, fmt.Errorf("manager: create env: %w", err)
 	}
 
 	// Start provisioning asynchronously
@@ -237,7 +248,3 @@ func (m *Manager) buildSteps() []ProvisionStep {
 	}
 }
 
-// newEnvID generates a unique environment ID (placeholder using timestamp).
-func newEnvID() string {
-	return fmt.Sprintf("env-%d", time.Now().UnixNano())
-}

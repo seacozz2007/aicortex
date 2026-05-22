@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/aicortex/aicortex/server/internal/util"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
@@ -25,12 +24,13 @@ const (
 )
 
 // stateTransitions defines valid state transitions.
+// DELETED is reachable from any state to support force-cleanup.
 var stateTransitions = map[ProvisionState][]ProvisionState{
-	StateCLONING:    {StateINSTALLING, StateFAILED},
-	StateINSTALLING: {StateMIGRATING, StateFAILED},
-	StateMIGRATING:  {StateBUILDING, StateFAILED},
-	StateBUILDING:   {StateSTARTING, StateFAILED},
-	StateSTARTING:   {StateREADY, StateFAILED},
+	StateCLONING:    {StateINSTALLING, StateFAILED, StateDELETED},
+	StateINSTALLING: {StateMIGRATING, StateFAILED, StateDELETED},
+	StateMIGRATING:  {StateBUILDING, StateFAILED, StateDELETED},
+	StateBUILDING:   {StateSTARTING, StateFAILED, StateDELETED},
+	StateSTARTING:   {StateREADY, StateFAILED, StateDELETED},
 	StateREADY:      {StateDELETED},
 	StateFAILED:     {StateDELETED},
 	StateDELETED:    {},
@@ -243,18 +243,3 @@ func (s *StartingStep) Run(ctx context.Context, env db.PreviewEnvironment) error
 	return s.RunFunc(ctx, env)
 }
 
-// DefaultBuildSteps returns the standard provisioning pipeline.
-func DefaultBuildSteps(cloneFn, installFn, migrateFn, buildFn, startFn func(ctx context.Context, env db.PreviewEnvironment) error) []ProvisionStep {
-	// Set a reasonable timeout for the build steps to prevent stuck builds
-	buildCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-	_ = buildCtx
-
-	return []ProvisionStep{
-		&CloningStep{RunFunc: cloneFn},
-		&InstallingStep{RunFunc: installFn},
-		&MigratingStep{RunFunc: migrateFn},
-		&BuildingStep{RunFunc: buildFn},
-		&StartingStep{RunFunc: startFn},
-	}
-}
