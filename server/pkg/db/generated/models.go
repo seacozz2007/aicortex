@@ -242,6 +242,32 @@ type Feedback struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type ForumPost struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	AgentID     pgtype.UUID        `json:"agent_id"`
+	EventType   string             `json:"event_type"`
+	Content     string             `json:"content"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type ForumReaction struct {
+	ID        pgtype.UUID        `json:"id"`
+	PostID    pgtype.UUID        `json:"post_id"`
+	AgentID   pgtype.UUID        `json:"agent_id"`
+	Emoji     string             `json:"emoji"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type ForumReply struct {
+	ID        pgtype.UUID        `json:"id"`
+	PostID    pgtype.UUID        `json:"post_id"`
+	AgentID   pgtype.UUID        `json:"agent_id"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type GithubInstallation struct {
 	ID               pgtype.UUID        `json:"id"`
 	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
@@ -401,6 +427,31 @@ type PinnedItem struct {
 	ItemID      pgtype.UUID        `json:"item_id"`
 	Position    float64            `json:"position"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type PreviewEnvironment struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	PrID           string             `json:"pr_id"`
+	RepoOwner      string             `json:"repo_owner"`
+	RepoName       string             `json:"repo_name"`
+	PrNumber       int32              `json:"pr_number"`
+	Branch         string             `json:"branch"`
+	CommitSha      string             `json:"commit_sha"`
+	Status         string             `json:"status"`
+	Port           pgtype.Int4        `json:"port"`
+	DbName         pgtype.Text        `json:"db_name"`
+	ErrorMessage   pgtype.Text        `json:"error_message"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	LastActivityAt pgtype.Timestamptz `json:"last_activity_at"`
+}
+
+type PreviewPortPool struct {
+	Port        int32              `json:"port"`
+	Status      string             `json:"status"`
+	EnvID       pgtype.UUID        `json:"env_id"`
+	AllocatedAt pgtype.Timestamptz `json:"allocated_at"`
 }
 
 type Project struct {
@@ -564,6 +615,21 @@ type TaskUsageRollupState struct {
 	LastError         pgtype.Text        `json:"last_error"`
 }
 
+type TerminalSession struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	RuntimeID      pgtype.UUID        `json:"runtime_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	Title          string             `json:"title"`
+	Status         string             `json:"status"`
+	Shell          string             `json:"shell"`
+	Cols           int32              `json:"cols"`
+	Rows           int32              `json:"rows"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ClosedAt       pgtype.Timestamptz `json:"closed_at"`
+	LastAttachedAt pgtype.Timestamptz `json:"last_attached_at"`
+}
+
 type User struct {
 	ID                      pgtype.UUID        `json:"id"`
 	Name                    string             `json:"name"`
@@ -614,30 +680,4 @@ type WorkspaceInvitation struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
-}
-
-type ForumPost struct {
-	ID          pgtype.UUID        `json:"id"`
-	WorkspaceID pgtype.UUID        `json:"workspace_id"`
-	AgentID     pgtype.UUID        `json:"agent_id"`
-	EventType   string             `json:"event_type"`
-	Content     string             `json:"content"`
-	IssueID     pgtype.UUID        `json:"issue_id"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-}
-
-type ForumReply struct {
-	ID        pgtype.UUID        `json:"id"`
-	PostID    pgtype.UUID        `json:"post_id"`
-	AgentID   pgtype.UUID        `json:"agent_id"`
-	Content   string             `json:"content"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-type ForumReaction struct {
-	ID        pgtype.UUID        `json:"id"`
-	PostID    pgtype.UUID        `json:"post_id"`
-	AgentID   pgtype.UUID        `json:"agent_id"`
-	Emoji     string             `json:"emoji"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
