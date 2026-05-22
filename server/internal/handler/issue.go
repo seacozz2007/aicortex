@@ -678,6 +678,27 @@ func (h *Handler) ListIssues(w http.ResponseWriter, r *http.Request) {
 		projectFilter = id
 	}
 
+	// Parse optional time/sort params. When present, use a dynamic SQL path
+	// (h.DB) instead of the sqlc-generated query, because ORDER BY is not
+	// parameterizable in sqlc.
+	var updatedSince *time.Time
+	if us := r.URL.Query().Get("updated_since"); us != "" {
+		t, err := time.Parse(time.RFC3339, us)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid updated_since (expected RFC3339)")
+			return
+		}
+		updatedSince = &t
+	}
+	sortBy := r.URL.Query().Get("sort_by")
+	order := r.URL.Query().Get("order")
+
+	// Route to the dynamic-SQL path when time or sort params are present.
+	if updatedSince != nil || sortBy != "" || order != "" {
+		h.listIssuesFiltered(w, r, ctx, wsUUID, updatedSince, sortBy, order, priorityFilter, assigneeFilter, assigneeIdsFilter, creatorFilter, projectFilter)
+		return
+	}
+
 	// open_only=true returns all non-done/cancelled issues (no limit).
 	if r.URL.Query().Get("open_only") == "true" {
 		issues, err := h.Queries.ListOpenIssues(ctx, db.ListOpenIssuesParams{
@@ -785,6 +806,166 @@ func (h *Handler) ListIssues(w http.ResponseWriter, r *http.Request) {
 		"total":  total,
 	})
 }
+func (h *Handler) listIssuesFiltered(
+	w http.ResponseWriter, r *http.Request,
+	ctx context.Context,
+	wsUUID pgtype.UUID,
+	updatedSince *time.Time,
+	sortBy, order string,
+	priorityFilter pgtype.Text,
+	assigneeFilter pgtype.UUID,
+	assigneeIdsFilter []pgtype.UUID,
+	creatorFilter pgtype.UUID,
+	projectFilter pgtype.UUID,
+) {
+	if h.DB == nil {
+		writeError(w, http.StatusInternalServerError, "database is unavailable")
+		return
+	}
+
+	where := []string{"i.workspace_id = $1"}
+	args := []any{wsUUID}
+	addArg := func(v any) string {
+		args = append(args, v)
+		return "$" + strconv.Itoa(len(args))
+	}
+
+	if priorityFilter.Valid {
+		where = append(where, fmt.Sprintf("i.priority = %s::text", addArg(priorityFilter.String)))
+	}
+	if assigneeFilter.Valid {
+		where = append(where, fmt.Sprintf("i.assignee_id = %s::uuid", addArg(assigneeFilter)))
+	}
+	if len(assigneeIdsFilter) > 0 {
+		where = append(where, fmt.Sprintf("i.assignee_id = ANY(%s::uuid[])", addArg(assigneeIdsFilter)))
+	}
+	if s := r.URL.Query().Get("status"); s != "" {
+		where = append(where, fmt.Sprintf("i.status = %s::text", addArg(s)))
+	}
+	if creatorFilter.Valid {
+		where = append(where, fmt.Sprintf("i.creator_id = %s::uuid", addArg(creatorFilter)))
+	}
+	if projectFilter.Valid {
+		where = append(where, fmt.Sprintf("i.project_id = %s::uuid", addArg(projectFilter)))
+	}
+	if updatedSince != nil {
+		where = append(where, fmt.Sprintf("i.updated_at >= %s::timestamptz", addArg(*updatedSince)))
+	}
+
+	limit := 100
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil {
+			offset = v
+		}
+	}
+
+	orderClause := "ORDER BY i.position ASC, i.created_at DESC"
+	if sortBy != "" {
+		dir := "DESC"
+		if strings.ToLower(order) == "asc" {
+			dir = "ASC"
+		}
+		switch sortBy {
+		case "updated_at":
+			orderClause = fmt.Sprintf("ORDER BY i.updated_at %s", dir)
+		case "created_at":
+			orderClause = fmt.Sprintf("ORDER BY i.created_at %s", dir)
+		case "priority":
+			orderClause = fmt.Sprintf("ORDER BY CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END %s, i.created_at DESC", dir)
+		}
+	}
+
+	limitRef := addArg(int64(limit))
+	offsetRef := addArg(int64(offset))
+
+	query := fmt.Sprintf(`
+SELECT i.id, i.workspace_id, i.title, i.description, i.status, i.priority,
+       i.assignee_type, i.assignee_id, i.creator_type, i.creator_id,
+       i.parent_issue_id, i.position, i.due_date, i.created_at, i.updated_at,
+       i.number, i.project_id
+FROM issue i
+WHERE %s
+%s
+LIMIT %s OFFSET %s`, strings.Join(where, " AND "), orderClause, limitRef, offsetRef)
+
+	rows, err := h.DB.Query(ctx, query, args...)
+	if err != nil {
+		slog.Warn("ListIssues filtered query failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to list issues")
+		return
+	}
+	defer rows.Close()
+
+	var issues []db.ListIssuesRow
+	for rows.Next() {
+		var i db.ListIssuesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Title,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.AssigneeType,
+			&i.AssigneeID,
+			&i.CreatorType,
+			&i.CreatorID,
+			&i.ParentIssueID,
+			&i.Position,
+			&i.DueDate,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Number,
+			&i.ProjectID,
+		); err != nil {
+			slog.Warn("ListIssues filtered scan failed", "error", err)
+			writeError(w, http.StatusInternalServerError, "failed to list issues")
+			return
+		}
+		issues = append(issues, i)
+	}
+	if err := rows.Err(); err != nil {
+		slog.Warn("ListIssues filtered rows failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to list issues")
+		return
+	}
+
+	countQuery := fmt.Sprintf(`
+SELECT COUNT(*) FROM issue i
+WHERE %s`, strings.Join(where, " AND "))
+	var total int64
+	if err := h.DB.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		total = int64(len(issues))
+	}
+
+	prefix := h.getIssuePrefix(ctx, wsUUID)
+	ids := make([]pgtype.UUID, len(issues))
+	for i, issue := range issues {
+		ids[i] = issue.ID
+	}
+	labelsMap := h.labelsByIssue(ctx, wsUUID, ids)
+	resp := make([]IssueResponse, len(issues))
+	for i, issue := range issues {
+		resp[i] = issueListRowToResponse(issue, prefix)
+		labels := labelsMap[resp[i].ID]
+		if labels == nil {
+			labels = []LabelResponse{}
+		}
+		resp[i].Labels = &labels
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"issues": resp,
+		"total":  total,
+	})
+}
+
 
 type issueActorFilter struct {
 	actorType string

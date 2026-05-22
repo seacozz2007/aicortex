@@ -48,7 +48,21 @@
     "squads_group": "Squads",
     "issue_count_one": "{{count}} issue",
     "issue_count_other": "{{count}} issues",
-    "reset": "Reset all filters"
+    "reset": "Reset all filters",
+    "time_range_tooltip": "Filter by update time",
+    "sort_tooltip": "Sort by"
+  },
+  "time_range": {
+    "time_24h": "Last 24 hours",
+    "time_3d": "Last 3 days",
+    "time_7d": "Last 7 days",
+    "time_30d": "Last 30 days",
+    "time_all": "All time"
+  },
+  "sort_by": {
+    "sort_updated": "Last updated",
+    "sort_created": "Created date",
+    "sort_priority": "Priority"
   },
   "display": {
     "tooltip": "Display settings",

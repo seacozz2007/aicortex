@@ -44,6 +44,9 @@ export interface ListIssuesParams {
   creator_id?: string;
   project_id?: string;
   open_only?: boolean;
+  updated_since?: string;
+  sort_by?: "updated_at" | "created_at" | "priority";
+  order?: "asc" | "desc";
 }
 
 export interface IssueActorRef {

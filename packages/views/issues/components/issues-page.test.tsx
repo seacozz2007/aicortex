@@ -171,6 +171,8 @@ const mockViewState = {
   labelFilters: [] as string[],
   sortBy: "position" as const,
   sortDirection: "asc" as const,
+  timeRange: "all" as const,
+  timeSortBy: "updated_at" as const,
   cardProperties: { priority: true, description: true, assignee: true, dueDate: true, project: true, childProgress: true, labels: true },
   listCollapsedStatuses: [] as string[],
   setViewMode: vi.fn(),
@@ -190,6 +192,8 @@ const mockViewState = {
   setSortDirection: vi.fn(),
   toggleCardProperty: vi.fn(),
   toggleListCollapsed: vi.fn(),
+  setTimeRange: vi.fn(),
+  setTimeSortBy: vi.fn(),
 };
 
 vi.mock("@aicortex/core/issues/stores/view-store", () => ({
@@ -225,6 +229,18 @@ vi.mock("@aicortex/core/issues/stores/view-store", () => ({
     { key: "project", label: "Project" },
     { key: "labels", label: "Labels" },
     { key: "childProgress", label: "Sub-issue progress" },
+  ],
+  TIME_RANGE_OPTIONS: [
+    { value: "24h", labelKey: "time_24h" },
+    { value: "3d", labelKey: "time_3d" },
+    { value: "7d", labelKey: "time_7d" },
+    { value: "30d", labelKey: "time_30d" },
+    { value: "all", labelKey: "time_all" },
+  ],
+  TIME_SORT_OPTIONS: [
+    { value: "updated_at", labelKey: "sort_updated" },
+    { value: "created_at", labelKey: "sort_created" },
+    { value: "priority", labelKey: "sort_priority" },
   ],
 }));
 

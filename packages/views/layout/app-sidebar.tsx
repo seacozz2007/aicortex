@@ -39,6 +39,7 @@ import {
   MessageSquare,
   Terminal,
   Video,
+  Clock,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
@@ -123,7 +124,8 @@ type NavKey =
   | "runtimes"
   | "skills"
   | "settings"
-  | "meetings";
+  | "meetings"
+  | "recent";
 
 // Static schema (key + icon) — labels resolved at render via useT("layout").
 type NavLabelKey =
@@ -142,12 +144,14 @@ type NavLabelKey =
   | "runtimes"
   | "skills"
   | "settings"
-  | "meetings";
+  | "meetings"
+  | "recent";
 
 const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "home", labelKey: "home", icon: Home },
   { key: "inbox", labelKey: "inbox", icon: Inbox },
   { key: "myIssues", labelKey: "my_issues", icon: CircleUser },
+  { key: "recent", labelKey: "recent", icon: Clock },
 ];
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
