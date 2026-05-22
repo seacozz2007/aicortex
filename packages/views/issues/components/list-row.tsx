@@ -36,6 +36,7 @@ export const ListRow = memo(function ListRow({
   depth = 0,
   hasChildren = false,
   collapsed = false,
+  isLastChild = false,
   onToggleCollapse,
   collapsedCount,
 }: {
@@ -44,6 +45,7 @@ export const ListRow = memo(function ListRow({
   depth?: number;
   hasChildren?: boolean;
   collapsed?: boolean;
+  isLastChild?: boolean;
   onToggleCollapse?: () => void;
   collapsedCount?: number;
 }) {
@@ -79,7 +81,9 @@ export const ListRow = memo(function ListRow({
         {/* Tree connector + toggle for tree rows */}
         {isTreeRow && (
           <div className="flex shrink-0 items-center">
-            <span className="text-muted-foreground/30 text-xs select-none">└─</span>
+            <span className="text-muted-foreground/30 text-xs select-none font-mono">
+              {isLastChild ? "└─" : "├─"}
+            </span>
           </div>
         )}
 
