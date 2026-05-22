@@ -96,7 +96,7 @@ func (h *CommandHandler) Handle(ctx context.Context, cmd PreviewCommand, issueID
 			return "", fmt.Errorf("权限检查失败: %w", err)
 		}
 		if !allowed {
-			return "", fmt.Errorf("权限不足：仅 PR 作者、管理员或 Owner 可以执行 /preview 命令")
+			return "", fmt.Errorf("权限不足：仅管理员或 Owner 可以执行 /preview 命令")
 		}
 	}
 
