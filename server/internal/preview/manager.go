@@ -210,28 +210,40 @@ func (m *Manager) ReDeploy(ctx context.Context, env db.PreviewEnvironment) error
 }
 
 // ReclaimStale finds and reclaims environments that have exceeded idle limits.
-// envs idle for idleForce duration are destroyed.
+// Envs idle for idleWarn duration get a warning; envs idle for idleForce are destroyed.
 func (m *Manager) ReclaimStale(ctx context.Context) (reclaimed []db.PreviewEnvironment) {
-	cutoff := time.Now().Add(-m.idleForce)
-	stale, err := m.queries.ListStalePreviewEnvironments(ctx, cutoff)
+	warnCutoff := time.Now().Add(-m.idleWarn)
+	stale, err := m.queries.ListStalePreviewEnvironments(ctx, warnCutoff)
 	if err != nil {
 		slog.Error("manager: list stale environments", "error", err)
 		return
 	}
 
+	forceCutoff := time.Now().Add(-m.idleForce)
 	for _, env := range stale {
-		if err := m.Destroy(ctx, env); err != nil {
-			slog.Error("manager: reclaim failed",
+		if env.LastActivityAt.Time.Before(forceCutoff) {
+			// Past idleForce — destroy immediately
+			if err := m.Destroy(ctx, env); err != nil {
+				slog.Error("manager: reclaim failed",
+					"env_id", util.UUIDToString(env.ID),
+					"error", err,
+				)
+				continue
+			}
+			reclaimed = append(reclaimed, env)
+			slog.Info("manager: reclaimed stale env",
 				"env_id", util.UUIDToString(env.ID),
-				"error", err,
+				"idle_since", env.LastActivityAt.Time,
 			)
-			continue
+		} else {
+			// Past idleWarn but before idleForce — issue warning
+			slog.Warn("manager: env idle too long, will be reclaimed soon",
+				"env_id", util.UUIDToString(env.ID),
+				"idle_since", env.LastActivityAt.Time,
+				"warn_threshold", m.idleWarn.String(),
+				"force_threshold", m.idleForce.String(),
+			)
 		}
-		reclaimed = append(reclaimed, env)
-		slog.Info("manager: reclaimed stale env",
-			"env_id", util.UUIDToString(env.ID),
-			"idle_since", env.LastActivityAt.Time,
-		)
 	}
 
 	return

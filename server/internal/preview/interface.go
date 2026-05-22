@@ -28,6 +28,11 @@ type Querier interface {
 	AllocatePort(ctx context.Context, envID string) (db.PreviewPortPool, error)
 	ReleasePort(ctx context.Context, envID string) error
 	ReleasePortByPort(ctx context.Context, port int32) error
+
+	// GitHub integration methods for PR-issue linking
+	UpsertGitHubPullRequest(ctx context.Context, workspaceID string, installationID int64, repoOwner, repoName string, prNumber int32, title, htmlURL, branch, state string) (string, error)
+	GetIssueByNumber(ctx context.Context, workspaceID string, number int32) (string, error)
+	LinkIssueToPullRequest(ctx context.Context, issueID, pullRequestID string) error
 }
 
 // querierAdapter wraps db.Queries and converts between string and pgtype types.
@@ -144,4 +149,48 @@ func (a *querierAdapter) ReleasePort(ctx context.Context, envID string) error {
 
 func (a *querierAdapter) ReleasePortByPort(ctx context.Context, port int32) error {
 	return a.inner.ReleasePortByPort(ctx, port)
+}
+
+func (a *querierAdapter) UpsertGitHubPullRequest(ctx context.Context, workspaceID string, installationID int64, repoOwner, repoName string, prNumber int32, title, htmlURL, branch, state string) (string, error) {
+	pr, err := a.inner.UpsertGitHubPullRequest(ctx, db.UpsertGitHubPullRequestParams{
+		WorkspaceID:     parseUUID(workspaceID),
+		InstallationID:  installationID,
+		RepoOwner:       repoOwner,
+		RepoName:        repoName,
+		PrNumber:        prNumber,
+		Title:           title,
+		State:           state,
+		HtmlUrl:         htmlURL,
+		PrCreatedAt:     toPgtypeTimestamptz(time.Now()),
+		PrUpdatedAt:     toPgtypeTimestamptz(time.Now()),
+		Branch:          toPgtypeText(branch),
+		AuthorLogin:     pgtype.Text{},
+		AuthorAvatarUrl: pgtype.Text{},
+		MergedAt:        pgtype.Timestamptz{},
+		ClosedAt:        pgtype.Timestamptz{},
+	})
+	if err != nil {
+		return "", err
+	}
+	return util.UUIDToString(pr.ID), nil
+}
+
+func (a *querierAdapter) GetIssueByNumber(ctx context.Context, workspaceID string, number int32) (string, error) {
+	issue, err := a.inner.GetIssueByNumber(ctx, db.GetIssueByNumberParams{
+		WorkspaceID: parseUUID(workspaceID),
+		Number:      number,
+	})
+	if err != nil {
+		return "", err
+	}
+	return util.UUIDToString(issue.ID), nil
+}
+
+func (a *querierAdapter) LinkIssueToPullRequest(ctx context.Context, issueID, pullRequestID string) error {
+	return a.inner.LinkIssueToPullRequest(ctx, db.LinkIssueToPullRequestParams{
+		IssueID:       parseUUID(issueID),
+		PullRequestID: parseUUID(pullRequestID),
+		LinkedByType:  toPgtypeText("system"),
+		LinkedByID:    pgtype.UUID{},
+	})
 }

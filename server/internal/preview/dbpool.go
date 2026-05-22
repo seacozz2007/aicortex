@@ -69,9 +69,10 @@ func (p *DBPool) CreateFromTemplate(ctx context.Context, envID string) (string, 
 // RunMigrations applies pending migrations to the preview database.
 // It connects directly to the new database and runs the migration SQL.
 func (p *DBPool) RunMigrations(ctx context.Context, envID, dbName string, migrationSQL []string) error {
-	// Connect to the new database directly
-	connStr := p.adminPool.Config().ConnConfig.ConnString() + " dbname=" + dbName
-	pool, err := pgxpool.New(ctx, connStr)
+	// Build a new pool config from the admin pool, swapping the database name.
+	poolConfig := p.adminPool.Config().Copy()
+	poolConfig.ConnConfig.Database = dbName
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return fmt.Errorf("dbpool: connect to %s: %w", dbName, err)
 	}

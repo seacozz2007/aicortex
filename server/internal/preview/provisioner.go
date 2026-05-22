@@ -140,29 +140,32 @@ func (p *Provisioner) StartProvision(ctx context.Context, env db.PreviewEnvironm
 		return
 	}
 
+	// Execute the pipeline in a background goroutine so it survives the
+	// caller's context cancellation (e.g. an HTTP handler returning).
 	go func() {
 		defer func() { <-p.jobQueue }()
 
+		workCtx := context.Background()
 		current := env
 		for _, step := range steps {
 			next := step.State()
 
-			updated, err := p.TransitionTo(ctx, current, next)
+			updated, err := p.TransitionTo(workCtx, current, next)
 			if err != nil {
-				p.TransitionToError(ctx, current, err)
+				p.TransitionToError(workCtx, current, err)
 				return
 			}
 			current = updated
 
 			// Execute the step work
-			if err := step.Run(ctx, current); err != nil {
-				p.TransitionToError(ctx, current, err)
+			if err := step.Run(workCtx, current); err != nil {
+				p.TransitionToError(workCtx, current, err)
 				return
 			}
 		}
 
 		// Final transition to READY
-		p.TransitionTo(ctx, current, StateREADY)
+		p.TransitionTo(workCtx, current, StateREADY)
 	}()
 }
 
