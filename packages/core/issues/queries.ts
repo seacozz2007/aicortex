@@ -34,6 +34,8 @@ export const issueKeys = {
     [...issueKeys.all(wsId), "children", id] as const,
   childProgress: (wsId: string) =>
     [...issueKeys.all(wsId), "child-progress"] as const,
+  recentActivities: (wsId: string) =>
+    [...issueKeys.all(wsId), "recent-activities"] as const,
   /** Full-issue timeline (single TanStack Query, no cursor). */
   timeline: (issueId: string) =>
     ["issues", "timeline", issueId] as const,
@@ -177,6 +179,13 @@ export function childIssueProgressOptions(wsId: string) {
       }
       return map;
     },
+  });
+}
+
+export function recentActivitiesOptions(wsId: string) {
+  return queryOptions({
+    queryKey: issueKeys.recentActivities(wsId),
+    queryFn: () => api.listRecentActivities(),
   });
 }
 

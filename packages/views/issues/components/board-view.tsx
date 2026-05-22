@@ -220,6 +220,7 @@ export function BoardView({
   hiddenStatuses,
   onMoveIssue,
   childProgressMap = EMPTY_PROGRESS_MAP,
+  changeActionsMap,
   myIssuesScope,
   myIssuesFilter,
   projectId,
@@ -232,6 +233,7 @@ export function BoardView({
   hiddenStatuses: IssueStatus[];
   onMoveIssue: (issueId: string, updates: BoardMoveUpdates) => void;
   childProgressMap?: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
   /** When set, per-status load-more targets the scoped cache instead of the workspace one. */
   myIssuesScope?: string;
   myIssuesFilter?: MyIssuesFilter;
@@ -494,6 +496,7 @@ export function BoardView({
                 issueIds={columns[group.id] ?? []}
                 issueMap={issueMapRef.current}
                 childProgressMap={childProgressMap}
+                changeActionsMap={changeActionsMap}
                 childrenByParent={childrenByParent}
                 myIssuesOpts={myIssuesOpts}
                 projectId={projectId}
@@ -506,6 +509,7 @@ export function BoardView({
                   issueIds={columns[group.id] ?? []}
                   issueMap={issueMapRef.current}
                   childProgressMap={childProgressMap}
+                  changeActionsMap={changeActionsMap}
                   childrenByParent={childrenByParent}
                   queryKey={assigneeGroupQueryKey}
                   filter={assigneeGroupFilter}
@@ -518,6 +522,7 @@ export function BoardView({
                   issueIds={columns[group.id] ?? []}
                   issueMap={issueMapRef.current}
                   childProgressMap={childProgressMap}
+                  changeActionsMap={changeActionsMap}
                   childrenByParent={childrenByParent}
                   projectId={projectId}
                   totalCount={group.totalCount}
@@ -538,7 +543,7 @@ export function BoardView({
       <DragOverlay dropAnimation={null}>
         {activeIssue ? (
           <div className="w-[280px] rotate-2 scale-105 cursor-grabbing opacity-90 shadow-lg shadow-black/10">
-            <BoardCardContent issue={activeIssue} childProgress={childProgressMap.get(activeIssue.id)} />
+            <BoardCardContent issue={activeIssue} childProgress={childProgressMap.get(activeIssue.id)} changeActions={changeActionsMap?.get(activeIssue.id)} />
           </div>
         ) : null}
       </DragOverlay>
@@ -551,6 +556,7 @@ function PaginatedAssigneeBoardColumn({
   issueIds,
   issueMap,
   childProgressMap,
+  changeActionsMap,
   childrenByParent,
   queryKey,
   filter,
@@ -560,6 +566,7 @@ function PaginatedAssigneeBoardColumn({
   issueIds: string[];
   issueMap: Map<string, Issue>;
   childProgressMap?: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
   childrenByParent?: Map<string, Issue[]>;
   queryKey: QueryKey;
   filter: AssigneeGroupedIssuesFilter;
@@ -580,6 +587,7 @@ function PaginatedAssigneeBoardColumn({
       issueIds={issueIds}
       issueMap={issueMap}
       childProgressMap={childProgressMap}
+      changeActionsMap={changeActionsMap}
       childrenByParent={childrenByParent}
       totalCount={total}
       projectId={projectId}
@@ -597,6 +605,7 @@ function PaginatedBoardColumn({
   issueIds,
   issueMap,
   childProgressMap,
+  changeActionsMap,
   childrenByParent,
   myIssuesOpts,
   projectId,
@@ -605,6 +614,7 @@ function PaginatedBoardColumn({
   issueIds: string[];
   issueMap: Map<string, Issue>;
   childProgressMap?: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
   childrenByParent?: Map<string, Issue[]>;
   myIssuesOpts?: { scope: string; filter: MyIssuesFilter };
   projectId?: string;
@@ -619,6 +629,7 @@ function PaginatedBoardColumn({
       issueIds={issueIds}
       issueMap={issueMap}
       childProgressMap={childProgressMap}
+      changeActionsMap={changeActionsMap}
       childrenByParent={childrenByParent}
       totalCount={total}
       projectId={projectId}

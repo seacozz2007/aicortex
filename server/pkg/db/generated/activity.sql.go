@@ -186,3 +186,48 @@ func (q *Queries) ListActivitiesForIssue(ctx context.Context, arg ListActivities
 	}
 	return items, nil
 }
+
+const listRecentActivitiesForWorkspace = `-- name: ListRecentActivitiesForWorkspace :many
+SELECT id, workspace_id, issue_id, actor_type, actor_id, action, details, created_at FROM activity_log
+WHERE workspace_id = $1
+  AND created_at >= $2
+  AND action != 'created'
+ORDER BY created_at DESC, id DESC
+LIMIT 500
+`
+
+type ListRecentActivitiesForWorkspaceParams struct {
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+// Returns recent non-creation activities for a workspace within a time window,
+// ordered newest-first. Used by the Recent page to show field-change indicators.
+func (q *Queries) ListRecentActivitiesForWorkspace(ctx context.Context, arg ListRecentActivitiesForWorkspaceParams) ([]ActivityLog, error) {
+	rows, err := q.db.Query(ctx, listRecentActivitiesForWorkspace, arg.WorkspaceID, arg.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ActivityLog{}
+	for rows.Next() {
+		var i ActivityLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.IssueID,
+			&i.ActorType,
+			&i.ActorID,
+			&i.Action,
+			&i.Details,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
