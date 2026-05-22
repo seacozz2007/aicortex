@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Dialog as DialogRoot } from "@aicortex/ui/components/ui/dialog";
 import { useWorkspacePaths } from "@aicortex/core/paths";
+import { useActorName } from "@aicortex/core/workspace/hooks";
 import { AppLink } from "../../navigation";
 import {
   meetingStatusLabel,
@@ -9,67 +11,38 @@ import {
   type MeetingStatus,
 } from "../types";
 import { useFilteredMeetings } from "../hooks/use-meetings";
-import { Search, Calendar, Users, Clock } from "lucide-react";
+import { Search, Calendar, Users, Plus } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
+import { NewMeetingDialog } from "./new-meeting-dialog";
+import { ActorAvatar } from "../../common/actor-avatar";
 
 const STATUS_ORDER: MeetingStatus[] = ["in_progress", "upcoming", "completed"];
 
 function MeetingCard({ meeting }: { meeting: Meeting }) {
   const paths = useWorkspacePaths();
+  const { getActorName } = useActorName();
 
-  const statusColor = {
-    in_progress:
-      "border-l-green-500 bg-green-50 dark:bg-green-950/20",
-    upcoming: "border-l-blue-500 bg-blue-50 dark:bg-blue-950/20",
-    completed:
-      "border-l-gray-400 bg-gray-50 dark:bg-gray-900/20",
-  }[meeting.status];
+  const hostName =
+    meeting.hostType && meeting.hostId
+      ? getActorName(meeting.hostType, meeting.hostId)
+      : null;
 
-  const progressLabel =
-    meeting.totalParticipants > 0
-      ? `${meeting.spokeCount}/${meeting.totalParticipants}`
-      : "-";
+  const timeLabel = new Date(meeting.lastActiveAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <AppLink
       href={paths.meetingDetail(meeting.id)}
-      className={cn(
-        "group block rounded-lg border border-border border-l-4 p-4 shadow-sm transition-all hover:shadow-md",
-        statusColor,
-      )}
+      className="group block rounded-lg border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-foreground">
-              {meeting.title}
-            </h3>
-            {meeting.identifier && (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {meeting.identifier}
-              </span>
-            )}
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Users className="size-3" />
-              {progressLabel} spoke
-            </span>
-            {meeting.currentPhase && (
-              <span className="inline-flex items-center gap-1">
-                <Clock className="size-3" />
-                {meeting.currentPhase}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="size-3" />
-              {new Date(meeting.lastActiveAt).toLocaleDateString()}
-            </span>
-          </div>
-        </div>
+      {/* Top row: status badge + identifier */}
+      <div className="mb-2 flex items-center justify-between gap-2">
         <span
           className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+            "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
             meeting.status === "in_progress" &&
               "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
             meeting.status === "upcoming" &&
@@ -79,6 +52,45 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
           )}
         >
           {meetingStatusLabel(meeting.status)}
+        </span>
+        {meeting.identifier && (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {meeting.identifier}
+          </span>
+        )}
+      </div>
+
+      {/* Title */}
+      <h3 className="mb-3 truncate text-sm font-semibold text-foreground">
+        {meeting.title}
+      </h3>
+
+      {/* Bottom row: host, participants, time */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+        {/* Host */}
+        {hostName && (
+          <span className="inline-flex items-center gap-1.5">
+            <ActorAvatar
+              actorType={meeting.hostType!}
+              actorId={meeting.hostId!}
+              size={14}
+            />
+            <span className="truncate">{hostName}</span>
+          </span>
+        )}
+
+        {/* Participants */}
+        <span className="inline-flex items-center gap-1">
+          <Users className="size-3.5" />
+          {meeting.totalParticipants > 0
+            ? `${meeting.totalParticipants} participants`
+            : "No participants"}
+        </span>
+
+        {/* Time */}
+        <span className="inline-flex items-center gap-1">
+          <Calendar className="size-3.5" />
+          {timeLabel}
         </span>
       </div>
     </AppLink>
@@ -99,8 +111,7 @@ function EmptyState({ search }: { search: string }) {
             No meetings yet
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Meetings are created when an issue with the &ldquo;meeting&rdquo;
-            label is added.
+            Create a new meeting to get started.
           </p>
         </>
       )}
@@ -144,7 +155,8 @@ function MeetingSection({
           {meetings.length}
         </span>
       </div>
-      <div className="space-y-2">
+      {/* Responsive grid: 1 col on mobile, 2 cols on tablet/desktop */}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {meetings.map((m) => (
           <MeetingCard key={m.id} meeting={m} />
         ))}
@@ -155,6 +167,7 @@ function MeetingSection({
 
 export function MeetingListPage() {
   const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { grouped, isPending } = useFilteredMeetings(search);
 
   const totalCount =
@@ -163,43 +176,63 @@ export function MeetingListPage() {
     grouped.completed.length;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Meetings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          View and manage all meetings in this workspace.
-        </p>
+    <>
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-6">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Meetings</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              View and manage all meetings in this workspace.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand/90 transition-colors cursor-pointer shrink-0"
+          >
+            <Plus className="size-4" />
+            New Meeting
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-6">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search meetings..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          />
+        </div>
+
+        {isPending ? (
+          <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+            Loading meetings...
+          </div>
+        ) : totalCount === 0 ? (
+          <EmptyState search={search} />
+        ) : (
+          <div className="space-y-8">
+            {STATUS_ORDER.map((status) => (
+              <MeetingSection
+                key={status}
+                status={status}
+                meetings={grouped[status]}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search meetings..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-        />
-      </div>
-
-      {isPending ? (
-        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-          Loading meetings...
-        </div>
-      ) : totalCount === 0 ? (
-        <EmptyState search={search} />
-      ) : (
-        <div className="space-y-8">
-          {STATUS_ORDER.map((status) => (
-            <MeetingSection
-              key={status}
-              status={status}
-              meetings={grouped[status]}
-            />
-          ))}
-        </div>
+      {/* New Meeting Dialog */}
+      {dialogOpen && (
+        <DialogRoot open onOpenChange={(v) => { if (!v) setDialogOpen(false); }}>
+          <NewMeetingDialog onClose={() => setDialogOpen(false)} />
+        </DialogRoot>
       )}
-    </div>
+    </>
   );
 }

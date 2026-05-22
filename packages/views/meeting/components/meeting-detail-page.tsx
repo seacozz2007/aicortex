@@ -25,6 +25,7 @@ import {
   Tag,
 } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
+import { ReadonlyContent } from "../../editor";
 
 function ParticipantBadge({
   participant,
@@ -102,7 +103,7 @@ function CommentBubble({
             : "rounded-tr-sm bg-accent text-foreground",
         )}
       >
-        <p className="whitespace-pre-wrap break-words">{comment.content}</p>
+          <ReadonlyContent content={comment.content} />
         <p className="mt-1 text-[10px] text-muted-foreground">
           {new Date(comment.created_at).toLocaleTimeString()}
         </p>

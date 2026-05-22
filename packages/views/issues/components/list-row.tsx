@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { AppLink } from "../../navigation";
 import type { Issue } from "@aicortex/core/types";
 import { ActorAvatar } from "../../common/actor-avatar";
@@ -15,6 +16,7 @@ import { PriorityIcon } from "./priority-icon";
 import { ProgressRing } from "./progress-ring";
 import { IssueActionsContextMenu } from "../actions";
 import { LabelChip } from "../../labels/label-chip";
+import { cn } from "@aicortex/ui/lib/utils";
 
 export interface ChildProgress {
   done: number;
@@ -31,9 +33,19 @@ function formatDate(date: string): string {
 export const ListRow = memo(function ListRow({
   issue,
   childProgress,
+  depth = 0,
+  hasChildren = false,
+  collapsed = false,
+  onToggleCollapse,
+  collapsedCount,
 }: {
   issue: Issue;
   childProgress?: ChildProgress;
+  depth?: number;
+  hasChildren?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  collapsedCount?: number;
 }) {
   const selected = useIssueSelectionStore((s) => s.selectedIds.has(issue.id));
   const toggle = useIssueSelectionStore((s) => s.toggle);
@@ -53,13 +65,47 @@ export const ListRow = memo(function ListRow({
   const showDueDate = storeProperties.dueDate && issue.due_date;
   const showLabels = storeProperties.labels && labels.length > 0;
 
+  const isTreeRow = depth > 0;
+
   return (
     <IssueActionsContextMenu issue={issue}>
       <div
-        className={`group/row flex h-11 items-center gap-2 rounded-lg px-4 text-sm transition-colors hover:not-data-[popup-open]:bg-accent/60 data-[popup-open]:bg-accent ${
-          selected ? "bg-accent/30" : ""
-        }`}
+        className={cn(
+          "group/row flex h-11 items-center gap-2 rounded-lg px-4 text-sm transition-colors hover:not-data-[popup-open]:bg-accent/60 data-[popup-open]:bg-accent",
+          selected ? "bg-accent/30" : "",
+          isTreeRow && "pl-8",
+        )}
       >
+        {/* Tree connector + toggle for tree rows */}
+        {isTreeRow && (
+          <div className="flex shrink-0 items-center">
+            <span className="text-muted-foreground/30 text-xs select-none">└─</span>
+          </div>
+        )}
+
+        {/* Toggle for parent rows */}
+        {hasChildren && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onToggleCollapse?.();
+            }}
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={collapsed ? "Expand" : "Collapse"}
+          >
+            {collapsed ? (
+              <ChevronRight className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
+          </button>
+        )}
+
+        {/* Gap when no toggle icon */}
+        {!hasChildren && !isTreeRow && <span className="size-3.5 shrink-0" />}
+
         <div className="relative flex shrink-0 items-center justify-center w-4 h-4">
           <PriorityIcon
             priority={issue.priority}
@@ -82,13 +128,19 @@ export const ListRow = memo(function ListRow({
             {issue.identifier}
           </span>
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <span className="truncate">{issue.title}</span>
+            <span className={cn("truncate", isTreeRow && "text-xs")}>{issue.title}</span>
             {showChildProgress && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5">
                 <ProgressRing done={childProgress!.done} total={childProgress!.total} size={14} />
                 <span className="text-[11px] text-muted-foreground tabular-nums font-medium">
                   {childProgress!.done}/{childProgress!.total}
                 </span>
+              </span>
+            )}
+            {/* Collapsed count badge */}
+            {hasChildren && collapsed && collapsedCount != null && collapsedCount > 0 && (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium tabular-nums">
+                {collapsedCount}
               </span>
             )}
             {showLabels && (
