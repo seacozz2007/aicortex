@@ -104,11 +104,11 @@ func (h *CommandHandler) Handle(ctx context.Context, cmd PreviewCommand, issueID
 	case CmdDeploy:
 		return h.handleDeploy(ctx, pr, workspaceID)
 	case CmdStop:
-		return h.handleStop(ctx, pr)
+		return h.handleStop(ctx, pr, workspaceID)
 	case CmdStatus:
-		return h.handleStatus(ctx, pr)
+		return h.handleStatus(ctx, pr, workspaceID)
 	case CmdLogs:
-		return h.handleLogs(ctx, pr)
+		return h.handleLogs(ctx, pr, workspaceID)
 	default:
 		return "", fmt.Errorf("未知命令: %s", cmd.Type)
 	}
@@ -181,8 +181,8 @@ func (h *CommandHandler) handleDeploy(ctx context.Context, pr prInfo, workspaceI
 	return "🚀 **部署已启动**\n\n" + formatEnvStatus(env), nil
 }
 
-func (h *CommandHandler) handleStop(ctx context.Context, pr prInfo) (string, error) {
-	env, err := h.previewAPI.GetPreviewEnvironmentByPR(ctx, "", pr.prID)
+func (h *CommandHandler) handleStop(ctx context.Context, pr prInfo, workspaceID string) (string, error) {
+	env, err := h.previewAPI.GetPreviewEnvironmentByPR(ctx, workspaceID, pr.prID)
 	if err != nil {
 		return "", fmt.Errorf("未找到预览环境（PR: %s）", pr.prID)
 	}
@@ -194,8 +194,8 @@ func (h *CommandHandler) handleStop(ctx context.Context, pr prInfo) (string, err
 	return fmt.Sprintf("✅ 预览环境已停止并回收（PR: %s）", pr.prID), nil
 }
 
-func (h *CommandHandler) handleStatus(ctx context.Context, pr prInfo) (string, error) {
-	env, err := h.previewAPI.GetPreviewEnvironmentByPR(ctx, "", pr.prID)
+func (h *CommandHandler) handleStatus(ctx context.Context, pr prInfo, workspaceID string) (string, error) {
+	env, err := h.previewAPI.GetPreviewEnvironmentByPR(ctx, workspaceID, pr.prID)
 	if err != nil {
 		return "", fmt.Errorf("未找到预览环境（PR: %s）", pr.prID)
 	}
@@ -203,8 +203,8 @@ func (h *CommandHandler) handleStatus(ctx context.Context, pr prInfo) (string, e
 	return formatEnvStatus(env), nil
 }
 
-func (h *CommandHandler) handleLogs(ctx context.Context, pr prInfo) (string, error) {
-	env, err := h.previewAPI.GetPreviewEnvironmentByPR(ctx, "", pr.prID)
+func (h *CommandHandler) handleLogs(ctx context.Context, pr prInfo, workspaceID string) (string, error) {
+	env, err := h.previewAPI.GetPreviewEnvironmentByPR(ctx, workspaceID, pr.prID)
 	if err != nil {
 		return "", fmt.Errorf("未找到预览环境（PR: %s）", pr.prID)
 	}
