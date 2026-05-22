@@ -323,18 +323,24 @@ func (h *Handler) handlePreviewCommand(ctx context.Context, issue db.Issue, comm
 	responseText, err := h.PreviewCmdHandler.Handle(ctx, cmd, issueID, wsID, authorType, authorID)
 	if err != nil {
 		reply := fmt.Sprintf("❌ **命令执行失败**\n\n%s", err.Error())
-		h.createPreviewReply(ctx, issue, commentID, reply)
+		h.createPreviewReply(ctx, issue, commentID, reply, authorID)
 		return
 	}
 
-	h.createPreviewReply(ctx, issue, commentID, responseText)
+	h.createPreviewReply(ctx, issue, commentID, responseText, authorID)
 }
 
 // createPreviewReply posts a reply comment for preview command results.
-func (h *Handler) createPreviewReply(ctx context.Context, issue db.Issue, parentCommentID, content string) {
+func (h *Handler) createPreviewReply(ctx context.Context, issue db.Issue, parentCommentID, content, authorID string) {
 	parentUUID, err := util.ParseUUID(parentCommentID)
 	if err != nil {
 		slog.Warn("preview: invalid parent comment ID", "error", err)
+		return
+	}
+
+	authorUUID, err := util.ParseUUID(authorID)
+	if err != nil {
+		slog.Warn("preview: invalid author ID", "error", err)
 		return
 	}
 
@@ -342,7 +348,7 @@ func (h *Handler) createPreviewReply(ctx context.Context, issue db.Issue, parent
 		IssueID:     issue.ID,
 		WorkspaceID: issue.WorkspaceID,
 		AuthorType:  "agent",
-		AuthorID:    pgtype.UUID{},
+		AuthorID:    authorUUID,
 		Content:     content,
 		Type:        "comment",
 		ParentID:    parentUUID,
@@ -353,7 +359,7 @@ func (h *Handler) createPreviewReply(ctx context.Context, issue db.Issue, parent
 	}
 
 	resp := commentToResponse(reply, nil, nil)
-	h.publish(protocol.EventCommentCreated, uuidToString(issue.WorkspaceID), "agent", "", map[string]any{
+	h.publish(protocol.EventCommentCreated, uuidToString(issue.WorkspaceID), "agent", authorID, map[string]any{
 		"comment":      resp,
 		"issue_title":  issue.Title,
 		"issue_status": issue.Status,
