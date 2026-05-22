@@ -6,7 +6,7 @@ import { Skeleton } from "@aicortex/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentWorkspace } from "@aicortex/core/paths";
 import { useWorkspaceId } from "@aicortex/core/hooks";
-import { issueListOptions } from "@aicortex/core/issues/queries";
+import { issueListOptions, recentActivitiesOptions, childIssueProgressOptions } from "@aicortex/core/issues/queries";
 import { PageHeader } from "../../layout/page-header";
 import { WorkspaceAvatar } from "../../workspace/workspace-avatar";
 import { ListView } from "../../issues/components/list-view";
@@ -15,7 +15,6 @@ import { useIssueViewStore, useClearFiltersOnWorkspaceChange } from "@aicortex/c
 import { ViewStoreProvider } from "@aicortex/core/issues/stores/view-store-context";
 import { BOARD_STATUSES } from "@aicortex/core/issues/config";
 import { useIssueSelectionStore } from "@aicortex/core/issues/stores/selection-store";
-import { childIssueProgressOptions } from "@aicortex/core/issues/queries";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -40,6 +39,19 @@ export function RecentIssuesPage() {
   }, [allIssues]);
 
   const { data: childProgressMap = new Map() } = useQuery(childIssueProgressOptions(wsId));
+
+  const { data: recentActivities = [] } = useQuery({
+    ...recentActivitiesOptions(wsId),
+    enabled: recentIssues.length > 0,
+  });
+
+  const changeActionsMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const act of recentActivities) {
+      map.set(act.issue_id, act.actions);
+    }
+    return map;
+  }, [recentActivities]);
 
   if (isLoading) {
     return (
@@ -89,12 +101,14 @@ export function RecentIssuesPage() {
                 hiddenStatuses={[]}
                 onMoveIssue={() => {}}
                 childProgressMap={childProgressMap}
+                changeActionsMap={changeActionsMap}
               />
             ) : (
               <ListView
                 issues={recentIssues}
                 visibleStatuses={BOARD_STATUSES}
                 childProgressMap={childProgressMap}
+                changeActionsMap={changeActionsMap}
               />
             )}
           </div>

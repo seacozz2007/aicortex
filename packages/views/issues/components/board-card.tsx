@@ -36,6 +36,15 @@ const STATUS_CARD_STYLE: Record<string, string> = {
   cancelled: "bg-card opacity-50",
 };
 
+const CHANGE_LABEL: Record<string, { label: string; color: string }> = {
+  status_changed: { label: "Status", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  priority_changed: { label: "Priority", color: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+  assignee_changed: { label: "Assignee", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400" },
+  title_changed: { label: "Title", color: "bg-green-500/10 text-green-600 dark:text-green-400" },
+  due_date_changed: { label: "Due date", color: "bg-pink-500/10 text-pink-600 dark:text-pink-400" },
+  description_updated: { label: "Description", color: "bg-teal-500/10 text-teal-600 dark:text-teal-400" },
+};
+
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -71,10 +80,12 @@ export const BoardCardContent = memo(function BoardCardContent({
   issue,
   editable = false,
   childProgress,
+  changeActions,
 }: {
   issue: Issue;
   editable?: boolean;
   childProgress?: ChildProgress;
+  changeActions?: string[];
 }) {
   const { t } = useT("issues");
   const storeProperties = useViewStore((s) => s.cardProperties);
@@ -117,6 +128,24 @@ export const BoardCardContent = memo(function BoardCardContent({
       <p className="mt-1 text-sm font-medium leading-snug line-clamp-2">
         {issue.title}
       </p>
+
+      {/* Change indicators for the Recent page */}
+      {changeActions && changeActions.length > 0 && (
+        <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+          {changeActions.slice(0, 3).map((action) => {
+            const cfg = CHANGE_LABEL[action];
+            if (!cfg) return null;
+            return (
+              <span
+                key={action}
+                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${cfg.color}`}
+              >
+                {cfg.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Sub-issue progress + project + labels */}
       {(showChildProgress || showProject || showLabels) && (
@@ -252,7 +281,7 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   return defaultAnimateLayoutChanges(args);
 };
 
-export const DraggableBoardCard = memo(function DraggableBoardCard({ issue, childProgress }: { issue: Issue; childProgress?: ChildProgress }) {
+export const DraggableBoardCard = memo(function DraggableBoardCard({ issue, childProgress, changeActions }: { issue: Issue; childProgress?: ChildProgress; changeActions?: string[] }) {
   const p = useWorkspacePaths();
   const {
     attributes,
@@ -285,7 +314,7 @@ export const DraggableBoardCard = memo(function DraggableBoardCard({ issue, chil
           href={p.issueDetail(issue.id)}
           className={`group block transition-colors ${isDragging ? "pointer-events-none" : ""}`}
         >
-          <BoardCardContent issue={issue} editable childProgress={childProgress} />
+          <BoardCardContent issue={issue} editable childProgress={childProgress} changeActions={changeActions} />
         </AppLink>
       </div>
     </IssueActionsContextMenu>

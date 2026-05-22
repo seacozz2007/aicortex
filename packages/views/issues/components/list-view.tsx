@@ -118,6 +118,7 @@ export function ListView({
   issues,
   visibleStatuses,
   childProgressMap = EMPTY_PROGRESS_MAP,
+  changeActionsMap,
   myIssuesScope,
   myIssuesFilter,
   projectId,
@@ -125,6 +126,7 @@ export function ListView({
   issues: Issue[];
   visibleStatuses: IssueStatus[];
   childProgressMap?: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
   /** When set, per-status load-more targets the scoped cache instead of the workspace one. */
   myIssuesScope?: string;
   myIssuesFilter?: MyIssuesFilter;
@@ -183,6 +185,7 @@ export function ListView({
             status={status}
             issues={issuesByStatus.get(status) ?? []}
             childProgressMap={childProgressMap}
+            changeActionsMap={changeActionsMap}
             myIssuesOpts={myIssuesOpts}
             projectId={projectId}
           />
@@ -196,12 +199,14 @@ function StatusAccordionItem({
   status,
   issues,
   childProgressMap,
+  changeActionsMap,
   myIssuesOpts,
   projectId,
 }: {
   status: IssueStatus;
   issues: Issue[];
   childProgressMap: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
   myIssuesOpts?: { scope: string; filter: MyIssuesFilter };
   projectId?: string;
 }) {
@@ -294,6 +299,7 @@ function StatusAccordionItem({
                   collapsed={item.collapsed}
                   isLastChild={item.isLastChild}
                   collapsedCount={item.collapsedCount}
+                  changeActions={changeActionsMap?.get(item.issue.id)}
                   onToggleCollapse={
                     item.hasChildren
                       ? () => toggleTreeCollapse(item.issue.id)

@@ -72,6 +72,7 @@ export function BoardColumn({
   issueIds,
   issueMap,
   childProgressMap,
+  changeActionsMap,
   childrenByParent = new Map(),
   totalCount,
   footer,
@@ -81,6 +82,7 @@ export function BoardColumn({
   issueIds: string[];
   issueMap: Map<string, Issue>;
   childProgressMap?: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
   childrenByParent?: Map<string, Issue[]>;
   totalCount?: number;
   footer?: ReactNode;
@@ -180,7 +182,7 @@ export function BoardColumn({
           ))}
           {/* Regular issues as cards */}
           {regularIssues.map((issue) => (
-            <DraggableBoardCard key={issue.id} issue={issue} childProgress={childProgressMap?.get(issue.id)} />
+            <DraggableBoardCard key={issue.id} issue={issue} childProgress={childProgressMap?.get(issue.id)} changeActions={changeActionsMap?.get(issue.id)} />
           ))}
         </SortableContext>
         {issueIds.length === 0 && (

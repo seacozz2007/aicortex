@@ -332,3 +332,9 @@ export const EMPTY_CREATE_AGENT_FROM_TEMPLATE_RESPONSE: CreateAgentFromTemplateR
   imported_skill_ids: [],
   reused_skill_ids: [],
 };
+
+export const RecentActivityResponseSchema = z.object({
+  issue_id: z.string(),
+  actions: z.array(z.string()).default([]),
+  last_update_at: z.string(),
+}).loose();

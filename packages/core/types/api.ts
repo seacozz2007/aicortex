@@ -169,3 +169,10 @@ export interface PaginationParams {
   limit?: number;
   offset?: number;
 }
+
+// Recent activities (field change indicators for the Recent page)
+export interface RecentActivityResponse {
+  issue_id: string;
+  actions: string[];
+  last_update_at: string;
+}

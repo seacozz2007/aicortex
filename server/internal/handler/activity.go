@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -128,6 +129,84 @@ func (h *Handler) ListTimeline(w http.ResponseWriter, r *http.Request) {
 		entries = []TimelineEntry{}
 	}
 	writeJSON(w, http.StatusOK, entries)
+}
+
+// RecentActivityResponse is a lightweight per-issue summary of recent changes.
+type RecentActivityResponse struct {
+	IssueID      string   `json:"issue_id"`
+	Actions      []string `json:"actions"`
+	LastUpdateAt string   `json:"last_update_at"`
+}
+
+// ListRecentActivities returns recent field-change activities across the
+// workspace, grouped by issue. Used by the Recent page to display change
+// indicators on each issue row.
+func (h *Handler) ListRecentActivities(w http.ResponseWriter, r *http.Request) {
+	workspaceID := h.resolveWorkspaceID(r)
+	wsUUID, ok := parseUUIDOrBadRequest(w, workspaceID, "workspace_id")
+	if !ok {
+		return
+	}
+
+	sinceStr := r.URL.Query().Get("since")
+	if sinceStr == "" {
+		// Default to 7 days ago
+		sinceStr = time.Now().Add(-7 * 24 * time.Hour).Format(time.RFC3339)
+	}
+	since, err := time.Parse(time.RFC3339, sinceStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid since (expected RFC3339)")
+		return
+	}
+
+	activities, err := h.Queries.ListRecentActivitiesForWorkspace(r.Context(), db.ListRecentActivitiesForWorkspaceParams{
+		WorkspaceID: wsUUID,
+		CreatedAt:   pgtype.Timestamptz{Time: since, Valid: true},
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list recent activities")
+		return
+	}
+
+	// Group activities by issue_id, collecting unique action types.
+	type groupedInfo struct {
+		actions      map[string]bool
+		lastUpdateAt time.Time
+	}
+	grouped := make(map[string]*groupedInfo)
+	for _, a := range activities {
+		iid := uuidToString(a.IssueID)
+		if iid == "" {
+			continue
+		}
+		info, ok := grouped[iid]
+		if !ok {
+			info = &groupedInfo{actions: make(map[string]bool)}
+			grouped[iid] = info
+		}
+		if a.Action != "" {
+			info.actions[a.Action] = true
+		}
+		if a.CreatedAt.Valid && a.CreatedAt.Time.After(info.lastUpdateAt) {
+			info.lastUpdateAt = a.CreatedAt.Time
+		}
+	}
+
+	resp := make([]RecentActivityResponse, 0, len(grouped))
+	for iid, info := range grouped {
+		actions := make([]string, 0, len(info.actions))
+		for a := range info.actions {
+			actions = append(actions, a)
+		}
+		sort.Strings(actions)
+		resp = append(resp, RecentActivityResponse{
+			IssueID:      iid,
+			Actions:      actions,
+			LastUpdateAt: info.lastUpdateAt.Format(time.RFC3339),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // mergeTimeline merges comments and activities and returns them sorted by
