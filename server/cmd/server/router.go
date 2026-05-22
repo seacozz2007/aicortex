@@ -22,6 +22,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/handler"
 	obsmetrics "github.com/aicortex/aicortex/server/internal/metrics"
 	"github.com/aicortex/aicortex/server/internal/middleware"
+	"github.com/aicortex/aicortex/server/internal/preview"
 	"github.com/aicortex/aicortex/server/internal/realtime"
 	"github.com/aicortex/aicortex/server/internal/service"
 	"github.com/aicortex/aicortex/server/internal/storage"
@@ -139,6 +140,14 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// task. Returns nil when rdb is nil — TaskService treats that
 	// as "no cache, always hit DB" (existing behavior).
 	h.TaskService.EmptyClaim = service.NewEmptyClaimCache(rdb)
+
+	// Initialize preview environment components.
+	previewQueries := preview.NewQuerierAdapter(queries)
+	previewPortPool := preview.NewPortPool(previewQueries)
+	previewBridge := preview.NewBridgeEventBus(queries)
+	previewProvisioner := preview.NewProvisioner(previewQueries, 2, previewBridge)
+	previewManager := preview.NewManager(previewQueries, previewPortPool, nil, previewProvisioner)
+	h.PreviewCmdHandler = preview.NewCommandHandler(previewManager, queries, previewQueries)
 
 	// Wire WS heartbeat after stores are finalized so the WS path uses the
 	// same (possibly Redis-backed) stores as the HTTP path.
