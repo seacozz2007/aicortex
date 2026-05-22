@@ -7,6 +7,7 @@ import type { UpdateIssueRequest } from "@aicortex/core/types";
 import { Skeleton } from "@aicortex/ui/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { useIssueViewStore, useClearFiltersOnWorkspaceChange } from "@aicortex/core/issues/stores/view-store";
+import type { TimeRange } from "@aicortex/core/issues/stores/view-store";
 import { useIssuesScopeStore } from "@aicortex/core/issues/stores/issues-scope-store";
 import { ViewStoreProvider } from "@aicortex/core/issues/stores/view-store-context";
 import { filterIssues } from "../utils/filter";
@@ -40,6 +41,8 @@ export function IssuesPage() {
   const projectFilters = useIssueViewStore((s) => s.projectFilters);
   const includeNoProject = useIssueViewStore((s) => s.includeNoProject);
   const labelFilters = useIssueViewStore((s) => s.labelFilters);
+  const timeRange = useIssueViewStore((s) => s.timeRange);
+  const timeSortBy = useIssueViewStore((s) => s.timeSortBy);
   const usesAssigneeBoard = viewMode === "board" && grouping === "assignee";
 
   const assigneeGroupFilter = useMemo<AssigneeGroupedIssuesFilter>(() => {
@@ -101,6 +104,41 @@ export function IssuesPage() {
     () => filterIssues(scopedIssues, { statusFilters, priorityFilters, assigneeFilters, includeNoAssignee, creatorFilters, projectFilters, includeNoProject, labelFilters }),
     [scopedIssues, statusFilters, priorityFilters, assigneeFilters, includeNoAssignee, creatorFilters, projectFilters, includeNoProject, labelFilters],
   );
+
+  // Time range filter (client-side)
+  const TIME_RANGE_MS: Record<TimeRange, number> = {
+    "24h": 24 * 60 * 60 * 1000,
+    "3d": 3 * 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
+    "all": Infinity,
+  };
+  const timeFilteredIssues = useMemo(() => {
+    if (timeRange === "all") return issues;
+    const cutoff = Date.now() - TIME_RANGE_MS[timeRange];
+    return issues.filter((i) => new Date(i.updated_at).getTime() > cutoff);
+  }, [issues, timeRange]);
+
+  // Apply timeSortBy override when the filter-bar sort is active
+  const displayIssues = useMemo(() => {
+    // timeSortBy updated_at (default) — keep existing order (updated_at DESC when
+    // time-filtering, otherwise whatever the display sort says).
+    if (timeSortBy === "updated_at") return timeFilteredIssues;
+    // For non-default time sorts, sort here to override display sort.
+    const sorted = [...timeFilteredIssues].sort((a, b) => {
+      if (timeSortBy === "created_at") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (timeSortBy === "priority") {
+        const PRIORITY_RANK: Record<string, number> = {
+          urgent: 0, high: 1, medium: 2, low: 3, none: 4,
+        };
+        return (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99);
+      }
+      return 0;
+    });
+    return sorted;
+  }, [timeFilteredIssues, timeSortBy]);
 
   // Fetch sub-issue progress from the backend so counts are accurate
   // regardless of client-side pagination or filtering of done issues.
@@ -194,7 +232,7 @@ export function IssuesPage() {
           <div className="flex flex-col flex-1 min-h-0">
             {viewMode === "board" ? (
               <BoardView
-                issues={usesAssigneeBoard ? assigneeIssues : issues}
+                issues={usesAssigneeBoard ? assigneeIssues : displayIssues}
                 assigneeGroups={usesAssigneeBoard ? assigneeGroupsQuery.data?.groups : undefined}
                 assigneeGroupQueryKey={usesAssigneeBoard ? assigneeGroupsOptions.queryKey : undefined}
                 assigneeGroupFilter={usesAssigneeBoard ? assigneeGroupFilter : undefined}
@@ -204,7 +242,7 @@ export function IssuesPage() {
                 childProgressMap={childProgressMap}
               />
             ) : (
-              <ListView issues={issues} visibleStatuses={visibleStatuses} childProgressMap={childProgressMap} />
+              <ListView issues={displayIssues} visibleStatuses={visibleStatuses} childProgressMap={childProgressMap} />
             )}
           </div>
         )}

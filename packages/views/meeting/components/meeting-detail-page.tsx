@@ -13,6 +13,7 @@ import {
   meetingStatusLabel,
   type MeetingParticipant,
 } from "../types";
+import { meetingKeys, deriveParticipants } from "../hooks/use-meetings";
 import {
   ArrowLeft,
   MessageSquare,
@@ -25,11 +26,6 @@ import {
 } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
 import { ReadonlyContent } from "../../editor";
-
-/** Query key factory. */
-const meetingKeys = {
-  comments: (issueId: string) => ["meeting", "comments", issueId] as const,
-};
 
 function ParticipantBadge({
   participant,
@@ -122,7 +118,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
   const { getActorName } = useActorName();
   const timelineRef = useRef<HTMLDivElement>(null);
 
-  const { data: issue, isPending: issueLoading } = useQuery({
+  const { data: issue, isPending: issueLoading, error, refetch } = useQuery({
     ...issueDetailOptions(wsId ?? "", id),
     enabled: !!wsId,
   });
@@ -135,32 +131,7 @@ export function MeetingDetailPage({ id }: { id: string }) {
 
   const participants = useMemo(() => {
     if (!issue) return [];
-    const map = new Map<string, MeetingParticipant>();
-    if (issue.assignee_id) {
-      map.set(issue.assignee_id, {
-        id: issue.assignee_id,
-        name: getActorName(issue.assignee_type ?? "member", issue.assignee_id),
-        isAgent: issue.assignee_type === "agent",
-        spoke: false,
-        commentCount: 0,
-      });
-    }
-    for (const c of comments) {
-      const existing = map.get(c.author_id);
-      if (existing) {
-        existing.commentCount++;
-        existing.spoke = true;
-      } else {
-        map.set(c.author_id, {
-          id: c.author_id,
-          name: getActorName(c.author_type ?? "member", c.author_id),
-          isAgent: c.author_type === "agent",
-          spoke: true,
-          commentCount: 1,
-        });
-      }
-    }
-    return Array.from(map.values());
+    return deriveParticipants(issue, comments, getActorName);
   }, [issue, comments, getActorName]);
 
   // Auto-scroll to bottom when new comments arrive (meeting in progress)
@@ -178,6 +149,21 @@ export function MeetingDetailPage({ id }: { id: string }) {
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
+
+  if (error && !issue) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <p>Failed to load meeting</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent/80"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (issueLoading || !issue) {
     return (

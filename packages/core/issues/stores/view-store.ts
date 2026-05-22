@@ -14,6 +14,17 @@ export type IssueGrouping = "status" | "assignee";
 export type SortField = "position" | "priority" | "due_date" | "created_at" | "title";
 export type SortDirection = "asc" | "desc";
 
+/** Time range preset for filtering issues. */
+export type TimeRange =
+  | "24h"
+  | "3d"
+  | "7d"
+  | "30d"
+  | "all";
+
+/** Quick-sort option in the filter bar (separate from Display ordering). */
+export type TimeSortBy = "updated_at" | "created_at" | "priority";
+
 export interface CardProperties {
   priority: boolean;
   description: boolean;
@@ -35,6 +46,20 @@ export const SORT_OPTIONS: { value: SortField; label: string }[] = [
   { value: "due_date", label: "Due date" },
   { value: "created_at", label: "Created date" },
   { value: "title", label: "Title" },
+];
+
+export const TIME_RANGE_OPTIONS: { value: TimeRange; labelKey: string }[] = [
+  { value: "24h", labelKey: "time_24h" },
+  { value: "3d", labelKey: "time_3d" },
+  { value: "7d", labelKey: "time_7d" },
+  { value: "30d", labelKey: "time_30d" },
+  { value: "all", labelKey: "time_all" },
+];
+
+export const TIME_SORT_OPTIONS: { value: TimeSortBy; labelKey: string }[] = [
+  { value: "updated_at", labelKey: "sort_updated" },
+  { value: "created_at", labelKey: "sort_created" },
+  { value: "priority", labelKey: "sort_priority" },
 ];
 
 export const GROUPING_OPTIONS: { value: IssueGrouping; label: string }[] = [
@@ -67,6 +92,8 @@ export interface IssueViewState {
   sortDirection: SortDirection;
   cardProperties: CardProperties;
   listCollapsedStatuses: IssueStatus[];
+  timeRange: TimeRange;
+  timeSortBy: TimeSortBy;
   setViewMode: (mode: ViewMode) => void;
   setGrouping: (grouping: IssueGrouping) => void;
   toggleStatusFilter: (status: IssueStatus) => void;
@@ -84,6 +111,8 @@ export interface IssueViewState {
   setSortDirection: (dir: SortDirection) => void;
   toggleCardProperty: (key: keyof CardProperties) => void;
   toggleListCollapsed: (status: IssueStatus) => void;
+  setTimeRange: (range: TimeRange) => void;
+  setTimeSortBy: (sort: TimeSortBy) => void;
 }
 
 export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): IssueViewState => ({
@@ -109,6 +138,8 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
     labels: true,
   },
   listCollapsedStatuses: [],
+  timeRange: "all",
+  timeSortBy: "updated_at",
 
   setViewMode: (mode) => set({ viewMode: mode }),
   setGrouping: (grouping) => set({ grouping }),
@@ -208,6 +239,8 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
         ? state.listCollapsedStatuses.filter((s) => s !== status)
         : [...state.listCollapsedStatuses, status],
     })),
+  setTimeRange: (range) => set({ timeRange: range }),
+  setTimeSortBy: (sort) => set({ timeSortBy: sort }),
 });
 
 export const viewStorePersistOptions = (name: string) => ({
@@ -228,6 +261,8 @@ export const viewStorePersistOptions = (name: string) => ({
     sortDirection: state.sortDirection,
     cardProperties: state.cardProperties,
     listCollapsedStatuses: state.listCollapsedStatuses,
+    timeRange: state.timeRange,
+    timeSortBy: state.timeSortBy,
   }),
   // Default Zustand merge is shallow, so a persisted `cardProperties` snapshot
   // saved before a new toggle was introduced wins entirely and the new key is

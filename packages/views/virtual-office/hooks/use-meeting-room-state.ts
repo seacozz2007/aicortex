@@ -10,7 +10,8 @@ const MEETING_LABEL = "meeting";
 
 /** Query key factory for meeting room data. */
 const meetingRoomKeys = {
-  activeMeetings: (wsId: string) => ["meeting-room", "active", wsId] as const,
+  activeMeetings: (wsId: string, ...ids: string[]) =>
+    ["meeting-room", "active", wsId, ...ids] as const,
   recentComments: (issueId: string) =>
     ["meeting-room", "comments", issueId] as const,
 };
@@ -40,7 +41,7 @@ export function useMeetingRoomState() {
   const activeMeetingIds = meetingIssues.map((i) => i.id);
 
   const { data: allComments = [] } = useQuery({
-    queryKey: meetingRoomKeys.activeMeetings(wsId ?? ""),
+    queryKey: meetingRoomKeys.activeMeetings(wsId ?? "", ...activeMeetingIds),
     queryFn: async () => {
       const results = await Promise.all(
         activeMeetingIds.map((id) => api.listComments(id)),

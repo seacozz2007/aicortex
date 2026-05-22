@@ -28,6 +28,16 @@ SELECT EXISTS (
     AND details->>'task_id' = @task_id::text
 ) AS exists;
 
+-- name: ListRecentActivitiesForWorkspace :many
+-- Returns recent non-creation activities for a workspace within a time window,
+-- ordered newest-first. Used by the Recent page to show field-change indicators.
+SELECT * FROM activity_log
+WHERE workspace_id = $1
+  AND created_at >= $2
+  AND action != 'created'
+ORDER BY created_at DESC, id DESC
+LIMIT 500;
+
 -- name: CountAssigneeChangesByActor :many
 -- Count how many times a user assigned each target via assignee_changed activities.
 SELECT

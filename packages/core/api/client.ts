@@ -96,6 +96,7 @@ import type {
   GitHubConnectResponse,
   Squad,
   SquadMember,
+  RecentActivityResponse,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import { type Logger, noopLogger } from "../logger";
@@ -124,6 +125,7 @@ import {
   ListIssuesResponseSchema,
   SubscribersListSchema,
   TimelineEntriesSchema,
+  RecentActivityResponseSchema,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -472,6 +474,9 @@ export class ApiClient {
     if (params?.creator_id) search.set("creator_id", params.creator_id);
     if (params?.project_id) search.set("project_id", params.project_id);
     if (params?.open_only) search.set("open_only", "true");
+    if (params?.updated_since) search.set("updated_since", params.updated_since);
+    if (params?.sort_by) search.set("sort_by", params.sort_by);
+    if (params?.order) search.set("order", params.order);
     const path = `/api/issues?${search}`;
     const raw = await this.fetch<unknown>(path);
     return parseWithFallback(raw, ListIssuesResponseSchema, EMPTY_LIST_ISSUES_RESPONSE, {
@@ -515,6 +520,15 @@ export class ApiClient {
     if (params.offset !== undefined) search.set("offset", String(params.offset));
     if (params.include_closed) search.set("include_closed", "true");
     return this.fetch(`/api/issues/search?${search}`, params.signal ? { signal: params.signal } : undefined);
+  }
+
+  async listRecentActivities(params?: { since?: string }): Promise<RecentActivityResponse[]> {
+    const search = new URLSearchParams();
+    if (params?.since) search.set("since", params.since);
+    const raw = await this.fetch<unknown>(`/api/recent-activities?${search}`);
+    return parseWithFallback(raw, RecentActivityResponseSchema.array(), [], {
+      endpoint: "GET /api/recent-activities",
+    });
   }
 
   async searchProjects(params: { q: string; limit?: number; offset?: number; include_closed?: boolean; signal?: AbortSignal }): Promise<SearchProjectsResponse> {

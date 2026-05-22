@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
-import { EyeOff, MoreHorizontal, Plus, UserMinus } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ChevronDown, ChevronRight, EyeOff, MoreHorizontal, Plus, UserMinus } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@aicortex/ui/components/ui/tooltip";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -21,6 +21,8 @@ import { DraggableBoardCard } from "./board-card";
 import type { ChildProgress } from "./list-row";
 import { useT } from "../../i18n";
 import { ActorAvatar } from "../../common/actor-avatar";
+import { AppLink } from "../../navigation";
+import { useWorkspacePaths } from "@aicortex/core/paths";
 
 export interface BoardColumnGroup {
   id: string;
@@ -32,11 +34,46 @@ export interface BoardColumnGroup {
   createData?: Record<string, unknown>;
 }
 
+/**
+ * Group column issues into parent banners, children, and regular cards.
+ */
+function groupColumnIssues(
+  issues: Issue[],
+  childrenByParent: Map<string, Issue[]>,
+): {
+  parentIssues: Issue[];
+  childrenByParentId: Map<string, Issue[]>;
+  childIds: Set<string>;
+  regularIssues: Issue[];
+} {
+  const parentIssues: Issue[] = [];
+  const childrenByParentId = new Map<string, Issue[]>();
+  const childIds = new Set<string>();
+
+  for (const issue of issues) {
+    if (childrenByParent.has(issue.id)) {
+      // This is a parent issue — collect children that are in this column
+      const kids = childrenByParent.get(issue.id)!.filter((c) => issues.some((i) => i.id === c.id));
+      if (kids.length > 0) {
+        parentIssues.push(issue);
+        childrenByParentId.set(issue.id, kids);
+        for (const kid of kids) childIds.add(kid.id);
+      }
+    }
+  }
+
+  const regularIssues = issues.filter((i) => !childrenByParent.has(i.id) && !childIds.has(i.id));
+
+  return { parentIssues, childrenByParentId, childIds, regularIssues };
+}
+
 export function BoardColumn({
   group,
   issueIds,
   issueMap,
   childProgressMap,
+  changeActionsMap,
+  childrenByParent = new Map(),
   totalCount,
   footer,
   projectId,
@@ -45,6 +82,8 @@ export function BoardColumn({
   issueIds: string[];
   issueMap: Map<string, Issue>;
   childProgressMap?: Map<string, ChildProgress>;
+  changeActionsMap?: Map<string, string[]>;
+  childrenByParent?: Map<string, Issue[]>;
   totalCount?: number;
   footer?: ReactNode;
   /** When set, the per-column "+" pre-fills the project on the create form. */
@@ -64,6 +103,18 @@ export function BoardColumn({
         return issue ? [issue] : [];
       }),
     [issueIds, issueMap],
+  );
+
+  // Group issues by parent-child relationships
+  const { parentIssues, childrenByParentId, regularIssues } = useMemo(
+    () => groupColumnIssues(resolvedIssues, childrenByParent),
+    [resolvedIssues, childrenByParent],
+  );
+
+  // All items for SortableContext: parent IDs + regular issue IDs (children are not sortable)
+  const sortableIds = useMemo(
+    () => [...parentIssues.map((p) => p.id), ...regularIssues.map((i) => i.id)],
+    [parentIssues, regularIssues],
   );
 
   return (
@@ -119,9 +170,19 @@ export function BoardColumn({
           isOver ? "bg-accent/60" : ""
         }`}
       >
-        <SortableContext items={issueIds} strategy={verticalListSortingStrategy}>
-          {resolvedIssues.map((issue) => (
-            <DraggableBoardCard key={issue.id} issue={issue} childProgress={childProgressMap?.get(issue.id)} />
+        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+          {/* Parent issues as banners */}
+          {parentIssues.map((parent) => (
+            <BoardBanner
+              key={parent.id}
+              parent={parent}
+              children={childrenByParentId.get(parent.id) ?? []}
+              childProgress={childProgressMap?.get(parent.id)}
+            />
+          ))}
+          {/* Regular issues as cards */}
+          {regularIssues.map((issue) => (
+            <DraggableBoardCard key={issue.id} issue={issue} childProgress={childProgressMap?.get(issue.id)} changeActions={changeActionsMap?.get(issue.id)} />
           ))}
         </SortableContext>
         {issueIds.length === 0 && (
@@ -132,6 +193,101 @@ export function BoardColumn({
         {footer}
       </div>
     </div>
+  );
+}
+
+/** Parent issue banner spanning the full column width */
+function BoardBanner({
+  parent,
+  children,
+  childProgress,
+}: {
+  parent: Issue;
+  children: Issue[];
+  childProgress?: ChildProgress;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const paths = useWorkspacePaths();
+  const done = childProgress?.done ?? children.filter((c) => c.status === "done" || c.status === "cancelled").length;
+  const total = childProgress?.total ?? children.length;
+
+  return (
+    <div className="rounded-lg border-[0.5px] border-border bg-card shadow-sm overflow-hidden">
+      {/* Banner header */}
+      <AppLink
+        href={paths.issueDetail(parent.id)}
+        className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent/40 transition-colors"
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setCollapsed((v) => !v);
+          }}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={collapsed ? "Expand" : "Collapse"}
+        >
+          {collapsed ? (
+            <ChevronRight className="size-3.5" />
+          ) : (
+            <ChevronDown className="size-3.5" />
+          )}
+        </button>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[11px] text-muted-foreground">{parent.identifier}</span>
+            <span className="truncate text-sm font-medium">{parent.title}</span>
+          </div>
+          {total > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-muted-foreground tabular-nums font-medium whitespace-nowrap">
+                {done}/{total}
+              </span>
+            </div>
+          )}
+        </div>
+      </AppLink>
+
+      {/* Children */}
+      {!collapsed && children.length > 0 && (
+        <div className="border-t border-border/50 px-2 py-1.5 space-y-1">
+          {children.map((child) => (
+            <BoardSubCard key={child.id} child={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Compact sub-card for child issues inside a parent banner */
+function BoardSubCard({ child }: { child: Issue }) {
+  const paths = useWorkspacePaths();
+
+  return (
+    <AppLink
+      href={paths.issueDetail(child.id)}
+      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors group/subcard"
+    >
+      <span className="font-mono text-[10px] text-muted-foreground shrink-0">{child.identifier}</span>
+      <span className="truncate flex-1 group-hover/subcard:text-foreground transition-colors">
+        {child.title}
+      </span>
+      {child.assignee_type && child.assignee_id && (
+        <ActorAvatar
+          actorType={child.assignee_type}
+          actorId={child.assignee_id}
+          size={16}
+        />
+      )}
+    </AppLink>
   );
 }
 
