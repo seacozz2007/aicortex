@@ -11,6 +11,111 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addForumReaction = `-- name: AddForumReaction :one
+INSERT INTO forum_reactions (post_id, agent_id, emoji)
+VALUES ($1, $2, $3)
+ON CONFLICT (post_id, agent_id, emoji) DO UPDATE SET created_at = forum_reactions.created_at
+RETURNING id, post_id, agent_id, emoji, created_at
+`
+
+type AddForumReactionParams struct {
+	PostID  pgtype.UUID `json:"post_id"`
+	AgentID pgtype.UUID `json:"agent_id"`
+	Emoji   string      `json:"emoji"`
+}
+
+func (q *Queries) AddForumReaction(ctx context.Context, arg AddForumReactionParams) (ForumReaction, error) {
+	row := q.db.QueryRow(ctx, addForumReaction, arg.PostID, arg.AgentID, arg.Emoji)
+	var i ForumReaction
+	err := row.Scan(
+		&i.ID,
+		&i.PostID,
+		&i.AgentID,
+		&i.Emoji,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createForumPost = `-- name: CreateForumPost :one
+INSERT INTO forum_posts (workspace_id, agent_id, event_type, content, issue_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, workspace_id, agent_id, event_type, content, issue_id, created_at
+`
+
+type CreateForumPostParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	AgentID     pgtype.UUID `json:"agent_id"`
+	EventType   string      `json:"event_type"`
+	Content     string      `json:"content"`
+	IssueID     pgtype.UUID `json:"issue_id"`
+}
+
+func (q *Queries) CreateForumPost(ctx context.Context, arg CreateForumPostParams) (ForumPost, error) {
+	row := q.db.QueryRow(ctx, createForumPost,
+		arg.WorkspaceID,
+		arg.AgentID,
+		arg.EventType,
+		arg.Content,
+		arg.IssueID,
+	)
+	var i ForumPost
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.AgentID,
+		&i.EventType,
+		&i.Content,
+		&i.IssueID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createForumReply = `-- name: CreateForumReply :one
+INSERT INTO forum_replies (post_id, agent_id, content)
+VALUES ($1, $2, $3)
+RETURNING id, post_id, agent_id, content, created_at
+`
+
+type CreateForumReplyParams struct {
+	PostID  pgtype.UUID `json:"post_id"`
+	AgentID pgtype.UUID `json:"agent_id"`
+	Content string      `json:"content"`
+}
+
+func (q *Queries) CreateForumReply(ctx context.Context, arg CreateForumReplyParams) (ForumReply, error) {
+	row := q.db.QueryRow(ctx, createForumReply, arg.PostID, arg.AgentID, arg.Content)
+	var i ForumReply
+	err := row.Scan(
+		&i.ID,
+		&i.PostID,
+		&i.AgentID,
+		&i.Content,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getForumPost = `-- name: GetForumPost :one
+SELECT id, workspace_id, agent_id, event_type, content, issue_id, created_at FROM forum_posts WHERE id = $1
+`
+
+func (q *Queries) GetForumPost(ctx context.Context, id pgtype.UUID) (ForumPost, error) {
+	row := q.db.QueryRow(ctx, getForumPost, id)
+	var i ForumPost
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.AgentID,
+		&i.EventType,
+		&i.Content,
+		&i.IssueID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listForumPosts = `-- name: ListForumPosts :many
 SELECT
     fp.id, fp.workspace_id, fp.agent_id, fp.event_type, fp.content, fp.issue_id, fp.created_at,
@@ -73,116 +178,6 @@ func (q *Queries) ListForumPosts(ctx context.Context, arg ListForumPostsParams) 
 	return items, nil
 }
 
-const createForumPost = `-- name: CreateForumPost :one
-INSERT INTO forum_posts (workspace_id, agent_id, event_type, content, issue_id)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, workspace_id, agent_id, event_type, content, issue_id, created_at
-`
-
-type CreateForumPostParams struct {
-	WorkspaceID pgtype.UUID `json:"workspace_id"`
-	AgentID     pgtype.UUID `json:"agent_id"`
-	EventType   string      `json:"event_type"`
-	Content     string      `json:"content"`
-	IssueID     pgtype.UUID `json:"issue_id"`
-}
-
-func (q *Queries) CreateForumPost(ctx context.Context, arg CreateForumPostParams) (ForumPost, error) {
-	row := q.db.QueryRow(ctx, createForumPost,
-		arg.WorkspaceID,
-		arg.AgentID,
-		arg.EventType,
-		arg.Content,
-		arg.IssueID,
-	)
-	var i ForumPost
-	err := row.Scan(
-		&i.ID,
-		&i.WorkspaceID,
-		&i.AgentID,
-		&i.EventType,
-		&i.Content,
-		&i.IssueID,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const listForumRepliesByPostIDs = `-- name: ListForumRepliesByPostIDs :many
-SELECT
-    fr.id, fr.post_id, fr.agent_id, fr.content, fr.created_at,
-    a.name AS agent_name
-FROM forum_replies fr
-JOIN agent a ON a.id = fr.agent_id
-WHERE fr.post_id = ANY($1::uuid[])
-ORDER BY fr.created_at ASC
-`
-
-type ListForumRepliesByPostIDsRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	PostID    pgtype.UUID        `json:"post_id"`
-	AgentID   pgtype.UUID        `json:"agent_id"`
-	Content   string             `json:"content"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	AgentName string             `json:"agent_name"`
-}
-
-func (q *Queries) ListForumRepliesByPostIDs(ctx context.Context, postIDs []pgtype.UUID) ([]ListForumRepliesByPostIDsRow, error) {
-	rows, err := q.db.Query(ctx, listForumRepliesByPostIDs, postIDs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListForumRepliesByPostIDsRow{}
-	for rows.Next() {
-		var i ListForumRepliesByPostIDsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.PostID,
-			&i.AgentID,
-			&i.Content,
-			&i.CreatedAt,
-			&i.AgentName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const createForumReply = `-- name: CreateForumReply :one
-INSERT INTO forum_replies (post_id, agent_id, content)
-VALUES ($1, $2, $3)
-RETURNING id, post_id, agent_id, content, created_at
-`
-
-type CreateForumReplyParams struct {
-	PostID  pgtype.UUID `json:"post_id"`
-	AgentID pgtype.UUID `json:"agent_id"`
-	Content string      `json:"content"`
-}
-
-func (q *Queries) CreateForumReply(ctx context.Context, arg CreateForumReplyParams) (ForumReply, error) {
-	row := q.db.QueryRow(ctx, createForumReply,
-		arg.PostID,
-		arg.AgentID,
-		arg.Content,
-	)
-	var i ForumReply
-	err := row.Scan(
-		&i.ID,
-		&i.PostID,
-		&i.AgentID,
-		&i.Content,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const listForumReactionsByPostIDs = `-- name: ListForumReactionsByPostIDs :many
 SELECT
     fr.id, fr.post_id, fr.agent_id, fr.emoji, fr.created_at,
@@ -202,8 +197,8 @@ type ListForumReactionsByPostIDsRow struct {
 	AgentName string             `json:"agent_name"`
 }
 
-func (q *Queries) ListForumReactionsByPostIDs(ctx context.Context, postIDs []pgtype.UUID) ([]ListForumReactionsByPostIDsRow, error) {
-	rows, err := q.db.Query(ctx, listForumReactionsByPostIDs, postIDs)
+func (q *Queries) ListForumReactionsByPostIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListForumReactionsByPostIDsRow, error) {
+	rows, err := q.db.Query(ctx, listForumReactionsByPostIDs, dollar_1)
 	if err != nil {
 		return nil, err
 	}
@@ -229,73 +224,50 @@ func (q *Queries) ListForumReactionsByPostIDs(ctx context.Context, postIDs []pgt
 	return items, nil
 }
 
-const addForumReaction = `-- name: AddForumReaction :one
-INSERT INTO forum_reactions (post_id, agent_id, emoji)
-VALUES ($1, $2, $3)
-ON CONFLICT (post_id, agent_id, emoji) DO UPDATE SET created_at = forum_reactions.created_at
-RETURNING id, post_id, agent_id, emoji, created_at
+const listForumRepliesByPostIDs = `-- name: ListForumRepliesByPostIDs :many
+SELECT
+    fr.id, fr.post_id, fr.agent_id, fr.content, fr.created_at,
+    a.name AS agent_name
+FROM forum_replies fr
+JOIN agent a ON a.id = fr.agent_id
+WHERE fr.post_id = ANY($1::uuid[])
+ORDER BY fr.created_at ASC
 `
 
-type AddForumReactionParams struct {
-	PostID  pgtype.UUID `json:"post_id"`
-	AgentID pgtype.UUID `json:"agent_id"`
-	Emoji   string      `json:"emoji"`
+type ListForumRepliesByPostIDsRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	PostID    pgtype.UUID        `json:"post_id"`
+	AgentID   pgtype.UUID        `json:"agent_id"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	AgentName string             `json:"agent_name"`
 }
 
-func (q *Queries) AddForumReaction(ctx context.Context, arg AddForumReactionParams) (ForumReaction, error) {
-	row := q.db.QueryRow(ctx, addForumReaction,
-		arg.PostID,
-		arg.AgentID,
-		arg.Emoji,
-	)
-	var i ForumReaction
-	err := row.Scan(
-		&i.ID,
-		&i.PostID,
-		&i.AgentID,
-		&i.Emoji,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const removeForumReaction = `-- name: RemoveForumReaction :exec
-DELETE FROM forum_reactions
-WHERE post_id = $1 AND agent_id = $2 AND emoji = $3
-`
-
-type RemoveForumReactionParams struct {
-	PostID  pgtype.UUID `json:"post_id"`
-	AgentID pgtype.UUID `json:"agent_id"`
-	Emoji   string      `json:"emoji"`
-}
-
-func (q *Queries) RemoveForumReaction(ctx context.Context, arg RemoveForumReactionParams) error {
-	_, err := q.db.Exec(ctx, removeForumReaction,
-		arg.PostID,
-		arg.AgentID,
-		arg.Emoji,
-	)
-	return err
-}
-
-const getForumPost = `-- name: GetForumPost :one
-SELECT id, workspace_id, agent_id, event_type, content, issue_id, created_at FROM forum_posts WHERE id = $1
-`
-
-func (q *Queries) GetForumPost(ctx context.Context, id pgtype.UUID) (ForumPost, error) {
-	row := q.db.QueryRow(ctx, getForumPost, id)
-	var i ForumPost
-	err := row.Scan(
-		&i.ID,
-		&i.WorkspaceID,
-		&i.AgentID,
-		&i.EventType,
-		&i.Content,
-		&i.IssueID,
-		&i.CreatedAt,
-	)
-	return i, err
+func (q *Queries) ListForumRepliesByPostIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListForumRepliesByPostIDsRow, error) {
+	rows, err := q.db.Query(ctx, listForumRepliesByPostIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListForumRepliesByPostIDsRow{}
+	for rows.Next() {
+		var i ListForumRepliesByPostIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PostID,
+			&i.AgentID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.AgentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listWorkspaceAgentsForForum = `-- name: ListWorkspaceAgentsForForum :many
@@ -319,11 +291,7 @@ func (q *Queries) ListWorkspaceAgentsForForum(ctx context.Context, workspaceID p
 	items := []ListWorkspaceAgentsForForumRow{}
 	for rows.Next() {
 		var i ListWorkspaceAgentsForForumRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Provider,
-		); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name, &i.Provider); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -332,4 +300,20 @@ func (q *Queries) ListWorkspaceAgentsForForum(ctx context.Context, workspaceID p
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeForumReaction = `-- name: RemoveForumReaction :exec
+DELETE FROM forum_reactions
+WHERE post_id = $1 AND agent_id = $2 AND emoji = $3
+`
+
+type RemoveForumReactionParams struct {
+	PostID  pgtype.UUID `json:"post_id"`
+	AgentID pgtype.UUID `json:"agent_id"`
+	Emoji   string      `json:"emoji"`
+}
+
+func (q *Queries) RemoveForumReaction(ctx context.Context, arg RemoveForumReactionParams) error {
+	_, err := q.db.Exec(ctx, removeForumReaction, arg.PostID, arg.AgentID, arg.Emoji)
+	return err
 }
