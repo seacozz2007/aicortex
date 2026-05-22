@@ -352,6 +352,19 @@ export function BoardView({
     issueMapRef.current = issueMap;
   }
 
+  // Build parent → children mapping from the issue list
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string, Issue[]>();
+    for (const issue of groupedIssues) {
+      if (issue.parent_issue_id) {
+        const kids = map.get(issue.parent_issue_id) ?? [];
+        kids.push(issue);
+        map.set(issue.parent_issue_id, kids);
+      }
+    }
+    return map;
+  }, [groupedIssues]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -481,6 +494,7 @@ export function BoardView({
                 issueIds={columns[group.id] ?? []}
                 issueMap={issueMapRef.current}
                 childProgressMap={childProgressMap}
+                childrenByParent={childrenByParent}
                 myIssuesOpts={myIssuesOpts}
                 projectId={projectId}
               />
@@ -492,6 +506,7 @@ export function BoardView({
                   issueIds={columns[group.id] ?? []}
                   issueMap={issueMapRef.current}
                   childProgressMap={childProgressMap}
+                  childrenByParent={childrenByParent}
                   queryKey={assigneeGroupQueryKey}
                   filter={assigneeGroupFilter}
                   projectId={projectId}
@@ -503,6 +518,7 @@ export function BoardView({
                   issueIds={columns[group.id] ?? []}
                   issueMap={issueMapRef.current}
                   childProgressMap={childProgressMap}
+                  childrenByParent={childrenByParent}
                   projectId={projectId}
                   totalCount={group.totalCount}
                 />
@@ -535,6 +551,7 @@ function PaginatedAssigneeBoardColumn({
   issueIds,
   issueMap,
   childProgressMap,
+  childrenByParent,
   queryKey,
   filter,
   projectId,
@@ -543,6 +560,7 @@ function PaginatedAssigneeBoardColumn({
   issueIds: string[];
   issueMap: Map<string, Issue>;
   childProgressMap?: Map<string, ChildProgress>;
+  childrenByParent?: Map<string, Issue[]>;
   queryKey: QueryKey;
   filter: AssigneeGroupedIssuesFilter;
   projectId?: string;
@@ -562,6 +580,7 @@ function PaginatedAssigneeBoardColumn({
       issueIds={issueIds}
       issueMap={issueMap}
       childProgressMap={childProgressMap}
+      childrenByParent={childrenByParent}
       totalCount={total}
       projectId={projectId}
       footer={
@@ -578,6 +597,7 @@ function PaginatedBoardColumn({
   issueIds,
   issueMap,
   childProgressMap,
+  childrenByParent,
   myIssuesOpts,
   projectId,
 }: {
@@ -585,6 +605,7 @@ function PaginatedBoardColumn({
   issueIds: string[];
   issueMap: Map<string, Issue>;
   childProgressMap?: Map<string, ChildProgress>;
+  childrenByParent?: Map<string, Issue[]>;
   myIssuesOpts?: { scope: string; filter: MyIssuesFilter };
   projectId?: string;
 }) {
@@ -598,6 +619,7 @@ function PaginatedBoardColumn({
       issueIds={issueIds}
       issueMap={issueMap}
       childProgressMap={childProgressMap}
+      childrenByParent={childrenByParent}
       totalCount={total}
       projectId={projectId}
       footer={
