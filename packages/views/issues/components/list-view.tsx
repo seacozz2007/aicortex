@@ -36,6 +36,7 @@ interface TreeDisplayItem {
   collapsed: boolean;
   collapsedCount: number;
   childProgress?: ChildProgress;
+  isLastChild: boolean;
 }
 
 function buildTreeItems(
@@ -76,10 +77,12 @@ function buildTreeItems(
         hasChildren: true,
         collapsed,
         collapsedCount: children.length,
+        isLastChild: false,
         childProgress: progress,
       });
       if (!collapsed) {
-        for (const child of children) {
+        for (let idx = 0; idx < children.length; idx++) {
+          const child = children[idx]!;
           const childProg = childProgressMap.get(child.id);
           if (childProg) childProgressByIssue.set(child.id, childProg);
           items.push({
@@ -88,6 +91,7 @@ function buildTreeItems(
             hasChildren: false,
             collapsed: false,
             collapsedCount: 0,
+            isLastChild: idx === children.length - 1,
             childProgress: childProg,
           });
         }
@@ -100,6 +104,7 @@ function buildTreeItems(
         hasChildren: false,
         collapsed: false,
         collapsedCount: 0,
+        isLastChild: false,
         childProgress: progress,
       });
     }
@@ -287,6 +292,7 @@ function StatusAccordionItem({
                   depth={item.depth}
                   hasChildren={item.hasChildren}
                   collapsed={item.collapsed}
+                  isLastChild={item.isLastChild}
                   collapsedCount={item.collapsedCount}
                   onToggleCollapse={
                     item.hasChildren
