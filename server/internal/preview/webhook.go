@@ -9,25 +9,28 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // WebhookHandler processes GitHub pull request webhook events for preview environments.
 type WebhookHandler struct {
-	manager   *Manager
-	queries   Querier
-	workspace string // workspace slug or ID to associate PRs with
-	secret    string // HMAC-SHA256 secret for signature verification
+	manager    *Manager
+	queries    Querier
+	workspace  string // workspace slug or ID to associate PRs with
+	secret     string // HMAC-SHA256 secret for signature verification
+	issuePrefix string // workspace issue prefix (e.g. "WOR") for PR-issue linking
 }
 
 // NewWebhookHandler creates a WebhookHandler for GitHub PR events.
-func NewWebhookHandler(manager *Manager, queries Querier, workspace, secret string) *WebhookHandler {
+func NewWebhookHandler(manager *Manager, queries Querier, workspace, secret, issuePrefix string) *WebhookHandler {
 	return &WebhookHandler{
-		manager:   manager,
-		queries:   queries,
-		workspace: workspace,
-		secret:    secret,
+		manager:     manager,
+		queries:     queries,
+		workspace:   workspace,
+		secret:      secret,
+		issuePrefix: issuePrefix,
 	}
 }
 
@@ -38,6 +41,7 @@ type GitHubPRWebhookPayload struct {
 	PullRequest struct {
 		HTMLURL string `json:"html_url"`
 		Title   string `json:"title"`
+		Body    string `json:"body"`
 		Head    struct {
 			Ref  string `json:"ref"`
 			SHA  string `json:"sha"`
@@ -50,7 +54,10 @@ type GitHubPRWebhookPayload struct {
 		Merged bool   `json:"merged"`
 		State  string `json:"state"`
 	} `json:"pull_request"`
-	Repository *RepoInfo `json:"repository"`
+	Repository   *RepoInfo    `json:"repository"`
+	Installation struct {
+		ID int64 `json:"id"`
+	} `json:"installation"`
 }
 
 // RepoInfo captures GitHub repository identifiers.
@@ -107,12 +114,95 @@ func (wh *WebhookHandler) handlePROpened(ctx context.Context, event GitHubPRWebh
 		return err
 	}
 
+	// Upsert the PR into github_pull_request and link to any matching issue
+	wh.linkPRToIssue(ctx, event, repoOwner, repoName)
+
 	slog.Info("webhook: triggered preview deployment",
 		"env_id", env.ID,
 		"pr", prID,
 	)
 
 	return nil
+}
+
+// linkPRToIssue upserts the PR into the github_pull_request table and links it
+// to any matching issue found by scanning the PR title for issue identifiers.
+func (wh *WebhookHandler) linkPRToIssue(ctx context.Context, event GitHubPRWebhookPayload, repoOwner, repoName string) {
+	if wh.issuePrefix == "" || event.Installation.ID == 0 {
+		return
+	}
+
+	prID, err := wh.queries.UpsertGitHubPullRequest(ctx, wh.workspace, event.Installation.ID,
+		repoOwner, repoName, int32(event.Number),
+		event.PullRequest.Title, event.PullRequest.HTMLURL, event.PullRequest.Head.Ref, "open",
+	)
+	if err != nil {
+		slog.Warn("webhook: failed to upsert pull request", "error", err)
+		return
+	}
+
+	// Extract issue identifiers from PR title and body
+	identifiers := extractIssueIdentifiers(wh.issuePrefix, event.PullRequest.Title, event.PullRequest.Body, event.PullRequest.Head.Ref)
+	for _, ident := range identifiers {
+		parts := strings.SplitN(ident, "-", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		num, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+
+		issueID, err := wh.queries.GetIssueByNumber(ctx, wh.workspace, int32(num))
+		if err != nil {
+			slog.Debug("webhook: no matching issue found for PR link",
+				"identifier", ident,
+				"pr_id", prID,
+			)
+			continue
+		}
+
+		if err := wh.queries.LinkIssueToPullRequest(ctx, issueID, prID); err != nil {
+			slog.Warn("webhook: failed to link PR to issue",
+				"issue_id", issueID,
+				"pr_id", prID,
+				"error", err,
+			)
+		}
+	}
+}
+
+// extractIssueIdentifiers pulls every "PREFIX-NUMBER" match from the supplied strings.
+func extractIssueIdentifiers(prefix string, parts ...string) []string {
+	seen := map[string]struct{}{}
+	var out []string
+	prefixUpper := strings.ToUpper(prefix)
+
+	for _, src := range parts {
+		upper := strings.ToUpper(src)
+		idx := 0
+		for {
+			pos := strings.Index(upper[ idx:], prefixUpper+"-")
+			if pos < 0 {
+				break
+			}
+			start := idx + pos
+			rest := upper[start+len(prefixUpper)+1:]
+			end := 0
+			for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
+				end++
+			}
+			if end > 0 {
+				ident := prefixUpper + "-" + rest[:end]
+				if _, dup := seen[ident]; !dup {
+					seen[ident] = struct{}{}
+					out = append(out, ident)
+				}
+			}
+			idx = start + 1
+		}
+	}
+	return out
 }
 
 // handlePRClosed triggers preview environment cleanup for a closed/merged PR.

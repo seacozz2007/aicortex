@@ -89,6 +89,18 @@ func (m *mockQuerier) ReleasePortByPort(ctx context.Context, port int32) error {
 	return nil
 }
 
+func (m *mockQuerier) UpsertGitHubPullRequest(ctx context.Context, workspaceID string, installationID int64, repoOwner, repoName string, prNumber int32, title, htmlURL, branch, state string) (string, error) {
+	return "mock-pr-id", nil
+}
+
+func (m *mockQuerier) GetIssueByNumber(ctx context.Context, workspaceID string, number int32) (string, error) {
+	return "", nil
+}
+
+func (m *mockQuerier) LinkIssueToPullRequest(ctx context.Context, issueID, pullRequestID string) error {
+	return nil
+}
+
 // noopEventBus implements EventBus for testing.
 type noopEventBus struct{}
 
