@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/aicortex/aicortex/server/internal/logger"
 	"github.com/aicortex/aicortex/server/internal/mention"
+	"github.com/aicortex/aicortex/server/internal/preview"
 	"github.com/aicortex/aicortex/server/internal/service"
 	"github.com/aicortex/aicortex/server/internal/util"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
@@ -300,6 +302,68 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	h.enqueueMentionedAgentTasks(r.Context(), issue, comment, parentComment, authorType, authorID)
 
 	writeJSON(w, http.StatusCreated, resp)
+
+	// Process /preview commands from issue comments (async, non-blocking).
+	if h.PreviewCmdHandler != nil {
+		h.handlePreviewCommand(r.Context(), issue, comment, req.Content, authorType, authorID)
+	}
+}
+
+// handlePreviewCommand processes /preview commands from issue comments.
+func (h *Handler) handlePreviewCommand(ctx context.Context, issue db.Issue, comment db.Comment, content, authorType, authorID string) {
+	cmd, ok := preview.ParseCommand(content)
+	if !ok {
+		return
+	}
+
+	issueID := uuidToString(issue.ID)
+	wsID := uuidToString(issue.WorkspaceID)
+	commentID := uuidToString(comment.ID)
+
+	responseText, err := h.PreviewCmdHandler.Handle(ctx, cmd, issueID, wsID, authorType, authorID)
+	if err != nil {
+		reply := fmt.Sprintf("❌ **命令执行失败**\n\n%s", err.Error())
+		h.createPreviewReply(ctx, issue, commentID, reply, authorID)
+		return
+	}
+
+	h.createPreviewReply(ctx, issue, commentID, responseText, authorID)
+}
+
+// createPreviewReply posts a reply comment for preview command results.
+func (h *Handler) createPreviewReply(ctx context.Context, issue db.Issue, parentCommentID, content, authorID string) {
+	parentUUID, err := util.ParseUUID(parentCommentID)
+	if err != nil {
+		slog.Warn("preview: invalid parent comment ID", "error", err)
+		return
+	}
+
+	authorUUID, err := util.ParseUUID(authorID)
+	if err != nil {
+		slog.Warn("preview: invalid author ID", "error", err)
+		return
+	}
+
+	reply, err := h.Queries.CreateComment(ctx, db.CreateCommentParams{
+		IssueID:     issue.ID,
+		WorkspaceID: issue.WorkspaceID,
+		AuthorType:  "agent",
+		AuthorID:    authorUUID,
+		Content:     content,
+		Type:        "comment",
+		ParentID:    parentUUID,
+	})
+	if err != nil {
+		slog.Warn("preview: failed to create reply comment", "error", err)
+		return
+	}
+
+	resp := commentToResponse(reply, nil, nil)
+	h.publish(protocol.EventCommentCreated, uuidToString(issue.WorkspaceID), "agent", authorID, map[string]any{
+		"comment":      resp,
+		"issue_title":  issue.Title,
+		"issue_status": issue.Status,
+	})
 }
 
 // commentMentionsOthersButNotAssignee returns true if the comment @mentions

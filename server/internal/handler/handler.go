@@ -18,6 +18,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/daemonws"
 	"github.com/aicortex/aicortex/server/internal/events"
 	"github.com/aicortex/aicortex/server/internal/middleware"
+	"github.com/aicortex/aicortex/server/internal/preview"
 	"github.com/aicortex/aicortex/server/internal/realtime"
 	"github.com/aicortex/aicortex/server/internal/service"
 	"github.com/aicortex/aicortex/server/internal/storage"
@@ -91,6 +92,7 @@ type Handler struct {
 	Analytics             analytics.Client
 	PATCache              *auth.PATCache
 	DaemonTokenCache      *auth.DaemonTokenCache
+	PreviewCmdHandler     *preview.CommandHandler
 	cfg                   Config
 }
 
