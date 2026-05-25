@@ -1,6 +1,6 @@
 CREATE TABLE preview_environments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES workspaces(id),
+    workspace_id UUID NOT NULL REFERENCES workspace(id),
     pr_id TEXT NOT NULL,
     repo_owner TEXT NOT NULL,
     repo_name TEXT NOT NULL,
