@@ -257,7 +257,8 @@ func main() {
 	registerSubscriberListeners(bus, queries)
 	registerActivityListeners(bus, queries)
 	registerNotificationListeners(bus, queries)
-	registerForumListeners(bus, queries, llm.NewClientFromEnv(), forum.NewForumAutoState(forum.DefaultAutoChatterConfig()))
+	forumState := forum.NewForumAutoState(forum.DefaultAutoChatterConfig())
+	registerForumListeners(bus, queries, llm.NewClientFromEnv(), forumState)
 
 	metricsConfig := obsmetrics.ConfigFromEnv()
 	var metricsServer *http.Server
@@ -291,6 +292,7 @@ func main() {
 		DaemonHub:          daemonHub,
 		DaemonWakeup:       daemonWakeup,
 		HeartbeatScheduler: heartbeatScheduler,
+		ForumAutoState:     forumState,
 	})
 
 	srv := &http.Server{

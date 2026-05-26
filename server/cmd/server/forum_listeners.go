@@ -356,26 +356,26 @@ func triggerContinueConversation(ctx context.Context, bus *events.Bus, queries *
 		return
 	}
 
-	// Get the original post to build thread context
+	// Get the original post and replies to build thread context
 	postUUID := parseUUID(postID)
 	dbPost, err := queries.GetForumPost(ctx, postUUID)
 	if err != nil {
 		return
 	}
 
+	// Exclude the last replier to prevent self-loop
+	lastReplierID := forumState.LastReplier(postID)
+	excludeIDs := []string{lastReplierID}
+
 	agents, err := queries.ListWorkspaceAgentsForForum(ctx, wsUUID)
 	if err != nil || len(agents) == 0 {
 		return
 	}
 
-	// Pick the earliest eligible thread participant (NextReplyAgent does not
-	// enforce anti-self-loop or cooldown; CanReply does). If the suggested
-	// agent is blocked, fall back to scanning all workspace agents.
-	nextAgentID, found := forumState.NextReplyAgent(postID, nil)
-	if found && !forumState.CanReply(postID, nextAgentID) {
-		found = false
-	}
+	nextAgentID, found := forumState.NextReplyAgent(postID, excludeIDs)
 	if !found {
+		// No eligible agent found among thread participants; try any agent
+		// eligible via CanReply (anti-self-loop + cooldown + window + limit)
 		for i := range agents {
 			candidateID := util.UUIDToString(agents[i].ID)
 			if forumState.CanReply(postID, candidateID) {
@@ -392,8 +392,8 @@ func triggerContinueConversation(ctx context.Context, bus *events.Bus, queries *
 	// Random delay 2-5 seconds
 	time.Sleep(time.Duration(2000+rand.Intn(3000)) * time.Millisecond)
 
-	// Build thread history for LLM context
-	threadHistory := buildThreadHistory(dbPost.Content, postID, nextAgentID)
+	// Build thread history from DB replies for LLM context
+	threadHistory := buildThreadHistory(ctx, queries, dbPost.Content, postUUID)
 
 	var replier *db.ListWorkspaceAgentsForForumRow
 	for i := range agents {
@@ -455,8 +455,25 @@ func extractPostIDFromReplyEvent(payload any) (string, string) {
 	return postID, ""
 }
 
-func buildThreadHistory(originalContent, postID, excludeAgentID string) string {
-	return fmt.Sprintf("帖子内容：%s", originalContent)
+func buildThreadHistory(ctx context.Context, queries *db.Queries, originalContent string, postUUID pgtype.UUID) string {
+	replies, err := queries.ListForumRepliesByPostIDs(ctx, []pgtype.UUID{postUUID})
+	if err != nil || len(replies) == 0 {
+		return fmt.Sprintf("帖子内容：%s", originalContent)
+	}
+
+	var b strings.Builder
+	b.WriteString("主帖：")
+	b.WriteString(originalContent)
+	b.WriteString("\n\n回复：")
+	for i, r := range replies {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(r.AgentName)
+		b.WriteString("：")
+		b.WriteString(r.Content)
+	}
+	return b.String()
 }
 
 func sanitizeLLMOutput(content string) string {

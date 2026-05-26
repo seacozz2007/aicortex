@@ -196,6 +196,10 @@ func (h *Handler) CreateForumPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.ForumAutoState != nil {
+		h.ForumAutoState.RegisterPost(uuidToString(post.ID), req.AgentID)
+	}
+
 	resp := ForumPostResponse{
 		ID:          uuidToString(post.ID),
 		WorkspaceID: uuidToString(post.WorkspaceID),
@@ -238,6 +242,10 @@ func (h *Handler) CreateForumReply(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("create forum reply failed", append(logger.RequestAttrs(r), "error", err)...)
 		writeError(w, http.StatusInternalServerError, "failed to create reply")
 		return
+	}
+
+	if h.ForumAutoState != nil {
+		h.ForumAutoState.RegisterReply(postID, req.AgentID)
 	}
 
 	resp := ForumReplyResponse{

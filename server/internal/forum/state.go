@@ -172,6 +172,17 @@ func (s *ForumAutoState) PostAuthor(postID string) string {
 	return ""
 }
 
+// LastReplier returns the agent ID of the last agent who replied in the thread.
+func (s *ForumAutoState) LastReplier(postID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if thread, exists := s.threads[postID]; exists {
+		return thread.LastAgentID
+	}
+	return ""
+}
+
 // IsLastReplier returns true if agentID is the last agent who replied in the thread.
 func (s *ForumAutoState) IsLastReplier(postID, agentID string) bool {
 	s.mu.Lock()
