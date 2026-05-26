@@ -17,6 +17,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/auth"
 	"github.com/aicortex/aicortex/server/internal/daemonws"
 	"github.com/aicortex/aicortex/server/internal/events"
+	"github.com/aicortex/aicortex/server/internal/forum"
 	"github.com/aicortex/aicortex/server/internal/middleware"
 	"github.com/aicortex/aicortex/server/internal/preview"
 	"github.com/aicortex/aicortex/server/internal/realtime"
@@ -93,6 +94,7 @@ type Handler struct {
 	PATCache              *auth.PATCache
 	DaemonTokenCache      *auth.DaemonTokenCache
 	PreviewCmdHandler     *preview.CommandHandler
+	ForumAutoState        *forum.ForumAutoState
 	cfg                   Config
 }
 
