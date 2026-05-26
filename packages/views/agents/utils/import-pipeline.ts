@@ -136,12 +136,13 @@ export async function runImportPipeline(
     squads: { total: payload.squads?.length ?? 0, created: 0, failures: [] },
   };
 
-  // Step 1: Create skills (skip if same name exists)
+  // Step 1: Create skills (skip if same name exists in workspace OR already created in this import)
   const skillNameToId = new Map<string, string>();
+  const createdSkillNames = new Set<string>();
   if (payload.skills?.length) {
     onProgress("Creating skills...");
     for (const s of payload.skills) {
-      if (existingSkillNames.has(s.name)) {
+      if (existingSkillNames.has(s.name) || createdSkillNames.has(s.name)) {
         result.skills.skipped++;
         continue;
       }
@@ -154,6 +155,7 @@ export async function runImportPipeline(
           files: s.files,
         });
         skillNameToId.set(s.name, created.id);
+        createdSkillNames.add(s.name);
         result.skills.created++;
       } catch (err) {
         result.skills.failures.push({
@@ -195,8 +197,8 @@ export async function runImportPipeline(
           if (skillIds.length > 0) {
             try {
               await api.setAgentSkills(created.id, { skill_ids: skillIds });
-            } catch {
-              // Non-fatal: skills can be added later
+            } catch (err) {
+              console.warn("Failed to set agent skills during import:", err);
             }
           }
         }
@@ -219,10 +221,19 @@ export async function runImportPipeline(
           ? agentNameToId.get(s.leader_agent_name)
           : undefined;
 
+        if (!leaderAgentId) {
+          result.squads.failures.push({
+            name: s.name,
+            success: false,
+            error: "Leader agent not found: " + (s.leader_agent_name ?? "(not specified)"),
+          });
+          continue;
+        }
+
         const createdSquad: Squad = await api.createSquad({
           name: s.name,
           description: s.description,
-          leader_id: leaderAgentId ?? "", // backend requires leader_id
+          leader_id: leaderAgentId,
           avatar_url: s.avatar_url,
         });
         result.squads.created++;
@@ -231,8 +242,8 @@ export async function runImportPipeline(
         if (s.instructions) {
           try {
             await api.updateSquad(createdSquad.id, { instructions: s.instructions });
-          } catch {
-            // Non-fatal
+          } catch (err) {
+            console.warn("Failed to update squad instructions during import:", err);
           }
         }
 
@@ -247,8 +258,8 @@ export async function runImportPipeline(
                   member_id: memberAgentId,
                   role: m.role,
                 });
-              } catch {
-                // Non-fatal: member can be added later
+              } catch (err) {
+                console.warn("Failed to add squad member during import:", err);
               }
             }
           }

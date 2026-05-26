@@ -63,25 +63,20 @@ export function useAgentExport(agents: Agent[], sourceWorkspace: string) {
         }
       }
 
-      // Collect all skills that are referenced by agents (deduped by name)
-      const skillNameSet = new Set<string>();
+      // Collect all skills referenced by agents (deduped by ID)
       const exportSkills: WorkspaceAgentExport["skills"] = [];
-      for (const agent of agents) {
-        for (const s of agent.skills) {
-          if (skillNameSet.has(s.name)) continue;
-          skillNameSet.add(s.name);
-          const full = skillMap.get(s.id);
-          exportSkills.push({
-            name: s.name,
-            description: s.description,
-            content: full?.content ?? "",
-            files: full?.files ?? [],
-          });
-        }
+      for (const full of skillMap.values()) {
+        exportSkills.push({
+          name: full.name,
+          description: full.description,
+          content: full.content ?? "",
+          files: full.files ?? [],
+        });
       }
 
-      // Build squad export data
-      const agentNameById = new Map(agents.map((a) => [a.id, a.name]));
+      // Fetch full agent list for squad member name resolution (not filtered by current view)
+      const allAgents = await api.listAgents();
+      const agentNameById = new Map(allAgents.map((a) => [a.id, a.name]));
       const exportSquads: WorkspaceAgentExport["squads"] = [];
       for (let i = 0; i < squads.length; i++) {
         const squad = squads[i];
@@ -119,7 +114,7 @@ export function useAgentExport(agents: Agent[], sourceWorkspace: string) {
       });
 
       const result: WorkspaceAgentExport = {
-        version: "1.0",
+        version: 1,
         exported_at: new Date().toISOString(),
         source_workspace: sourceWorkspace,
         agents: exportAgents,

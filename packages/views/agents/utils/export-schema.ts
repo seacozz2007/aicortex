@@ -33,7 +33,7 @@ export interface ExportSquad {
 }
 
 export interface WorkspaceAgentExport {
-  version: string;
+  version: number;
   exported_at: string;
   source_workspace: string;
   agents: ExportAgent[];
