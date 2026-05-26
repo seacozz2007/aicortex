@@ -23,6 +23,10 @@ type AppConfig struct {
 	PosthogKey           string `json:"posthog_key"`
 	PosthogHost          string `json:"posthog_host"`
 	AnalyticsEnvironment string `json:"analytics_environment"`
+
+	// LLM config exposed to the frontend for informational purposes.
+	// The API key is NEVER returned here — it stays server-side.
+	LLMModel string `json:"llm_model,omitempty"`
 }
 
 // GetConfig is mounted on the public (unauthenticated) route group because
@@ -47,6 +51,10 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		if config.PosthogHost == "" && config.PosthogKey != "" {
 			config.PosthogHost = "https://us.i.posthog.com"
 		}
+	}
+
+	if v := os.Getenv("LLM_MODEL"); v != "" {
+		config.LLMModel = v
 	}
 
 	writeJSON(w, http.StatusOK, config)
