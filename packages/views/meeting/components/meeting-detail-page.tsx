@@ -29,51 +29,95 @@ import { ReadonlyContent } from "../../editor";
 
 function ParticipantBadge({
   participant,
-  isActive,
+  isLatestSpeaker,
+  isHost,
   onClick,
 }: {
   participant: MeetingParticipant;
-  isActive: boolean;
+  isLatestSpeaker: boolean;
+  isHost: boolean;
   onClick: () => void;
 }) {
+  const hasSpoken = participant.spoke && participant.commentCount > 0;
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
-        isActive
-          ? "bg-brand/10 text-brand"
-          : "text-muted-foreground hover:bg-accent/50",
+        "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-all",
+        hasSpoken
+          ? "text-foreground hover:bg-brand/10"
+          : "text-muted-foreground/50 hover:bg-accent/30",
+        isLatestSpeaker &&
+          "bg-brand/[0.06] ring-1 ring-brand/20",
       )}
     >
-      {participant.isAgent ? (
-        <Bot className="size-3.5 shrink-0" />
-      ) : (
-        <User className="size-3.5 shrink-0" />
-      )}
-      <span className="min-w-0 flex-1 truncate">{participant.name}</span>
-      {participant.spoke && (
-        <span className="shrink-0 text-[10px] text-muted-foreground">
-          {participant.commentCount} comments
-        </span>
-      )}
-      {!participant.spoke && (
-        <span className="shrink-0 text-[10px] text-muted-foreground/60">
-          Not spoken
+      {/* Avatar */}
+      <div
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-full",
+          hasSpoken
+            ? isLatestSpeaker
+              ? "bg-brand text-white"
+              : participant.isAgent
+                ? "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400"
+                : "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
+            : "bg-muted text-muted-foreground/40",
+        )}
+      >
+        {participant.isAgent ? (
+          <Bot className="size-3.5" />
+        ) : (
+          <User className="size-3.5" />
+        )}
+      </div>
+
+      {/* Name */}
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate",
+          hasSpoken ? "font-medium" : "font-normal",
+        )}
+      >
+        {participant.name}
+        {isHost && (
+          <span className="ml-1.5 rounded bg-brand/10 px-1 py-0.5 text-[10px] font-medium text-brand">
+            Host
+          </span>
+        )}
+      </span>
+
+      {/* Comment count badge */}
+      {hasSpoken && (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
+          <MessageSquare className="size-3" />
+          {participant.commentCount}
         </span>
       )}
     </button>
   );
 }
 
+function ParticipantSkeleton() {
+  return (
+    <div className="flex animate-pulse items-center gap-2.5 rounded-lg px-3 py-2">
+      <div className="size-7 rounded-full bg-muted" />
+      <div className="h-3 flex-1 rounded bg-muted" />
+    </div>
+  );
+}
+
 function CommentBubble({
   comment,
-  isAgent,
+  participant,
 }: {
   comment: Comment;
-  isAgent: boolean;
+  participant: MeetingParticipant | undefined;
 }) {
+  const isAgent = participant?.isAgent ?? comment.author_type === "agent";
+  const name = participant?.name ?? "Unknown";
+
   return (
     <div
       className={cn(
@@ -103,10 +147,13 @@ function CommentBubble({
             : "rounded-tr-sm bg-accent text-foreground",
         )}
       >
-          <ReadonlyContent content={comment.content} />
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          {new Date(comment.created_at).toLocaleTimeString()}
-        </p>
+        <div className="mb-0.5 flex items-center gap-2">
+          <span className="text-xs font-medium text-foreground">{name}</span>
+          <span className="text-[10px] text-muted-foreground">
+            {new Date(comment.created_at).toLocaleTimeString()}
+          </span>
+        </div>
+        <ReadonlyContent content={comment.content} />
       </div>
     </div>
   );
@@ -133,6 +180,15 @@ export function MeetingDetailPage({ id }: { id: string }) {
     if (!issue) return [];
     return deriveParticipants(issue, comments, getActorName);
   }, [issue, comments, getActorName]);
+
+  // The participant who made the most recent comment
+  const latestSpeakerId = useMemo(() => {
+    if (comments.length === 0) return null;
+    return comments[comments.length - 1]?.author_id ?? null;
+  }, [comments]);
+
+  // Host = issue assignee
+  const hostId = issue?.assignee_id;
 
   // Auto-scroll to bottom when new comments arrive (meeting in progress)
   useEffect(() => {
@@ -238,12 +294,11 @@ export function MeetingDetailPage({ id }: { id: string }) {
                 const participant = participants.find(
                   (p) => p.id === comment.author_id,
                 );
-                const isAgent = participant?.isAgent ?? comment.author_type === "agent";
                 return (
                   <div key={comment.id} id={`comment-${comment.id}`}>
                     <CommentBubble
                       comment={comment}
-                      isAgent={isAgent}
+                      participant={participant}
                     />
                   </div>
                 );
@@ -281,21 +336,30 @@ export function MeetingDetailPage({ id }: { id: string }) {
 
           {/* Participants */}
           <div className="mb-5">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Users className="size-3.5" />
-                <span>Participants ({participants.length})</span>
-              </div>
+            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Users className="size-3.5" />
+              <span>Participants</span>
+              <span className="ml-auto font-normal text-muted-foreground/60">
+                {participants.filter((p) => p.spoke).length}/{participants.length}
+              </span>
             </h3>
             <div className="space-y-0.5">
-              {participants.map((p) => (
-                <ParticipantBadge
-                  key={p.id}
-                  participant={p}
-                  isActive={false}
-                  onClick={() => scrollToParticipant(p.id)}
-                />
-              ))}
+              {participants.length === 0 ? (
+                <>
+                  <ParticipantSkeleton />
+                  <ParticipantSkeleton />
+                </>
+              ) : (
+                participants.map((p) => (
+                  <ParticipantBadge
+                    key={p.id}
+                    participant={p}
+                    isLatestSpeaker={p.id === latestSpeakerId}
+                    isHost={p.id === hostId}
+                    onClick={() => scrollToParticipant(p.id)}
+                  />
+                ))
+              )}
             </div>
           </div>
 
