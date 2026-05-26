@@ -19,6 +19,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/auth"
 	"github.com/aicortex/aicortex/server/internal/daemonws"
 	"github.com/aicortex/aicortex/server/internal/events"
+	"github.com/aicortex/aicortex/server/internal/forum"
 	"github.com/aicortex/aicortex/server/internal/handler"
 	obsmetrics "github.com/aicortex/aicortex/server/internal/metrics"
 	"github.com/aicortex/aicortex/server/internal/middleware"
@@ -80,6 +81,7 @@ type RouterOptions struct {
 	// BatchedHeartbeatScheduler here so the caller can also drive Run/Stop;
 	// tests leave this nil and get the legacy synchronous behavior.
 	HeartbeatScheduler handler.HeartbeatScheduler
+	ForumAutoState     *forum.ForumAutoState
 }
 
 func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus, analyticsClient analytics.Client, rdb *redis.Client, opts RouterOptions) chi.Router {
@@ -121,6 +123,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		h.LocalSkillListStore = handler.NewRedisLocalSkillListStore(rdb)
 		h.LocalSkillImportStore = handler.NewRedisLocalSkillImportStore(rdb)
 		h.LivenessStore = handler.NewRedisLivenessStore(rdb)
+	}
+	if opts.ForumAutoState != nil {
+		h.ForumAutoState = opts.ForumAutoState
 	}
 	if opts.HeartbeatScheduler != nil {
 		h.HeartbeatScheduler = opts.HeartbeatScheduler

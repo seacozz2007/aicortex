@@ -14,12 +14,14 @@ import (
 	"github.com/aicortex/aicortex/server/internal/analytics"
 	"github.com/aicortex/aicortex/server/internal/daemonws"
 	"github.com/aicortex/aicortex/server/internal/events"
+	"github.com/aicortex/aicortex/server/internal/forum"
 	"github.com/aicortex/aicortex/server/internal/handler"
 	"github.com/aicortex/aicortex/server/internal/logger"
 	obsmetrics "github.com/aicortex/aicortex/server/internal/metrics"
 	"github.com/aicortex/aicortex/server/internal/realtime"
 	"github.com/aicortex/aicortex/server/internal/service"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
+	"github.com/aicortex/aicortex/server/pkg/llm"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -255,7 +257,8 @@ func main() {
 	registerSubscriberListeners(bus, queries)
 	registerActivityListeners(bus, queries)
 	registerNotificationListeners(bus, queries)
-	registerForumListeners(bus, queries)
+	forumState := forum.NewForumAutoState(forum.DefaultAutoChatterConfig())
+	registerForumListeners(bus, queries, llm.NewClientFromEnv(), forumState)
 
 	metricsConfig := obsmetrics.ConfigFromEnv()
 	var metricsServer *http.Server
@@ -289,6 +292,7 @@ func main() {
 		DaemonHub:          daemonHub,
 		DaemonWakeup:       daemonWakeup,
 		HeartbeatScheduler: heartbeatScheduler,
+		ForumAutoState:     forumState,
 	})
 
 	srv := &http.Server{

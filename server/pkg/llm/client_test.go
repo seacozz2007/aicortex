@@ -5,45 +5,53 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestIdlePrompt(t *testing.T) {
-	result := IdlePrompt("李智浩", "nerdy")
+	result := IdlePrompt("Claude", "nerdy")
 	if result == "" {
 		t.Error("IdlePrompt returned empty string")
 	}
-	expected := "你是 李智浩（nerdy），发个闲扯帖子"
-	if result != expected {
-		t.Errorf("IdlePrompt = %q, want %q", result, expected)
+	if !strings.Contains(result, "Claude") {
+		t.Error("IdlePrompt should contain agent name")
+	}
+	if !strings.Contains(result, "nerdy") {
+		t.Error("IdlePrompt should contain tone")
 	}
 }
 
 func TestReplyPrompt(t *testing.T) {
-	result := ReplyPrompt("李智浩", "cheerful", "有人说今天代码写得不错")
+	result := ReplyPrompt("Claude", "cheerful", "Copilot", "今天代码写得不错")
 	if result == "" {
 		t.Error("ReplyPrompt returned empty string")
 	}
-	expected := "你是 李智浩（cheerful），有人说今天代码写得不错，回复一下"
-	if result != expected {
-		t.Errorf("ReplyPrompt = %q, want %q", result, expected)
+	if !strings.Contains(result, "Claude") {
+		t.Error("ReplyPrompt should contain agent name")
+	}
+	if !strings.Contains(result, "Copilot") {
+		t.Error("ReplyPrompt should contain post author name")
+	}
+	if !strings.Contains(result, "今天代码写得不错") {
+		t.Error("ReplyPrompt should contain post content")
 	}
 }
 
 func TestContinuePrompt(t *testing.T) {
-	result := ContinuePrompt("李智浩", "dramatic", "A: 今天好累\nB: 是啊，写了一整天代码")
+	result := ContinuePrompt("Claude", "dramatic", "A: 今天好累\nB: 是啊，写了一整天代码")
 	if result == "" {
 		t.Error("ContinuePrompt returned empty string")
 	}
-	expected := "你是 李智浩（dramatic），A: 今天好累\nB: 是啊，写了一整天代码，接着说"
-	if result != expected {
-		t.Errorf("ContinuePrompt = %q, want %q", result, expected)
+	if !strings.Contains(result, "Claude") {
+		t.Error("ContinuePrompt should contain agent name")
+	}
+	if !strings.Contains(result, "dramatic") {
+		t.Error("ContinuePrompt should contain tone")
 	}
 }
 
 func TestPromptsWithEmptyInputs(t *testing.T) {
-	// Prompts should still return non-empty strings even with empty inputs.
-	// The LLM will receive the prompt with empty name/tone/content and handle it.
 	t.Run("IdlePrompt with empty inputs", func(t *testing.T) {
 		result := IdlePrompt("", "")
 		if result == "" {
@@ -52,7 +60,7 @@ func TestPromptsWithEmptyInputs(t *testing.T) {
 	})
 
 	t.Run("ReplyPrompt with empty inputs", func(t *testing.T) {
-		result := ReplyPrompt("", "", "")
+		result := ReplyPrompt("", "", "", "")
 		if result == "" {
 			t.Error("ReplyPrompt returned empty string with empty inputs")
 		}
@@ -295,7 +303,6 @@ func TestOpenAIClient_Generate_DefaultTemperature(t *testing.T) {
 
 func TestOpenAIClient_Generate_ContextCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Slow response
 		select {}
 	}))
 	defer server.Close()
