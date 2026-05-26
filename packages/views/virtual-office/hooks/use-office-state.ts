@@ -15,6 +15,7 @@ import {
   type Position,
   type ZoneId,
 } from "../constants";
+import { useMeetingRoomState } from "./use-meeting-room-state";
 
 export interface OfficeAgent {
   id: string;
@@ -45,11 +46,14 @@ export function useOfficeState(wsId: string | undefined): OfficeState {
     enabled: !!wsId,
   });
 
+  const { hasActiveMeetings, activeMeetings } = useMeetingRoomState();
+
   const officeAgents = useMemo(() => {
     if (!agents.length) return [];
 
-    // Detect meeting heuristic: leader working + ≥2 members queued
-    const meetingAgentIds = detectMeetingAgents(agents, squads, byAgent);
+    const meetingAgentIds = hasActiveMeetings
+      ? extractMeetingAssigneeIds(activeMeetings)
+      : detectMeetingAgents(agents, squads, byAgent);
 
     let deskSlot = 0;
     let loungeSlot = 0;
@@ -98,7 +102,7 @@ export function useOfficeState(wsId: string | undefined): OfficeState {
           presence,
         };
       });
-  }, [agents, squads, byAgent]);
+  }, [agents, squads, byAgent, hasActiveMeetings, activeMeetings]);
 
   return {
     agents: officeAgents,
@@ -119,7 +123,22 @@ function resolveZone(
 }
 
 /**
- * Heuristic: if a squad leader is working and ≥2 members are queued,
+ * Extract agent IDs from active meeting issues (label=meeting, in_progress).
+ */
+function extractMeetingAssigneeIds(
+  meetings: readonly { assignee_type: string | null; assignee_id: string | null }[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const m of meetings) {
+    if (m.assignee_type === "agent" && m.assignee_id) {
+      ids.add(m.assignee_id);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Heuristic: if a squad leader is working and≥2 members are queued,
  * treat them as in a meeting.
  */
 function detectMeetingAgents(
