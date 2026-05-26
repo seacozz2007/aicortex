@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowUpDown,
   Bot,
+  Download,
   Plus,
   Search,
 } from "lucide-react";
@@ -46,6 +47,7 @@ import { PageHeader } from "../../layout/page-header";
 import { availabilityConfig, availabilityOrder } from "../presence";
 import { CreateAgentDialog } from "./create-agent-dialog";
 import { type AgentRow, createAgentColumns } from "./agent-columns";
+import { useAgentExport } from "../hooks/use-agent-export";
 import { useT } from "../../i18n";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 
@@ -117,6 +119,8 @@ export function AgentsPage() {
   const [duplicateTemplate, setDuplicateTemplate] = useState<Agent | null>(
     null,
   );
+
+  const { exportData, isExporting } = useAgentExport(agents, wsId);
 
   const runtimesById = useMemo(() => {
     const m = new Map<string, AgentRuntime>();
@@ -363,7 +367,7 @@ export function AgentsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 min-h-0 flex-col">
-        <PageHeaderBar totalCount={0} onCreate={() => setShowCreate(true)} />
+        <PageHeaderBar totalCount={0} onCreate={() => setShowCreate(true)} onExport={exportData} isExporting={isExporting} />
         <div className="flex flex-1 min-h-0 flex-col gap-4 p-6">
           <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg border">
             <div className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
@@ -388,7 +392,7 @@ export function AgentsPage() {
 
   // ---- List request error ----
   if (listError) {
-    return <ListError onCreate={() => setShowCreate(true)} listError={listError} onRetry={refetchList} />;
+    return <ListError onCreate={() => setShowCreate(true)} onExport={exportData} isExporting={isExporting} listError={listError} onRetry={refetchList} />;
   }
 
   const showEmpty = totalActiveCount === 0 && archivedCount === 0;
@@ -398,6 +402,8 @@ export function AgentsPage() {
       <PageHeaderBar
         totalCount={totalActiveCount}
         onCreate={() => setShowCreate(true)}
+        onExport={exportData}
+        isExporting={isExporting}
       />
 
       <div className="flex flex-1 min-h-0 flex-col gap-4 p-6">
@@ -477,9 +483,13 @@ export function AgentsPage() {
 function PageHeaderBar({
   totalCount,
   onCreate,
+  onExport,
+  isExporting,
 }: {
   totalCount: number;
   onCreate: () => void;
+  onExport: () => void;
+  isExporting: boolean;
 }) {
   const { t } = useT("agents");
   return (
@@ -505,27 +515,43 @@ function PageHeaderBar({
           </a>
         </p>
       </div>
-      <Button type="button" size="sm" onClick={onCreate}>
-        <Plus className="h-3 w-3" />
-        {t(($) => $.page.new_agent)}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onExport}
+          disabled={isExporting || totalCount === 0}
+        >
+          <Download className="h-3 w-3" />
+          {t(($) => $.page.export)}
+        </Button>
+        <Button type="button" size="sm" onClick={onCreate}>
+          <Plus className="h-3 w-3" />
+          {t(($) => $.page.new_agent)}
+        </Button>
+      </div>
     </PageHeader>
   );
 }
 
 function ListError({
   onCreate,
+  onExport,
+  isExporting,
   listError,
   onRetry,
 }: {
   onCreate: () => void;
+  onExport: () => void;
+  isExporting: boolean;
   listError: unknown;
   onRetry: () => void;
 }) {
   const { t } = useT("agents");
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <PageHeaderBar totalCount={0} onCreate={onCreate} />
+      <PageHeaderBar totalCount={0} onCreate={onCreate} onExport={onExport} isExporting={isExporting} />
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
         <AlertCircle className="h-8 w-8 text-destructive" />
         <div>

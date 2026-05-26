@@ -6,6 +6,7 @@
     "new_agent": "新建Agent",
     "search_placeholder": "搜索Agent...",
     "show_archived": "显示已归档（{{count}}）→",
+    "export": "导出",
     "of_total": "{{visible}} / {{total}}",
     "list_load_failed": "无法加载Agent列表",
     "list_load_failed_default": "获取Agent列表时出错。",
@@ -341,6 +342,11 @@
   },
   "presence": {
     "queue_badge": "+{{count}} 排队"
+  },
+  "export": {
+    "loading": "正在导出Agent配置…",
+    "success": "已导出 {{agentCount}} 个Agent、{{skillCount}} 个Skill、{{squadCount}} 个Teams",
+    "failed": "导出Agent失败"
   },
   "visibility": {
     "private": {

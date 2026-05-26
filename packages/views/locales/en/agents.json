@@ -6,6 +6,7 @@
     "new_agent": "New agent",
     "search_placeholder": "Search agents…",
     "show_archived": "Show archived ({{count}}) →",
+    "export": "Export",
     "of_total": "{{visible}} of {{total}}",
     "list_load_failed": "Couldn't load agents",
     "list_load_failed_default": "Something went wrong fetching the agent list.",
@@ -349,6 +350,11 @@
   },
   "presence": {
     "queue_badge": "+{{count}} queued"
+  },
+  "export": {
+    "loading": "Exporting agent configuration…",
+    "success": "Exported {{agentCount}} agents, {{skillCount}} skills, {{squadCount}} squads",
+    "failed": "Failed to export agents"
   },
   "visibility": {
     "private": {
