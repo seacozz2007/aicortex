@@ -23,6 +23,7 @@ const allowedDevOrigins = process.env.CORS_ALLOWED_ORIGINS
   : undefined;
 
 const nextConfig: NextConfig = {
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   ...(process.env.STANDALONE === "true" ? { output: "standalone" as const } : {}),
   transpilePackages: ["@aicortex/core", "@aicortex/ui", "@aicortex/views"],
   ...(allowedDevOrigins && allowedDevOrigins.length > 0
