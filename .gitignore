@@ -3,6 +3,7 @@ dist
 *.log
 .DS_Store
 .envrc
+.kiro/
 
 # build outputs
 .turbo
