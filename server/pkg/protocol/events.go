@@ -85,6 +85,12 @@ const (
 	EventLabelDeleted       = "label:deleted"
 	EventIssueLabelsChanged = "issue_labels:changed"
 
+	// EndUser session events
+	EventEndUserSessionCreated     = "enduser_session:created"
+	EventEndUserSessionUpdated     = "enduser_session:updated"
+	EventEndUserSessionDeleted     = "enduser_session:deleted"
+	EventEndUserTokenRegenerated   = "enduser_token:regenerated"
+
 	// Pin events
 	EventPinCreated   = "pin:created"
 	EventPinDeleted   = "pin:deleted"

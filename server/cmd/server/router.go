@@ -613,6 +613,19 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			})
 			r.Get("/api/chat/pending-tasks", h.ListPendingChatTasks)
 
+			// EndUser sessions
+			r.Route("/api/enduser/sessions", func(r chi.Router) {
+				r.Post("/", h.CreateEndUserSession)
+				r.Get("/", h.ListEndUserSessions)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetEndUserSession)
+					r.Patch("/", h.UpdateEndUserSession)
+					r.Delete("/", h.DeleteEndUserSession)
+					r.Post("/regenerate-token", h.RegenerateEndUserToken)
+					r.Get("/messages", h.ListEndUserSessionMessages)
+				})
+			})
+
 			// Inbox
 			r.Route("/api/inbox", func(r chi.Router) {
 				r.Get("/", h.ListInbox)

@@ -233,6 +233,32 @@ type DaemonToken struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type EnduserMessage struct {
+	ID        pgtype.UUID        `json:"id"`
+	SessionID pgtype.UUID        `json:"session_id"`
+	VisitorID string             `json:"visitor_id"`
+	Role      string             `json:"role"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type EnduserSession struct {
+	ID           pgtype.UUID        `json:"id"`
+	WorkspaceID  pgtype.UUID        `json:"workspace_id"`
+	AgentID      pgtype.UUID        `json:"agent_id"`
+	Title        string             `json:"title"`
+	Goal         string             `json:"goal"`
+	GuideMessage string             `json:"guide_message"`
+	Token        string             `json:"token"`
+	HtmlContent  string             `json:"html_content"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	Status       string             `json:"status"`
+	MaxMessages  pgtype.Int4        `json:"max_messages"`
+	CreatedBy    pgtype.UUID        `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Feedback struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`
