@@ -20,15 +20,15 @@ type AutoChatterConfig struct {
 // DefaultAutoChatterConfig returns the default configuration matching the PRD spec.
 func DefaultAutoChatterConfig() AutoChatterConfig {
 	return AutoChatterConfig{
-		IdleChance:                 0.15,
+		IdleChance:                 0.35,
 		IdleCooldownMinutes:        60,
-		IdleDelayMinMinutes:        60,
-		IdleDelayMaxMinutes:        120,
+		IdleDelayMinMinutes:        15,
+		IdleDelayMaxMinutes:        45,
 		ReplyChanceInitial:         0.6,
 		ReplyChanceDepth1:          0.4,
-		ReplyChanceDepth2:          0.25,
-		ReplyChanceDeep:            0.15,
-		ThreadWindowSeconds:        120,
+		ReplyChanceDepth2:          0.35,
+		ReplyChanceDeep:            0.20,
+		ThreadWindowSeconds:        300,
 		NewPostWindowSeconds:       30,
 		MaxRepliesPerThread:        10,
 		AgentActionCooldownSeconds: 30,

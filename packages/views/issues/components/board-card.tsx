@@ -275,7 +275,7 @@ export const BoardCardContent = memo(function BoardCardContent({
   );
 });
 
-const animateLayoutChanges: AnimateLayoutChanges = (args) => {
+export const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   const { isSorting, wasDragging } = args;
   if (isSorting || wasDragging) return false;
   return defaultAnimateLayoutChanges(args);

@@ -4,7 +4,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, EyeOff, MoreHorizontal, Plus, UserMinus } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@aicortex/ui/components/ui/tooltip";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Issue, IssueAssigneeType, IssueStatus } from "@aicortex/core/types";
 import { Button } from "@aicortex/ui/components/ui/button";
 import {
@@ -17,7 +18,7 @@ import { STATUS_CONFIG } from "@aicortex/core/issues/config";
 import { useModalStore } from "@aicortex/core/modals";
 import { useViewStoreApi } from "@aicortex/core/issues/stores/view-store-context";
 import { StatusHeading } from "./status-heading";
-import { DraggableBoardCard } from "./board-card";
+import { DraggableBoardCard, animateLayoutChanges } from "./board-card";
 import type { ChildProgress } from "./list-row";
 import { useT } from "../../i18n";
 import { ActorAvatar } from "../../common/actor-avatar";
@@ -111,11 +112,14 @@ export function BoardColumn({
     [resolvedIssues, childrenByParent],
   );
 
-  // All items for SortableContext: parent IDs + regular issue IDs (children are not sortable)
-  const sortableIds = useMemo(
-    () => [...parentIssues.map((p) => p.id), ...regularIssues.map((i) => i.id)],
-    [parentIssues, regularIssues],
-  );
+  // All items for SortableContext: parent IDs + child IDs + regular issue IDs
+  const sortableIds = useMemo(() => {
+    const ids = [...parentIssues.map((p) => p.id), ...regularIssues.map((i) => i.id)];
+    for (const childList of childrenByParentId.values()) {
+      ids.push(...childList.map((c) => c.id));
+    }
+    return ids;
+  }, [parentIssues, regularIssues, childrenByParentId]);
 
   return (
     <div className={`flex w-[280px] shrink-0 flex-col rounded-xl ${cfg?.columnBg ?? "bg-muted/40"} p-2`}>
@@ -196,7 +200,7 @@ export function BoardColumn({
   );
 }
 
-/** Parent issue banner spanning the full column width */
+/** Parent issue banner spanning the full column width — now draggable */
 function BoardBanner({
   parent,
   children,
@@ -211,12 +215,36 @@ function BoardBanner({
   const done = childProgress?.done ?? children.filter((c) => c.status === "done" || c.status === "cancelled").length;
   const total = childProgress?.total ?? children.length;
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: parent.id,
+    data: { status: parent.status },
+    animateLayoutChanges,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
-    <div className="rounded-lg border-[0.5px] border-border bg-card shadow-sm overflow-hidden">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`rounded-lg border-[0.5px] border-border bg-card shadow-sm overflow-hidden ${isDragging ? "opacity-30" : ""}`}
+    >
       {/* Banner header */}
       <AppLink
         href={paths.issueDetail(parent.id)}
-        className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent/40 transition-colors"
+        className={`flex items-center gap-2 px-3 py-2.5 hover:bg-accent/40 transition-colors ${isDragging ? "pointer-events-none" : ""}`}
       >
         <button
           type="button"
@@ -267,27 +295,53 @@ function BoardBanner({
   );
 }
 
-/** Compact sub-card for child issues inside a parent banner */
+/** Compact sub-card for child issues inside a parent banner — now draggable */
 function BoardSubCard({ child }: { child: Issue }) {
   const paths = useWorkspacePaths();
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: child.id,
+    data: { status: child.status },
+    animateLayoutChanges,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
-    <AppLink
-      href={paths.issueDetail(child.id)}
-      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors group/subcard"
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={isDragging ? "opacity-30" : ""}
     >
-      <span className="font-mono text-[10px] text-muted-foreground shrink-0">{child.identifier}</span>
-      <span className="truncate flex-1 group-hover/subcard:text-foreground transition-colors">
-        {child.title}
-      </span>
-      {child.assignee_type && child.assignee_id && (
-        <ActorAvatar
-          actorType={child.assignee_type}
-          actorId={child.assignee_id}
-          size={16}
-        />
-      )}
-    </AppLink>
+      <AppLink
+        href={paths.issueDetail(child.id)}
+        className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent/50 transition-colors group/subcard ${isDragging ? "pointer-events-none" : ""}`}
+      >
+        <span className="font-mono text-[10px] text-muted-foreground shrink-0">{child.identifier}</span>
+        <span className="truncate flex-1 group-hover/subcard:text-foreground transition-colors">
+          {child.title}
+        </span>
+        {child.assignee_type && child.assignee_id && (
+          <ActorAvatar
+            actorType={child.assignee_type}
+            actorId={child.assignee_id}
+            size={16}
+          />
+        )}
+      </AppLink>
+    </div>
   );
 }
 

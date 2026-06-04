@@ -381,14 +381,14 @@ func TestConcurrentSafety(t *testing.T) {
 func TestDefaultAutoChatterConfig(t *testing.T) {
 	cfg := DefaultAutoChatterConfig()
 
-	if cfg.ThreadWindowSeconds != 120 {
-		t.Fatalf("expected ThreadWindowSeconds 120, got %d", cfg.ThreadWindowSeconds)
+	if cfg.ThreadWindowSeconds != 300 {
+		t.Fatalf("expected ThreadWindowSeconds 300, got %d", cfg.ThreadWindowSeconds)
 	}
 	if cfg.MaxRepliesPerThread != 10 {
 		t.Fatalf("expected MaxRepliesPerThread 10, got %d", cfg.MaxRepliesPerThread)
 	}
-	if cfg.IdleChance != 0.15 {
-		t.Fatalf("expected IdleChance 0.15, got %f", cfg.IdleChance)
+	if cfg.IdleChance != 0.35 {
+		t.Fatalf("expected IdleChance 0.35, got %f", cfg.IdleChance)
 	}
 	if cfg.IdleCooldownMinutes != 60 {
 		t.Fatalf("expected IdleCooldownMinutes 60, got %d", cfg.IdleCooldownMinutes)
