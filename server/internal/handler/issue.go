@@ -2253,6 +2253,12 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 		h.TaskService.CancelTasksForIssue(r.Context(), issue.ID)
 	}
 
+	// Cascade trigger: when an issue moves to done/in_review, check
+	// parent activation and blocked-task propagation.
+	if statusChanged {
+		h.TaskService.CascadeOnStatusChange(r.Context(), issue, prevIssue.Status)
+	}
+
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -2651,6 +2657,11 @@ func (h *Handler) BatchUpdateIssues(w http.ResponseWriter, r *http.Request) {
 		// Cancel active tasks when the issue is cancelled by a user.
 		if statusChanged && issue.Status == "cancelled" {
 			h.TaskService.CancelTasksForIssue(r.Context(), issue.ID)
+		}
+
+		// Cascade trigger for batch status changes.
+		if statusChanged {
+			h.TaskService.CascadeOnStatusChange(r.Context(), issue, prevIssue.Status)
 		}
 
 		updated++

@@ -1,7 +1,8 @@
 -- name: ListIssues :many
 SELECT id, workspace_id, title, description, status, priority,
        assignee_type, assignee_id, creator_type, creator_id,
-       parent_issue_id, position, due_date, created_at, updated_at, number, project_id
+       parent_issue_id, position, due_date, created_at, updated_at, number, project_id,
+       blocked_by_ids
 FROM issue
 WHERE workspace_id = $1
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
@@ -25,9 +26,11 @@ WHERE id = $1 AND workspace_id = $2;
 INSERT INTO issue (
     workspace_id, title, description, status, priority,
     assignee_type, assignee_id, creator_type, creator_id,
-    parent_issue_id, position, due_date, number, project_id
+    parent_issue_id, position, due_date, number, project_id,
+    blocked_by_ids
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+    COALESCE(sqlc.narg('blocked_by_ids')::uuid[], '{}')
 ) RETURNING *;
 
 -- name: GetIssueByNumber :one
@@ -46,6 +49,7 @@ UPDATE issue SET
     due_date = sqlc.narg('due_date'),
     parent_issue_id = sqlc.narg('parent_issue_id'),
     project_id = sqlc.narg('project_id'),
+    blocked_by_ids = COALESCE(sqlc.narg('blocked_by_ids')::uuid[], blocked_by_ids),
     updated_at = now()
 WHERE id = $1
 RETURNING *;
@@ -62,10 +66,11 @@ INSERT INTO issue (
     workspace_id, title, description, status, priority,
     assignee_type, assignee_id, creator_type, creator_id,
     parent_issue_id, position, due_date, number, project_id,
-    origin_type, origin_id
+    origin_type, origin_id, blocked_by_ids
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-    sqlc.narg('origin_type'), sqlc.narg('origin_id')
+    sqlc.narg('origin_type'), sqlc.narg('origin_id'),
+    COALESCE(sqlc.narg('blocked_by_ids')::uuid[], '{}')
 ) RETURNING *;
 
 -- name: LockIssueDuplicateKey :exec
@@ -87,7 +92,8 @@ DELETE FROM issue WHERE id = $1;
 -- name: ListOpenIssues :many
 SELECT id, workspace_id, title, description, status, priority,
        assignee_type, assignee_id, creator_type, creator_id,
-       parent_issue_id, position, due_date, created_at, updated_at, number, project_id
+       parent_issue_id, position, due_date, created_at, updated_at, number, project_id,
+       blocked_by_ids
 FROM issue
 WHERE workspace_id = $1
   AND status NOT IN ('done', 'cancelled')
@@ -159,3 +165,19 @@ UPDATE issue
 SET first_executed_at = now()
 WHERE id = $1 AND first_executed_at IS NULL
 RETURNING id, workspace_id, creator_type, creator_id, first_executed_at;
+
+-- name: ListIssuesBlockedBy :many
+-- Returns all issues whose blocked_by_ids array contains the given issue ID.
+-- Used by the cascade trigger to find tasks that are blocked by a just-completed issue.
+SELECT * FROM issue
+WHERE blocked_by_ids @> ARRAY[$1]::uuid[];
+
+-- name: UpdateIssueBlockedBy :one
+-- Atomically sets blocked_by_ids and optionally the status (blocked -> todo transition).
+-- status is only updated when the new status param is non-null.
+UPDATE issue SET
+    blocked_by_ids = $2,
+    status = COALESCE(sqlc.narg('status'), status),
+    updated_at = now()
+WHERE id = $1
+RETURNING *;

@@ -706,6 +706,8 @@ func (h *Handler) advanceIssueToDone(ctx context.Context, issue db.Issue, worksp
 		"creator_id":     uuidToString(issue.CreatorID),
 		"source":         "github_pr_merged",
 	})
+
+	h.TaskService.CascadeOnStatusChange(ctx, updated, issue.Status)
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
