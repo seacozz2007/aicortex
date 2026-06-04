@@ -35,6 +35,7 @@ type ProjectResponse struct {
 	// payload to keep parent metadata and child collections separate; clients
 	// that need the list call ListProjectResources directly.
 	ResourceCount int64 `json:"resource_count"`
+	Prompt        string `json:"prompt"`
 }
 
 func projectToResponse(p db.Project) ProjectResponse {
@@ -50,6 +51,7 @@ func projectToResponse(p db.Project) ProjectResponse {
 		LeadID:      uuidToPtr(p.LeadID),
 		CreatedAt:   timestampToString(p.CreatedAt),
 		UpdatedAt:   timestampToString(p.UpdatedAt),
+		Prompt:      p.Prompt,
 	}
 }
 
@@ -77,6 +79,7 @@ type CreateProjectRequest struct {
 	Priority    string                                `json:"priority"`
 	LeadType    *string                               `json:"lead_type"`
 	LeadID      *string                               `json:"lead_id"`
+	Prompt      string                                `json:"prompt"`
 	Resources   []CreateProjectResourceRequestPayload `json:"resources,omitempty"`
 }
 
@@ -98,6 +101,7 @@ type UpdateProjectRequest struct {
 	Priority    *string `json:"priority"`
 	LeadType    *string `json:"lead_type"`
 	LeadID      *string `json:"lead_id"`
+	Prompt      *string `json:"prompt"`
 }
 
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +252,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		LeadType:    leadType,
 		LeadID:      leadID,
 		Priority:    priority,
+		Prompt:      req.Prompt,
 	}
 
 	// Without resources, keep the simple non-tx path.
@@ -379,6 +384,7 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		Icon:        prevProject.Icon,
 		LeadType:    prevProject.LeadType,
 		LeadID:      prevProject.LeadID,
+		Prompt:      pgtype.Text{String: prevProject.Prompt, Valid: true},
 	}
 	if req.Title != nil {
 		params.Title = pgtype.Text{String: *req.Title, Valid: true}
@@ -394,6 +400,13 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 			params.Description = pgtype.Text{String: *req.Description, Valid: true}
 		} else {
 			params.Description = pgtype.Text{Valid: false}
+		}
+	}
+	if _, ok := rawFields["prompt"]; ok {
+		if req.Prompt != nil {
+			params.Prompt = pgtype.Text{String: *req.Prompt, Valid: true}
+		} else {
+			params.Prompt = pgtype.Text{Valid: false}
 		}
 	}
 	if _, ok := rawFields["icon"]; ok {
@@ -579,7 +592,7 @@ func buildProjectSearchQuery(phrase string, terms []string, includeClosed bool) 
 	offsetParam := nextArg(nil)
 
 	query := fmt.Sprintf(`SELECT p.id, p.workspace_id, p.title, p.description, p.icon,
-		p.status, p.priority, p.lead_type, p.lead_id,
+		p.status, p.priority, p.prompt, p.lead_type, p.lead_id,
 		p.created_at, p.updated_at,
 		COUNT(*) OVER() AS total_count,
 		%s AS match_source
@@ -662,6 +675,7 @@ func (h *Handler) SearchProjects(w http.ResponseWriter, r *http.Request) {
 			&row.project.Icon,
 			&row.project.Status,
 			&row.project.Priority,
+			&row.project.Prompt,
 			&row.project.LeadType,
 			&row.project.LeadID,
 			&row.project.CreatedAt,
