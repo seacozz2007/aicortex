@@ -107,19 +107,38 @@ export function BoardColumn({
   );
 
   // Group issues by parent-child relationships
-  const { parentIssues, childrenByParentId, regularIssues } = useMemo(
+  const { parentIssues, childrenByParentId } = useMemo(
     () => groupColumnIssues(resolvedIssues, childrenByParent),
     [resolvedIssues, childrenByParent],
   );
 
+  // Build an ordered rendering list that respects the sort order:
+  // parents appear at their sorted position, children are rendered inside
+  // the parent banner and skipped at the top level.
+  const parentIdSet = useMemo(
+    () => new Set(parentIssues.map((p) => p.id)),
+    [parentIssues],
+  );
+  const childIdSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const childList of childrenByParentId.values()) {
+      for (const child of childList) set.add(child.id);
+    }
+    return set;
+  }, [childrenByParentId]);
+  const orderedIssues = useMemo(
+    () => resolvedIssues.filter((i) => !childIdSet.has(i.id)),
+    [resolvedIssues, childIdSet],
+  );
+
   // All items for SortableContext: parent IDs + child IDs + regular issue IDs
   const sortableIds = useMemo(() => {
-    const ids = [...parentIssues.map((p) => p.id), ...regularIssues.map((i) => i.id)];
+    const ids = orderedIssues.map((i) => i.id);
     for (const childList of childrenByParentId.values()) {
       ids.push(...childList.map((c) => c.id));
     }
     return ids;
-  }, [parentIssues, regularIssues, childrenByParentId]);
+  }, [orderedIssues, childrenByParentId]);
 
   return (
     <div className={`flex w-[280px] shrink-0 flex-col rounded-xl ${cfg?.columnBg ?? "bg-muted/40"} p-2`}>
@@ -175,19 +194,18 @@ export function BoardColumn({
         }`}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          {/* Parent issues as banners */}
-          {parentIssues.map((parent) => (
-            <BoardBanner
-              key={parent.id}
-              parent={parent}
-              children={childrenByParentId.get(parent.id) ?? []}
-              childProgress={childProgressMap?.get(parent.id)}
-            />
-          ))}
-          {/* Regular issues as cards */}
-          {regularIssues.map((issue) => (
-            <DraggableBoardCard key={issue.id} issue={issue} childProgress={childProgressMap?.get(issue.id)} changeActions={changeActionsMap?.get(issue.id)} />
-          ))}
+          {orderedIssues.map((issue) =>
+            parentIdSet.has(issue.id) ? (
+              <BoardBanner
+                key={issue.id}
+                parent={issue}
+                children={childrenByParentId.get(issue.id) ?? []}
+                childProgress={childProgressMap?.get(issue.id)}
+              />
+            ) : (
+              <DraggableBoardCard key={issue.id} issue={issue} childProgress={childProgressMap?.get(issue.id)} changeActions={changeActionsMap?.get(issue.id)} />
+            ),
+          )}
         </SortableContext>
         {issueIds.length === 0 && (
           <p className="py-8 text-center text-xs text-muted-foreground">
