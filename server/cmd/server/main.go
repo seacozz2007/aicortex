@@ -323,6 +323,7 @@ func main() {
 	go runAutopilotScheduler(autopilotCtx, queries, autopilotSvc)
 	go runAutopilotFailureMonitor(autopilotCtx, queries, bus, envFailureMonitorConfig())
 	go runDBStatsLogger(sweepCtx, pool)
+	go runPollingScanner(sweepCtx, queries, taskSvc)
 
 	if metricsServer != nil {
 		go func() {
