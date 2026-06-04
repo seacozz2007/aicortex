@@ -53,7 +53,8 @@ type IssueResponse struct {
 	// WS broadcast) emit no `labels` field at all — the client merge then
 	// preserves whatever labels are already in cache. nil pointer = "field
 	// absent, do not touch"; non-nil (incl. empty slice) = authoritative list.
-	Labels *[]LabelResponse `json:"labels,omitempty"`
+	BlockedByIDs []string             `json:"blocked_by_ids,omitempty"`
+	Labels       *[]LabelResponse      `json:"labels,omitempty"`
 }
 
 func issueToResponse(i db.Issue, issuePrefix string) IssueResponse {
@@ -73,6 +74,7 @@ func issueToResponse(i db.Issue, issuePrefix string) IssueResponse {
 		CreatorID:     uuidToString(i.CreatorID),
 		ParentIssueID: uuidToPtr(i.ParentIssueID),
 		ProjectID:     uuidToPtr(i.ProjectID),
+		BlockedByIDs:  uuidSliceToStrings(i.BlockedByIds),
 		Position:      i.Position,
 		DueDate:       timestampToPtr(i.DueDate),
 		CreatedAt:     timestampToString(i.CreatedAt),
@@ -98,12 +100,14 @@ func issueListRowToResponse(i db.ListIssuesRow, issuePrefix string) IssueRespons
 		CreatorID:     uuidToString(i.CreatorID),
 		ParentIssueID: uuidToPtr(i.ParentIssueID),
 		ProjectID:     uuidToPtr(i.ProjectID),
+		BlockedByIDs:  uuidSliceToStrings(i.BlockedByIds),
 		Position:      i.Position,
 		DueDate:       timestampToPtr(i.DueDate),
 		CreatedAt:     timestampToString(i.CreatedAt),
 		UpdatedAt:     timestampToString(i.UpdatedAt),
 	}
 }
+
 
 // labelsByIssue bulk-loads labels for the given issue IDs and returns a map
 // keyed by issue UUID string. On error or empty input, returns an empty map —
@@ -153,6 +157,7 @@ func openIssueRowToResponse(i db.ListOpenIssuesRow, issuePrefix string) IssueRes
 		CreatorID:     uuidToString(i.CreatorID),
 		ParentIssueID: uuidToPtr(i.ParentIssueID),
 		ProjectID:     uuidToPtr(i.ProjectID),
+		BlockedByIDs:  uuidSliceToStrings(i.BlockedByIds),
 		Position:      i.Position,
 		DueDate:       timestampToPtr(i.DueDate),
 		CreatedAt:     timestampToString(i.CreatedAt),
