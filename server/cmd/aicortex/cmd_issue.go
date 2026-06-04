@@ -259,6 +259,7 @@ func init() {
 	issueListCmd.Flags().String("assignee", "", "Filter by assignee name (member, agent, or squad; fuzzy match)")
 	issueListCmd.Flags().String("assignee-id", "", "Filter by assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
 	issueListCmd.Flags().String("project", "", "Filter by project ID")
+	issueListCmd.Flags().String("blocking", "", "List issues that are blocked by the given issue ID/key")
 	issueListCmd.Flags().Int("limit", 50, "Maximum number of issues to return")
 	issueListCmd.Flags().Int("offset", 0, "Number of issues to skip (for pagination)")
 
@@ -280,6 +281,7 @@ func init() {
 	issueCreateCmd.Flags().Bool("allow-duplicate", false, "Allow creating an issue even when an active duplicate exists")
 	issueCreateCmd.Flags().String("output", "json", "Output format: table or json")
 	issueCreateCmd.Flags().StringSlice("attachment", nil, "File path(s) to attach (can be specified multiple times)")
+	issueCreateCmd.Flags().String("blocked-by", "", "Comma-separated issue IDs/keys that block this issue")
 
 	// issue update
 	issueUpdateCmd.Flags().String("title", "", "New title")
@@ -293,6 +295,9 @@ func init() {
 	issueUpdateCmd.Flags().String("project", "", "Project ID")
 	issueUpdateCmd.Flags().String("due-date", "", "New due date (RFC3339 format)")
 	issueUpdateCmd.Flags().String("parent", "", "Parent issue ID (use --parent \"\" to clear)")
+	issueUpdateCmd.Flags().String("add-blocked-by", "", "Issue ID/key to add to blocked_by list")
+	issueUpdateCmd.Flags().String("remove-blocked-by", "", "Issue ID/key to remove from blocked_by list")
+	issueUpdateCmd.Flags().Bool("clear-blocked-by", false, "Clear all blocked_by entries")
 	issueUpdateCmd.Flags().String("output", "json", "Output format: table or json")
 
 	// issue status
@@ -366,6 +371,69 @@ func runIssueList(cmd *cobra.Command, _ []string) error {
 		if _, err := requireWorkspaceID(cmd); err != nil {
 			return err
 		}
+	}
+
+	// When --blocking is set, use the blocked-by reverse lookup endpoint.
+	if blocking, _ := cmd.Flags().GetString("blocking"); blocking != "" {
+		blockerRef, err := resolveIssueRef(ctx, client, blocking)
+		if err != nil {
+			return fmt.Errorf("resolve blocking issue: %w", err)
+		}
+		path := "/api/issues/blocked-by?blocking=" + blockerRef.ID + "&workspace_id=" + client.WorkspaceID
+		var result map[string]any
+		if err := client.GetJSON(ctx, path, &result); err != nil {
+			return fmt.Errorf("list blocked-by issues: %w", err)
+		}
+		issuesRaw, _ := result["issues"].([]any)
+		output, _ := cmd.Flags().GetString("output")
+		if output == "json" {
+			total, _ := result["total"].(float64)
+			wrapped := map[string]any{
+				"issues": issuesRaw,
+				"total":  int(total),
+			}
+			return cli.PrintJSON(os.Stdout, wrapped)
+		}
+		fullID, _ := cmd.Flags().GetBool("full-id")
+		headers := []string{"KEY", "TITLE", "STATUS", "PRIORITY", "ASSIGNEE", "DUE DATE"}
+		if fullID {
+			headers = []string{"KEY", "ID", "TITLE", "STATUS", "PRIORITY", "ASSIGNEE", "DUE DATE"}
+		}
+		actors := loadActorDisplayLookup(ctx, client)
+		rows := make([][]string, 0, len(issuesRaw))
+		for _, raw := range issuesRaw {
+			issue, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			assignee := formatAssignee(issue, actors)
+			dueDate := strVal(issue, "due_date")
+			if dueDate != "" && len(dueDate) >= 10 {
+				dueDate = dueDate[:10]
+			}
+			row := []string{
+				issueDisplayKey(issue),
+				strVal(issue, "title"),
+				strVal(issue, "status"),
+				strVal(issue, "priority"),
+				assignee,
+				dueDate,
+			}
+			if fullID {
+				row = []string{
+					issueDisplayKey(issue),
+					strVal(issue, "id"),
+					strVal(issue, "title"),
+					strVal(issue, "status"),
+					strVal(issue, "priority"),
+					assignee,
+					dueDate,
+				}
+			}
+			rows = append(rows, row)
+		}
+		cli.PrintTable(os.Stdout, headers, rows)
+		return nil
 	}
 
 	params := url.Values{}
@@ -574,6 +642,21 @@ func runIssueCreate(cmd *cobra.Command, _ []string) error {
 	if v, _ := cmd.Flags().GetBool("allow-duplicate"); v {
 		body["allow_duplicate"] = true
 	}
+	if v, _ := cmd.Flags().GetString("blocked-by"); v != "" {
+		var blockedIDs []string
+		for _, ref := range strings.Split(v, ",") {
+				ref = strings.TrimSpace(ref)
+				if ref == "" {
+					continue
+				}
+			issue, err := resolveIssueRef(ctx, client, ref)
+			if err != nil {
+				return fmt.Errorf("resolve blocked-by issue %q: %w", ref, err)
+			}
+			blockedIDs = append(blockedIDs, issue.ID)
+		}
+		body["blocked_by_ids"] = blockedIDs
+	}
 	aType, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", issueAssigneeKinds)
 	if resolveErr != nil {
 		return fmt.Errorf("resolve assignee: %w", resolveErr)
@@ -752,6 +835,63 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 			}
 			body["parent_issue_id"] = parent.ID
 		}
+	}
+
+	// Handle blocked-by operations: read current state, apply add/remove/clear.
+	addBlockedBy, _ := cmd.Flags().GetString("add-blocked-by")
+	removeBlockedBy, _ := cmd.Flags().GetString("remove-blocked-by")
+	clearBlockedBy, _ := cmd.Flags().GetBool("clear-blocked-by")
+	blockedByOps := 0
+	if addBlockedBy != "" {
+		blockedByOps++
+	}
+	if removeBlockedBy != "" {
+		blockedByOps++
+	}
+	if clearBlockedBy {
+		blockedByOps++
+	}
+	if blockedByOps > 1 {
+		return fmt.Errorf("--add-blocked-by, --remove-blocked-by, and --clear-blocked-by are mutually exclusive")
+	}
+	if blockedByOps == 1 {
+		var current map[string]any
+		if err := client.GetJSON(ctx, "/api/issues/"+issueRef.ID, &current); err != nil {
+			return fmt.Errorf("fetch current issue for blocked-by ops: %w", err)
+		}
+		currentBlockedRaw, _ := current["blocked_by_ids"].([]any)
+		currentSet := map[string]bool{}
+		var resultIDs []any
+		for _, raw := range currentBlockedRaw {
+			if s, ok := raw.(string); ok {
+				currentSet[s] = true
+				resultIDs = append(resultIDs, s)
+			}
+		}
+		if clearBlockedBy {
+			resultIDs = []any{}
+		} else if addBlockedBy != "" {
+			addRef, err := resolveIssueRef(ctx, client, addBlockedBy)
+			if err != nil {
+				return fmt.Errorf("resolve add-blocked-by issue: %w", err)
+			}
+			if !currentSet[addRef.ID] {
+				resultIDs = append(resultIDs, addRef.ID)
+			}
+		} else if removeBlockedBy != "" {
+			rmRef, err := resolveIssueRef(ctx, client, removeBlockedBy)
+			if err != nil {
+				return fmt.Errorf("resolve remove-blocked-by issue: %w", err)
+			}
+			var filtered []any
+			for _, id := range resultIDs {
+				if s, ok := id.(string); ok && s != rmRef.ID {
+					filtered = append(filtered, s)
+				}
+			}
+			resultIDs = filtered
+		}
+		body["blocked_by_ids"] = resultIDs
 	}
 
 	if len(body) == 0 {

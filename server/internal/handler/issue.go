@@ -1707,6 +1707,7 @@ type CreateIssueRequest struct {
 	ProjectID     *string  `json:"project_id"`
 	DueDate       *string  `json:"due_date"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
+	BlockedByIDs  []string `json:"blocked_by_ids,omitempty"`
 	// OriginType / OriginID stamp the new issue with its provenance so
 	// platform-internal flows can deterministically locate it later. Only
 	// trusted callers should set these — currently the daemon CLI passes
@@ -1807,6 +1808,30 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+		// Parse and validate blocked_by_ids.
+		var blockedByIds []pgtype.UUID
+		if len(req.BlockedByIDs) > 0 {
+			ids, ok := parseUUIDSliceOrBadRequest(w, req.BlockedByIDs, "blocked_by_ids")
+			if !ok {
+				return
+			}
+			// Validate each blocking issue exists in the workspace.
+			for _, id := range ids {
+				if _, err := h.Queries.GetIssueInWorkspace(r.Context(), db.GetIssueInWorkspaceParams{
+					ID:          id,
+					WorkspaceID: wsUUID,
+				}); err != nil {
+					writeError(w, http.StatusBadRequest, "blocked_by_ids contains an issue that does not exist in this workspace")
+					return
+				}
+			}
+			blockedByIds = ids
+			// Status linkage: if blocked_by is set, status becomes blocked (unless terminal).
+			if status != "done" && status != "cancelled" && status != "in_review" {
+				status = "blocked"
+			}
+		}
+
 	var dueDate pgtype.Timestamptz
 	if req.DueDate != nil && *req.DueDate != "" {
 		t, err := time.Parse(time.RFC3339, *req.DueDate)
@@ -1899,6 +1924,7 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 			ProjectID:     projectID,
 			OriginType:    originType,
 			OriginID:      originID,
+				BlockedByIds:  blockedByIds,
 		})
 	} else {
 		issue, err = qtx.CreateIssue(r.Context(), db.CreateIssueParams{
@@ -1916,6 +1942,7 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 			DueDate:       dueDate,
 			Number:        issueNumber,
 			ProjectID:     projectID,
+				BlockedByIds:  blockedByIds,
 		})
 	}
 	if err != nil {
@@ -2023,6 +2050,7 @@ type UpdateIssueRequest struct {
 	// editor's preview Eye keeps working past a refresh. Existing bindings
 	// are idempotent — re-sending the same id is a no-op.
 	AttachmentIDs []string `json:"attachment_ids"`
+		BlockedByIDs  []string `json:"blocked_by_ids,omitempty"`
 }
 
 func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
@@ -2176,6 +2204,62 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
+		// Handle blocked_by_ids updates.
+		if _, ok := rawFields["blocked_by_ids"]; ok {
+			if req.BlockedByIDs != nil {
+				ids, ok := parseUUIDSliceOrBadRequest(w, req.BlockedByIDs, "blocked_by_ids")
+				if !ok {
+					return
+				}
+				// Self-reference check.
+				for _, id := range ids {
+					if id == prevIssue.ID {
+						writeError(w, http.StatusBadRequest, "an issue cannot be blocked by itself")
+						return
+					}
+				}
+				// Validate existence and check for circular dependencies.
+				seen := map[string]bool{}
+				for _, id := range ids {
+					key := uuidToString(id)
+					if seen[key] {
+						writeError(w, http.StatusBadRequest, "duplicate entry in blocked_by_ids")
+						return
+					}
+					seen[key] = true
+					blocker, err := h.Queries.GetIssueInWorkspace(r.Context(), db.GetIssueInWorkspaceParams{
+						ID:          id,
+						WorkspaceID: prevIssue.WorkspaceID,
+					})
+					if err != nil {
+						writeError(w, http.StatusBadRequest, "blocked_by_ids contains an issue that does not exist in this workspace")
+						return
+					}
+					if h.hasCircularBlockedByDependency(r.Context(), blocker, prevIssue.ID) {
+						writeError(w, http.StatusBadRequest, "circular blocked_by dependency detected")
+						return
+					}
+				}
+				params.BlockedByIds = ids
+				// Status linkage: set blocked_by → status=blocked (unless terminal).
+				if len(ids) > 0 {
+					if prevIssue.Status != "done" && prevIssue.Status != "cancelled" && prevIssue.Status != "in_review" {
+						if _, statusSet := rawFields["status"]; !statusSet {
+							params.Status = pgtype.Text{String: "blocked", Valid: true}
+						}
+					}
+				}
+			} else {
+				// null → clear blocked_by_ids.
+				if prevIssue.Status == "blocked" {
+					if _, statusSet := rawFields["status"]; !statusSet {
+						params.Status = pgtype.Text{String: "todo", Valid: true}
+					}
+				}
+				params.BlockedByIds = []pgtype.UUID{} // empty slice, not nil
+			}
+		}
 	issue, err := h.Queries.UpdateIssue(r.Context(), params)
 	if err != nil {
 		slog.Warn("update issue failed", append(logger.RequestAttrs(r), "error", err, "issue_id", id, "workspace_id", workspaceID)...)
@@ -2737,4 +2821,83 @@ func (h *Handler) BatchDeleteIssues(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("batch delete issues", append(logger.RequestAttrs(r), "count", deleted)...)
 	writeJSON(w, http.StatusOK, map[string]any{"deleted": deleted})
+}
+
+// hasCircularBlockedByDependency checks whether adding blockerID to the target
+// issue's blocked_by_ids would create a circular dependency. It walks up the
+// blocked_by chain from blockerID to see if it reaches the target issue.
+func (h *Handler) hasCircularBlockedByDependency(ctx context.Context, blocker db.Issue, targetID pgtype.UUID) bool {
+	visited := map[string]bool{}
+	queue := make([]pgtype.UUID, 0, len(blocker.BlockedByIds))
+	for _, id := range blocker.BlockedByIds {
+		queue = append(queue, id)
+	}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		key := uuidToString(current)
+		if visited[key] {
+			continue
+		}
+		visited[key] = true
+		if current == targetID {
+			return true
+		}
+		issue, err := h.Queries.GetIssue(ctx, current)
+		if err != nil {
+			continue
+		}
+		for _, id := range issue.BlockedByIds {
+			if !visited[uuidToString(id)] {
+				queue = append(queue, id)
+			}
+		}
+	}
+	return false
+}
+
+// ListIssuesBlockedBy returns all issues whose blocked_by_ids array contains
+// the given issue ID (reverse lookup). Query param: ?blocking=<issue-id>.
+func (h *Handler) ListIssuesBlockedBy(w http.ResponseWriter, r *http.Request) {
+	blockingID := r.URL.Query().Get("blocking")
+	if blockingID == "" {
+		writeError(w, http.StatusBadRequest, "blocking query parameter is required")
+		return
+	}
+
+	wsID := h.resolveWorkspaceID(r)
+	wsUUID, ok := parseUUIDOrBadRequest(w, wsID, "workspace_id")
+	if !ok {
+		return
+	}
+
+	blockerUUID, ok := parseUUIDOrBadRequest(w, blockingID, "blocking")
+	if !ok {
+		return
+	}
+
+	issues, err := h.Queries.ListIssuesBlockedBy(r.Context(), []pgtype.UUID{blockerUUID})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list blocked issues")
+		return
+	}
+
+	// Filter by workspace.
+	var filtered []db.Issue
+	for _, issue := range issues {
+		if issue.WorkspaceID == wsUUID {
+			filtered = append(filtered, issue)
+		}
+	}
+
+	prefix := h.getIssuePrefix(r.Context(), wsUUID)
+	resp := make([]IssueResponse, len(filtered))
+	for i, issue := range filtered {
+		resp[i] = issueToResponse(issue, prefix)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"issues": resp,
+		"total":  len(resp),
+	})
 }
