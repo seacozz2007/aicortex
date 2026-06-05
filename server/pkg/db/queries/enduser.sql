@@ -73,3 +73,14 @@ WHERE session_id = $1;
 -- name: CountEndUserSessionVisitors :one
 SELECT count(DISTINCT visitor_id) FROM enduser_message
 WHERE session_id = $1;
+
+-- name: GetEndUserSessionByToken :one
+SELECT * FROM enduser_session
+WHERE token = $1
+  AND status = 'active'
+  AND (expires_at IS NULL OR expires_at > now());
+
+-- name: UpdateEndUserSessionHTML :one
+UPDATE enduser_session SET html_content = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;
