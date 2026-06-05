@@ -223,7 +223,7 @@ func TestEndUserWSHub_RegisterUnregister(t *testing.T) {
 func TestEndUserWSEvent_Marshaling(t *testing.T) {
 	// Verify event JSON structure.
 	event := EndUserWSEvent{
-		Type:        "chat_message",
+		Type:        "message",
 		VisitorID:   "visitor-123",
 		Role:        "assistant",
 		Content:     "Hello!",
@@ -240,8 +240,8 @@ func TestEndUserWSEvent_Marshaling(t *testing.T) {
 		t.Fatalf("unmarshal event: %v", err)
 	}
 
-	if decoded["type"] != "chat_message" {
-		t.Errorf("type = %q, want 'chat_message'", decoded["type"])
+	if decoded["type"] != "message" {
+		t.Errorf("type = %q, want 'message'", decoded["type"])
 	}
 	if decoded["visitor_id"] != "visitor-123" {
 		t.Errorf("visitor_id = %q, want 'visitor-123'", decoded["visitor_id"])

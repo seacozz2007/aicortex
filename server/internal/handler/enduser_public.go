@@ -300,7 +300,7 @@ func (h *EndUserPublicHandler) handleChatDone(e events.Event) {
 
 	if payload.Content != "" {
 		h.WSHub.SendToVisitor(sesUUID, visitorID, EndUserWSEvent{
-			Type:      "chat_message",
+			Type:      "message",
 			VisitorID: visitorID,
 			Role:      "assistant",
 			Content:   payload.Content,
@@ -310,57 +310,77 @@ func (h *EndUserPublicHandler) handleChatDone(e events.Event) {
 }
 
 func (h *EndUserPublicHandler) handleTaskMessage(e events.Event) {
-	// Check for update_enduser_html tool calls.
+	// Try to parse payload.
 	payload, ok := e.Payload.(protocol.TaskMessagePayload)
 	if !ok {
 		data, _ := json.Marshal(e.Payload)
 		json.Unmarshal(data, &payload)
 	}
 
-	if payload.Tool != "update_enduser_html" {
-		return
-	}
-
-	// Extract html_content from the tool input.
-	htmlContent := ""
-	if payload.Input != nil {
-		if htmlStr, ok := payload.Input["html_content"].(string); ok {
-			htmlContent = htmlStr
+	// Handle update_enduser_html tool calls (HTML rendering).
+	if payload.Tool == "update_enduser_html" {
+		htmlContent := ""
+		if payload.Input != nil {
+			if htmlStr, ok := payload.Input["html_content"].(string); ok {
+				htmlContent = htmlStr
+			}
 		}
-	}
-	if htmlContent == "" && payload.Output != "" {
-		htmlContent = payload.Output
-	}
+		if htmlContent == "" && payload.Output != "" {
+			htmlContent = payload.Output
+		}
+		if htmlContent == "" {
+			return
+		}
 
-	if htmlContent == "" {
+		chatSessionID := payload.ChatSessionID
+		if chatSessionID == "" {
+			return
+		}
+		sessionID, _ := h.lookupEndUserSession(chatSessionID)
+		if sessionID == "" {
+			return
+		}
+		sesUUID, err := parsePublicUUID(sessionID)
+		if err != nil {
+			return
+		}
+
+		_, err = h.Queries.UpdateEndUserSessionHTML(context.Background(), sesUUID, htmlContent)
+		if err != nil {
+			slog.Warn("enduser: update html content failed", "session_id", sessionID, "error", err)
+			return
+		}
+		h.WSHub.BroadcastHTMLUpdated(sesUUID, htmlContent)
 		return
 	}
 
-	// Find which enduser session this belongs to via the chat session.
-	chatSessionID := e.ChatSessionID
+	// Forward text/thinking content as streaming messages to enduser visitors.
+	if payload.Type != "text" && payload.Type != "thinking" {
+		return
+	}
+	if payload.Content == "" {
+		return
+	}
+
+	chatSessionID := payload.ChatSessionID
 	if chatSessionID == "" {
 		return
 	}
-
-	sessionID, _ := h.lookupEndUserSession(chatSessionID)
+	sessionID, visitorID := h.lookupEndUserSession(chatSessionID)
 	if sessionID == "" {
 		return
 	}
-
 	sesUUID, err := parsePublicUUID(sessionID)
 	if err != nil {
 		return
 	}
 
-	// Update the enduser session's html_content.
-	_, err = h.Queries.UpdateEndUserSessionHTML(context.Background(), sesUUID, htmlContent)
-	if err != nil {
-		slog.Warn("enduser: update html content failed", "session_id", sessionID, "error", err)
-		return
-	}
-
-	// Broadcast html_updated to all visitors.
-	h.WSHub.BroadcastHTMLUpdated(sesUUID, htmlContent)
+	h.WSHub.SendToVisitor(sesUUID, visitorID, EndUserWSEvent{
+		Type:      "stream",
+		VisitorID: visitorID,
+		Role:      "assistant",
+		Content:   payload.Content,
+	})
 }
 
 // lookupEndUserSession finds the enduser session ID and visitor ID for a chat session.
