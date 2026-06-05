@@ -22,8 +22,8 @@ export function EndUserChatPage({ token }: EndUserChatPageProps) {
     );
   }
 
-  if (error || !session?.valid) {
-    const isExpired = session?.session?.status === "expired";
+  if (error || !session || session.status !== "active") {
+    const isExpired = session?.status === "expired";
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-3 px-4">
         <div className="flex flex-col items-center gap-2 text-center">

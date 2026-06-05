@@ -28,18 +28,13 @@ export interface EndUserMessage {
 }
 
 export interface EndUserPublicSession {
-  valid: boolean;
-  session?: {
-    id: string;
-    title: string;
-    agent_name: string;
-    agent_avatar_url?: string;
-    guide_message: string;
-    status: EndUserSessionStatus;
-    expires_at?: string;
-  };
-  history: EndUserMessage[];
-  error?: string;
+  title: string;
+  guide_message: string;
+  agent_name: string;
+  agent_avatar_url?: string;
+  html_content: string;
+  status: string;
+  message?: string;
 }
 
 export interface CreateEndUserSessionRequest {

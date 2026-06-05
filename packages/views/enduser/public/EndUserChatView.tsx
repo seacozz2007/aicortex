@@ -38,9 +38,7 @@ export function EndUserChatView({ session, token }: EndUserChatViewProps) {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    (session.history ?? []).map((m) => ({ id: m.id, role: m.role, content: m.content, htmlContent: m.html_content }))
-  );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -71,7 +69,6 @@ export function EndUserChatView({ session, token }: EndUserChatViewProps) {
           type?: string;
           content?: string;
           html_content?: string;
-          html_updated?: string;
         };
 
         if (data.type === "stream") {
@@ -96,8 +93,8 @@ export function EndUserChatView({ session, token }: EndUserChatViewProps) {
           });
         }
 
-        if (data.html_updated != null) {
-          setCurrentHtml(data.html_updated);
+        if (data.html_content != null) {
+          setCurrentHtml(data.html_content);
         }
       } catch {
         // ignore malformed messages
@@ -149,14 +146,14 @@ export function EndUserChatView({ session, token }: EndUserChatViewProps) {
     }
   };
 
-  const agentName = session.session?.agent_name ?? t(($) => $.public.agent_default_name);
+  const agentName = session.agent_name ?? t(($) => $.public.agent_default_name);
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b">
         <Avatar className="h-8 w-8">
-          {session.session?.agent_avatar_url && <AvatarImage src={session.session.agent_avatar_url} />}
+          {session.agent_avatar_url && <AvatarImage src={session.agent_avatar_url} />}
           <AvatarFallback>{agentName.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div>
@@ -194,10 +191,10 @@ export function EndUserChatView({ session, token }: EndUserChatViewProps) {
         {/* Chat column */}
         <div className={`flex-1 min-w-0 flex flex-col ${hasHtml ? (mobileTab !== "chat" ? "hidden md:flex" : "flex") : "flex"} ${hasHtml ? "md:border-r" : ""}`}>
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-            {session.session?.guide_message && !messages.some((m) => m.role === "agent") && (
+            {session.guide_message && !messages.some((m) => m.role === "agent") && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-lg px-3 py-1.5 bg-muted text-sm text-muted-foreground">
-                  {session.session.guide_message}
+                  {session.guide_message}
                 </div>
               </div>
             )}
