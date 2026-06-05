@@ -210,6 +210,35 @@ func (q *Queries) GetAgentNotArchived(ctx context.Context, id pgtype.UUID) (Agen
 	return i, err
 }
 
+const getEndUserSessionByToken = `-- name: GetEndUserSessionByToken :one
+SELECT id, workspace_id, agent_id, title, goal, guide_message, token, html_content, expires_at, status, max_messages, created_by, created_at, updated_at FROM enduser_session
+WHERE token = $1
+  AND status = 'active'
+  AND (expires_at IS NULL OR expires_at > now())
+`
+
+func (q *Queries) GetEndUserSessionByToken(ctx context.Context, token string) (EnduserSession, error) {
+	row := q.db.QueryRow(ctx, getEndUserSessionByToken, token)
+	var i EnduserSession
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.AgentID,
+		&i.Title,
+		&i.Goal,
+		&i.GuideMessage,
+		&i.Token,
+		&i.HtmlContent,
+		&i.ExpiresAt,
+		&i.Status,
+		&i.MaxMessages,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getEndUserSession = `-- name: GetEndUserSession :one
 SELECT id, workspace_id, agent_id, title, goal, guide_message, token, html_content, expires_at, status, max_messages, created_by, created_at, updated_at FROM enduser_session
 WHERE id = $1
@@ -429,6 +458,34 @@ type UpdateEndUserSessionTokenParams struct {
 
 func (q *Queries) UpdateEndUserSessionToken(ctx context.Context, arg UpdateEndUserSessionTokenParams) (EnduserSession, error) {
 	row := q.db.QueryRow(ctx, updateEndUserSessionToken, arg.ID, arg.Token, arg.WorkspaceID)
+	var i EnduserSession
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.AgentID,
+		&i.Title,
+		&i.Goal,
+		&i.GuideMessage,
+		&i.Token,
+		&i.HtmlContent,
+		&i.ExpiresAt,
+		&i.Status,
+		&i.MaxMessages,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateEndUserSessionHTML = `-- name: UpdateEndUserSessionHTML :one
+UPDATE enduser_session SET html_content = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, workspace_id, agent_id, title, goal, guide_message, token, html_content, expires_at, status, max_messages, created_by, created_at, updated_at
+`
+
+func (q *Queries) UpdateEndUserSessionHTML(ctx context.Context, id pgtype.UUID, htmlContent string) (EnduserSession, error) {
+	row := q.db.QueryRow(ctx, updateEndUserSessionHTML, id, htmlContent)
 	var i EnduserSession
 	err := row.Scan(
 		&i.ID,

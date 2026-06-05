@@ -266,6 +266,21 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	r.Post("/api/webhooks/github", h.HandleGitHubWebhook)
 	r.Get("/api/github/setup", h.GitHubSetupCallback)
 
+	// EndUser public endpoints (no auth, CORS allowing all origins for embedding).
+	endUserWSHub := handler.NewEndUserWSHub()
+	endUserPublic := handler.NewEndUserPublicHandler(queries, endUserWSHub, h.TaskService, bus)
+	r.Route("/e/{token}", func(r chi.Router) {
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   []string{"*"},
+			AllowedMethods:   []string{"GET", "OPTIONS"},
+			AllowedHeaders:   []string{"Content-Type"},
+			AllowCredentials: false,
+			MaxAge:           300,
+		}))
+		r.Get("/", endUserPublic.HandleGetPublicEndUserSession)
+		r.Get("/ws", endUserPublic.HandleEndUserWebSocket)
+	})
+
 	// Daemon API routes (require daemon token or valid user token)
 	r.Route("/api/daemon", func(r chi.Router) {
 		r.Use(middleware.DaemonAuth(queries, patCache, daemonTokenCache))

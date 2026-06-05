@@ -175,11 +175,3 @@ func isBlockedByIncompleteChildren(ctx context.Context, q *db.Queries, issueID p
 	return false
 }
 
-func isTerminalStatus(status string) bool {
-	switch status {
-	case "done", "in_review", "cancelled":
-		return true
-	default:
-		return false
-	}
-}
