@@ -114,3 +114,14 @@ export type {
   UpdateSquadMemberRoleRequest,
   CreateSquadActivityLogRequest,
 } from "./squad";
+export type {
+  EndUserSession,
+  EndUserSessionStatus,
+  EndUserMessage,
+  EndUserPublicSession,
+  CreateEndUserSessionRequest,
+  UpdateEndUserSessionRequest,
+  RegenerateTokenResponse,
+  ListEndUserSessionsParams,
+  ListEndUserMessagesParams,
+} from "./enduser";

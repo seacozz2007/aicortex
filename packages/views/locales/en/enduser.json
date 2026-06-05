@@ -1,0 +1,103 @@
+{
+  "management": {
+    "title": "EndUser Sessions",
+    "description": "Manage public-facing agent chat sessions for end users.",
+    "empty": "No end user sessions yet.",
+    "create": "Create Session",
+    "filter_all": "All",
+    "filter_active": "Active",
+    "filter_completed": "Completed",
+    "filter_expired": "Expired",
+    "filter_disabled": "Disabled",
+    "search_placeholder": "Search sessions..."
+  },
+  "table": {
+    "title": "Title",
+    "agent": "Agent",
+    "status": "Status",
+    "expires": "Expires",
+    "created": "Created",
+    "actions": "Actions",
+    "copy_link": "Copy link",
+    "copy_link_copied": "Link copied to clipboard",
+    "edit": "Edit",
+    "enable": "Enable",
+    "disable": "Disable",
+    "regenerate_token": "Regenerate token",
+    "view_messages": "Messages",
+    "delete": "Delete",
+    "never_expires": "Never"
+  },
+  "status": {
+    "active": "Active",
+    "completed": "Completed",
+    "expired": "Expired",
+    "disabled": "Disabled"
+  },
+  "create_modal": {
+    "title_create": "Create EndUser Session",
+    "title_edit": "Edit EndUser Session",
+    "title_label": "Title",
+    "title_placeholder": "Internal identifier for this session",
+    "agent_label": "Agent",
+    "agent_placeholder": "Select an agent...",
+    "goal_label": "Goal (System Prompt)",
+    "goal_placeholder": "Describe the agent's task and behavior...",
+    "guide_label": "Guide Message",
+    "guide_placeholder": "The first message the user will see...",
+    "expires_label": "Expires At",
+    "never_expire": "Never expire",
+    "max_messages_label": "Max Messages (optional)",
+    "save": "Save",
+    "saving": "Saving...",
+    "created_url_title": "Session created!",
+    "created_url_description": "Share this link with your end users:",
+    "copy_url": "Copy URL",
+    "close": "Close"
+  },
+  "delete_dialog": {
+    "title": "Delete Session",
+    "description": "Permanently delete \"{{title}}\"? This cannot be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  },
+  "regenerate_dialog": {
+    "title": "Regenerate Token",
+    "description": "Regenerate the access token for \"{{title}}\"? The old link will stop working immediately.",
+    "cancel": "Cancel",
+    "confirm": "Regenerate"
+  },
+  "message_history": {
+    "title": "Messages — {{title}}",
+    "visitor": "Visitor {{id}}",
+    "no_messages": "No messages yet.",
+    "close": "Close"
+  },
+  "toast": {
+    "session_created": "Session created",
+    "session_updated": "Session updated",
+    "session_deleted": "Session deleted",
+    "token_regenerated": "Token regenerated",
+    "link_copied": "Link copied",
+    "error_create": "Failed to create session",
+    "error_update": "Failed to update session",
+    "error_delete": "Failed to delete session",
+    "error_regenerate": "Failed to regenerate token",
+    "error_load": "Failed to load sessions"
+  },
+  "public": {
+    "invalid_title": "Invalid or Expired Link",
+    "invalid_description": "This chat session is no longer available. It may have been disabled, expired, or deleted.",
+    "expired_title": "Session Expired",
+    "expired_description": "This chat session has expired and is no longer accepting messages.",
+    "loading": "Loading...",
+    "agent_default_name": "AI Assistant",
+    "input_placeholder": "Type your message...",
+    "send": "Send",
+    "reconnecting": "Reconnecting...",
+    "disconnected": "Connection lost. Attempting to reconnect...",
+    "html_tab": "View Result",
+    "chat_tab": "Chat",
+    "no_html_yet": "No content to display yet. The agent will show results here as it works."
+  }
+}

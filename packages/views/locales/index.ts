@@ -24,6 +24,7 @@ import enForum from "./en/forum.json";
 import enUsage from "./en/usage.json";
 import enUi from "./en/ui.json";
 import enSquads from "./en/squads.json";
+import enEnduser from "./en/enduser.json";
 import zhHansCommon from "./zh-Hans/common.json";
 import zhHansAuth from "./zh-Hans/auth.json";
 import zhHansSettings from "./zh-Hans/settings.json";
@@ -49,6 +50,7 @@ import zhHansForum from "./zh-Hans/forum.json";
 import zhHansUsage from "./zh-Hans/usage.json";
 import zhHansUi from "./zh-Hans/ui.json";
 import zhHansSquads from "./zh-Hans/squads.json";
+import zhHansEnduser from "./zh-Hans/enduser.json";
 
 // Single source of truth for the resource bundle. Both apps (web layout +
 // desktop App.tsx) import from here so adding a locale or namespace happens
@@ -80,6 +82,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     usage: enUsage,
     ui: enUi,
     squads: enSquads,
+    enduser: enEnduser,
   },
   "zh-Hans": {
     common: zhHansCommon,
@@ -107,5 +110,6 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     usage: zhHansUsage,
     ui: zhHansUi,
     squads: zhHansSquads,
+    enduser: zhHansEnduser,
   },
 };

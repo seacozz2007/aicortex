@@ -97,6 +97,14 @@ import type {
   Squad,
   SquadMember,
   RecentActivityResponse,
+  EndUserSession,
+  EndUserMessage,
+  EndUserPublicSession,
+  CreateEndUserSessionRequest,
+  UpdateEndUserSessionRequest,
+  RegenerateTokenResponse,
+  ListEndUserSessionsParams,
+  ListEndUserMessagesParams,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import { type Logger, noopLogger } from "../logger";
@@ -1675,5 +1683,55 @@ export class ApiClient {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  }
+
+  // EndUser Sessions
+  async listEndUserSessions(params?: ListEndUserSessionsParams): Promise<EndUserSession[]> {
+    const search = new URLSearchParams();
+    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
+    if (params?.status && params.status !== "all") search.set("status", params.status);
+    if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.offset) search.set("offset", String(params.offset));
+    const qs = search.toString();
+    return this.fetch(`/api/enduser/sessions${qs ? `?${qs}` : ""}`);
+  }
+
+  async getEndUserSession(id: string): Promise<EndUserSession> {
+    return this.fetch(`/api/enduser/sessions/${id}`);
+  }
+
+  async createEndUserSession(data: CreateEndUserSessionRequest): Promise<EndUserSession> {
+    return this.fetch("/api/enduser/sessions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateEndUserSession(id: string, data: UpdateEndUserSessionRequest): Promise<EndUserSession> {
+    return this.fetch(`/api/enduser/sessions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEndUserSession(id: string): Promise<void> {
+    await this.fetch(`/api/enduser/sessions/${id}`, { method: "DELETE" });
+  }
+
+  async regenerateEndUserToken(id: string): Promise<RegenerateTokenResponse> {
+    return this.fetch(`/api/enduser/sessions/${id}/regenerate-token`, { method: "POST" });
+  }
+
+  async listEndUserMessages(sessionId: string, params?: ListEndUserMessagesParams): Promise<EndUserMessage[]> {
+    const search = new URLSearchParams();
+    if (params?.visitor_id) search.set("visitor_id", params.visitor_id);
+    if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.offset) search.set("offset", String(params.offset));
+    const qs = search.toString();
+    return this.fetch(`/api/enduser/sessions/${sessionId}/messages${qs ? `?${qs}` : ""}`);
+  }
+
+  async getEndUserPublicSession(token: string): Promise<EndUserPublicSession> {
+    return this.fetch(`/e/${token}`);
   }
 }

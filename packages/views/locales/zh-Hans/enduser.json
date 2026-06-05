@@ -1,0 +1,103 @@
+{
+  "management": {
+    "title": "终端用户会话",
+    "description": "管理面向终端用户的 AI Agent 聊天会话。",
+    "empty": "暂无终端用户会话。",
+    "create": "创建会话",
+    "filter_all": "全部",
+    "filter_active": "活跃",
+    "filter_completed": "已完成",
+    "filter_expired": "已过期",
+    "filter_disabled": "已停用",
+    "search_placeholder": "搜索会话..."
+  },
+  "table": {
+    "title": "标题",
+    "agent": "Agent",
+    "status": "状态",
+    "expires": "过期时间",
+    "created": "创建时间",
+    "actions": "操作",
+    "copy_link": "复制链接",
+    "copy_link_copied": "链接已复制到剪贴板",
+    "edit": "编辑",
+    "enable": "启用",
+    "disable": "停用",
+    "regenerate_token": "重新生成令牌",
+    "view_messages": "消息记录",
+    "delete": "删除",
+    "never_expires": "永不过期"
+  },
+  "status": {
+    "active": "活跃",
+    "completed": "已完成",
+    "expired": "已过期",
+    "disabled": "已停用"
+  },
+  "create_modal": {
+    "title_create": "创建终端用户会话",
+    "title_edit": "编辑终端用户会话",
+    "title_label": "标题",
+    "title_placeholder": "会话的内部标识名称",
+    "agent_label": "Agent",
+    "agent_placeholder": "选择一个 Agent...",
+    "goal_label": "目标（System Prompt）",
+    "goal_placeholder": "描述 Agent 的任务和行为...",
+    "guide_label": "引导语",
+    "guide_placeholder": "用户看到的第一条消息...",
+    "expires_label": "过期时间",
+    "never_expire": "永不过期",
+    "max_messages_label": "最大消息数（可选）",
+    "save": "保存",
+    "saving": "保存中...",
+    "created_url_title": "会话已创建！",
+    "created_url_description": "将此链接分享给终端用户：",
+    "copy_url": "复制链接",
+    "close": "关闭"
+  },
+  "delete_dialog": {
+    "title": "删除会话",
+    "description": "永久删除「{{title}}」？此操作不可撤销。",
+    "cancel": "取消",
+    "confirm": "删除"
+  },
+  "regenerate_dialog": {
+    "title": "重新生成令牌",
+    "description": "重新生成「{{title}}」的访问令牌？旧链接将立即失效。",
+    "cancel": "取消",
+    "confirm": "重新生成"
+  },
+  "message_history": {
+    "title": "消息记录 — {{title}}",
+    "visitor": "访客 {{id}}",
+    "no_messages": "暂无消息。",
+    "close": "关闭"
+  },
+  "toast": {
+    "session_created": "会话已创建",
+    "session_updated": "会话已更新",
+    "session_deleted": "会话已删除",
+    "token_regenerated": "令牌已重新生成",
+    "link_copied": "链接已复制",
+    "error_create": "创建会话失败",
+    "error_update": "更新会话失败",
+    "error_delete": "删除会话失败",
+    "error_regenerate": "重新生成令牌失败",
+    "error_load": "加载会话失败"
+  },
+  "public": {
+    "invalid_title": "链接无效或已过期",
+    "invalid_description": "此聊天会话不再可用。可能已被停用、过期或删除。",
+    "expired_title": "会话已过期",
+    "expired_description": "此聊天会话已过期，不再接受新消息。",
+    "loading": "加载中...",
+    "agent_default_name": "AI 助手",
+    "input_placeholder": "输入消息...",
+    "send": "发送",
+    "reconnecting": "重新连接中...",
+    "disconnected": "连接已断开，正在尝试重新连接...",
+    "html_tab": "查看结果",
+    "chat_tab": "对话",
+    "no_html_yet": "暂无内容。Agent 处理完成后，结果将显示在此处。"
+  }
+}

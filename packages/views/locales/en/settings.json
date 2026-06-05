@@ -26,7 +26,8 @@
       "repositories": "Repositories",
       "integrations": "Integrations",
       "labs": "Labs",
-      "members": "Members"
+      "members": "Members",
+      "enduser": "EndUser"
     }
   },
   "account": {
