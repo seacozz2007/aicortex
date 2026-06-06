@@ -15,8 +15,10 @@ import type { ChatSharePublicInfo } from "@aicortex/core/types";
 import type { UploadResult } from "@aicortex/core/hooks/use-file-upload";
 import { ChatInput } from "../../chat/components/chat-input";
 import { ChatBubble } from "../../chat/components/chat-bubble";
+import { TaskStatusPill } from "../../chat/components/task-status-pill";
 import { Markdown } from "../../common/markdown";
 import { useT } from "../../i18n";
+import type { ChatPendingTask, TaskMessagePayload } from "@aicortex/core/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -75,6 +77,9 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
   const [reconnecting, setReconnecting] = useState(false);
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set());
   const [isRunning, setIsRunning] = useState(false);
+  // Track live task messages and pending task for the status pill.
+  const [liveTaskMessages, setLiveTaskMessages] = useState<TaskMessagePayload[]>([]);
+  const [pendingTask, setPendingTask] = useState<ChatPendingTask | null>(null);
 
   // Session management (when allow_new_sessions)
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -170,8 +175,26 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
         switch (data.type) {
           case "task_message": {
             setIsRunning(true);
-            const msgType = data.message_type ?? "text";
-            const isThinking = msgType === "thinking" || msgType === "reasoning";
+            // Feed the status pill
+            const rawType = (data.message_type ?? "text") as string;
+            const msgTypeMap: Record<string, TaskMessagePayload["type"]> = {
+              thinking: "thinking", reasoning: "thinking",
+              tool_use: "tool_use", tool_result: "tool_result", error: "error",
+            };
+            const msgType = msgTypeMap[rawType] ?? "text";
+            const seq = Date.now();
+            setLiveTaskMessages((prev) => [
+              ...prev,
+              { type: msgType, tool: (data as any).tool_name ?? "", content: data.content ?? "", seq, task_id: data.task_id ?? "", issue_id: "" },
+            ]);
+            if (!pendingTask) {
+              setPendingTask({
+                task_id: data.task_id ?? "",
+                status: "running",
+                created_at: new Date().toISOString(),
+              });
+            }
+            const isThinking = msgType === "thinking";
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               if (isThinking) {
@@ -193,6 +216,8 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
           }
           case "message": {
             setIsRunning(false);
+            setPendingTask(null);
+            setLiveTaskMessages([]);
             setMessages((prev) => {
               const u = [...prev];
               const last = u[u.length - 1];
@@ -208,7 +233,7 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
         }
       } catch { /* ignore */ }
     };
-    ws.onclose = () => { setConnected(false); setIsRunning(false);
+    ws.onclose = () => { setConnected(false); setIsRunning(false); setPendingTask(null); setLiveTaskMessages([]);
       if (!reconnectTimerRef.current) {
         setReconnecting(true);
         reconnectTimerRef.current = setTimeout(() => { reconnectTimerRef.current = null; connect(); }, 3000);
@@ -405,6 +430,17 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
           </div>
         )}
       </div>
+
+      {/* Status pill — shows "思考中 · 3s" etc. while agent is working */}
+      {pendingTask && (
+        <div className="px-5 pb-1">
+          <TaskStatusPill
+            pendingTask={pendingTask}
+            taskMessages={liveTaskMessages}
+            availability={undefined}
+          />
+        </div>
+      )}
 
       {/* Input */}
       <ChatInput
