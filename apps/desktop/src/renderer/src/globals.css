@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@aicortex/ui/styles/tokens.css";
 @import "@aicortex/ui/styles/base.css";
+@import "@aicortex/ui/styles/question-form.css";
 
 @custom-variant dark (&:is(.dark *));
 

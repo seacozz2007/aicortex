@@ -300,6 +300,7 @@ export function ChatPage() {
               messages={messages}
               pendingTask={pendingTask}
               availability={availability}
+              onFormSubmit={handleSend}
             />
             {noAgent ? (
               <NoAgentBanner />

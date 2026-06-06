@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/aicortex/aicortex/server/internal/analytics"
+	"github.com/aicortex/aicortex/server/internal/daemon/defaultskills"
 	"github.com/aicortex/aicortex/server/internal/logger"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
 	"github.com/aicortex/aicortex/server/pkg/protocol"
@@ -207,6 +209,12 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	if _, err := qtx.MarkUserOnboarded(r.Context(), parseUUID(userID)); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to mark user onboarded")
 		return
+	}
+
+	// Seed default system skills into the new workspace so they appear in the
+	// agent creation skill picker without the user having to author them.
+	if err := seedDefaultSkills(r.Context(), qtx, ws.ID, parseUUID(userID)); err != nil {
+		slog.Warn("seed default skills failed (non-fatal)", "error", err)
 	}
 
 	if err := tx.Commit(r.Context()); err != nil {
@@ -664,4 +672,33 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// seedDefaultSkills creates system-provided skills (e.g. Interactive Forms) in
+// the workspace if they don't already exist. Idempotent — safe to call on every
+// workspace create. Failures are logged but non-fatal so a seed error never
+// blocks workspace creation.
+func seedDefaultSkills(ctx context.Context, queries *db.Queries, workspaceID, createdBy pgtype.UUID) error {
+	for _, ds := range defaultskills.All {
+		existing, err := queries.GetSkillByWorkspaceAndName(ctx, db.GetSkillByWorkspaceAndNameParams{
+			WorkspaceID: workspaceID,
+			Name:        ds.Name,
+		})
+		// Skill already exists — skip.
+		if err == nil && existing.ID.Valid {
+			continue
+		}
+		_, err = queries.CreateSkill(ctx, db.CreateSkillParams{
+			WorkspaceID: workspaceID,
+			Name:        ds.Name,
+			Description: ds.Description,
+			Content:     ds.Content,
+			Config:      []byte("{}"),
+			CreatedBy:   createdBy,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

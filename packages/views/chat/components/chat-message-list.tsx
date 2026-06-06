@@ -21,6 +21,7 @@ import { useScrollFade } from "@aicortex/ui/hooks/use-scroll-fade";
 import { useAutoScroll } from "@aicortex/ui/hooks/use-auto-scroll";
 import { taskMessagesOptions } from "@aicortex/core/chat/queries";
 import { Markdown } from "@aicortex/views/common/markdown";
+import { ChatContent } from "./chat-content";
 import { copyMarkdown } from "../../editor";
 import type { AgentAvailability } from "@aicortex/core/agents";
 import type { ChatMessage, ChatPendingTask, TaskMessagePayload, TaskFailureReason } from "@aicortex/core/types";
@@ -42,12 +43,18 @@ interface ChatMessageListProps {
   pendingTask: ChatPendingTask | null | undefined;
   /** Resolved presence; pass `undefined` while loading to keep the pill copy neutral. */
   availability: AgentAvailability | undefined;
+  /**
+   * Fires when the user submits a <question-form> embedded in an agent
+   * message. The formatted prose answer is forwarded as a user message.
+   */
+  onFormSubmit?: (text: string) => void;
 }
 
 export function ChatMessageList({
   messages,
   pendingTask,
   availability,
+  onFormSubmit,
 }: ChatMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeStyle = useScrollFade(scrollRef);
@@ -81,13 +88,26 @@ export function ChatMessageList({
        *  views doesn't jolt the reading width. px-5 is a touch tighter
        *  than issue-detail's px-8 because the chat window can be narrow. */}
       <div className="mx-auto w-full max-w-4xl px-5 py-4 space-y-4">
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            isPending={!!pendingTaskId && msg.task_id === pendingTaskId}
-          />
-        ))}
+        {messages.map((msg, idx) => {
+          // Look ahead at the NEXT user message for form answer hydration.
+          // If msg is an assistant and the next message is a user message
+          // starting with "[form answers", pass it through so the form
+          // renders in the locked "already answered" state.
+          const nextMsg = idx + 1 < messages.length ? messages[idx + 1] : null;
+          const nextUserContent =
+            msg.role === "assistant" && nextMsg?.role === "user"
+              ? nextMsg.content
+              : undefined;
+          return (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              isPending={!!pendingTaskId && msg.task_id === pendingTaskId}
+              onFormSubmit={onFormSubmit}
+              nextUserContent={nextUserContent}
+            />
+          );
+        })}
         {hasLive && (
           <div className="w-full space-y-1.5">
             <TimelineView items={liveTimeline} isStreaming />
@@ -145,7 +165,17 @@ function toTimelineItem(m: TaskMessagePayload): ChatTimelineItem {
 
 // ─── Message bubbles ─────────────────────────────────────────────────────
 
-function MessageBubble({ message, isPending }: { message: ChatMessage; isPending: boolean }) {
+function MessageBubble({
+  message,
+  isPending,
+  onFormSubmit,
+  nextUserContent,
+}: {
+  message: ChatMessage;
+  isPending: boolean;
+  onFormSubmit?: (text: string) => void;
+  nextUserContent?: string;
+}) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -162,15 +192,26 @@ function MessageBubble({ message, isPending }: { message: ChatMessage; isPending
     );
   }
 
-  return <AssistantMessage message={message} isPending={isPending} />;
+  return (
+    <AssistantMessage
+      message={message}
+      isPending={isPending}
+      onFormSubmit={onFormSubmit}
+      nextUserContent={nextUserContent}
+    />
+  );
 }
 
 function AssistantMessage({
   message,
   isPending,
+  onFormSubmit,
+  nextUserContent,
 }: {
   message: ChatMessage;
   isPending: boolean;
+  onFormSubmit?: (text: string) => void;
+  nextUserContent?: string;
 }) {
   const taskId = message.task_id;
 
@@ -202,11 +243,19 @@ function AssistantMessage({
   return (
     <div className="w-full space-y-1.5">
       {timeline.length > 0 ? (
-        <TimelineView items={timeline} />
+        <TimelineView
+          items={timeline}
+          isStreaming={isPending}
+          onFormSubmit={onFormSubmit}
+          nextUserContent={nextUserContent}
+        />
       ) : (
-        <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-          <Markdown>{message.content}</Markdown>
-        </div>
+        <ChatContent
+          content={message.content}
+          interactive={!isPending}
+          onFormSubmit={onFormSubmit}
+          nextUserContent={nextUserContent}
+        />
       )}
       <MessageFooter
         message={message}
@@ -382,26 +431,39 @@ function FailureBubble({
 function TimelineView({
   items,
   isStreaming,
+  onFormSubmit,
+  nextUserContent,
 }: {
   items: ChatTimelineItem[];
   isStreaming?: boolean;
+  onFormSubmit?: (text: string) => void;
+  nextUserContent?: string;
 }) {
   const { preface, middle, final } = splitTimeline(items);
 
   return (
     <>
       {preface.length > 0 && (
-        <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-          <Markdown>{preface.map((t) => t.content ?? "").join("")}</Markdown>
-        </div>
+        <ChatContent
+          content={preface.map((t) => t.content ?? "").join("")}
+          interactive={!isStreaming}
+          onFormSubmit={onFormSubmit}
+          nextUserContent={nextUserContent}
+        />
       )}
       {middle.length > 0 && (
-        <OuterProcessFold items={middle} defaultOpen={!!isStreaming} />
+        <OuterProcessFold items={middle} defaultOpen={!!isStreaming}
+          onFormSubmit={onFormSubmit}
+          nextUserContent={nextUserContent}
+        />
       )}
       {final.length > 0 && (
-        <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-          <Markdown>{final.map((t) => t.content ?? "").join("")}</Markdown>
-        </div>
+        <ChatContent
+          content={final.map((t) => t.content ?? "").join("")}
+          interactive={!isStreaming}
+          onFormSubmit={onFormSubmit}
+          nextUserContent={nextUserContent}
+        />
       )}
     </>
   );
@@ -410,9 +472,13 @@ function TimelineView({
 function OuterProcessFold({
   items,
   defaultOpen,
+  onFormSubmit,
+  nextUserContent,
 }: {
   items: ChatTimelineItem[];
   defaultOpen?: boolean;
+  onFormSubmit?: (text: string) => void;
+  nextUserContent?: string;
 }) {
   const { t } = useT("chat");
   // useState seeds once at mount — subsequent renders never overwrite the
@@ -433,7 +499,10 @@ function OuterProcessFold({
         <div className="mt-1 rounded-lg border bg-muted/20 p-2 space-y-0.5">
           {items.map((item) =>
             item.type === "text" ? (
-              <MiddleTextRow key={item.seq} item={item} />
+              <MiddleTextRow key={item.seq} item={item}
+                onFormSubmit={onFormSubmit}
+                nextUserContent={nextUserContent}
+              />
             ) : (
               <ItemRow key={item.seq} item={item} />
             ),
@@ -448,10 +517,23 @@ function OuterProcessFold({
 // down-shifted (xs / muted) so it reads as part of the agent's process,
 // not the final answer — the final answer renders below the fold at full
 // prose size.
-function MiddleTextRow({ item }: { item: ChatTimelineItem }) {
+function MiddleTextRow({
+  item,
+  onFormSubmit,
+  nextUserContent,
+}: {
+  item: ChatTimelineItem;
+  onFormSubmit?: (text: string) => void;
+  nextUserContent?: string;
+}) {
   return (
-    <div className="py-0.5 text-xs text-muted-foreground prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-      <Markdown>{item.content ?? ""}</Markdown>
+    <div className="py-0.5 text-xs text-muted-foreground">
+      <ChatContent
+        content={item.content ?? ""}
+        interactive={true}
+        onFormSubmit={onFormSubmit}
+        nextUserContent={nextUserContent}
+      />
     </div>
   );
 }

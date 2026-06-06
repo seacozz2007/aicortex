@@ -357,7 +357,14 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
             {info.guide_message && !messages.some((m) => m.role === "agent") && (
               <ChatBubble role="agent" content={info.guide_message} />
             )}
-            {messages.map((msg) => (
+            {messages.map((msg, idx) => {
+              // Look ahead for form answer hydration
+              const nextMsg = idx + 1 < messages.length ? messages[idx + 1] : null;
+              const nextUserContent =
+                msg.role === "agent" && nextMsg?.role === "user"
+                  ? nextMsg.content
+                  : undefined;
+              return (
               <div key={msg.id} className="space-y-1.5">
                 {msg.thinking && (
                   <Collapsible open={expandedThinking.has(msg.id)} onOpenChange={() => toggleThinking(msg.id)}>
@@ -373,7 +380,16 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
                     </CollapsibleContent>
                   </Collapsible>
                 )}
-                {msg.content && <ChatBubble role={msg.role} content={msg.content} streaming={msg.streaming} />}
+                {msg.content && (
+                  <ChatBubble
+                    role={msg.role}
+                    content={msg.content}
+                    streaming={msg.streaming}
+                    interactive={!isRunning && !!connected}
+                    onFormSubmit={handleSend}
+                    nextUserContent={nextUserContent}
+                  />
+                )}
                 {msg.role === "agent" && !msg.streaming && msg.content && (
                   <div className="flex items-center gap-2 ml-1 text-xs text-muted-foreground">
                     {msg.elapsedMs != null && msg.elapsedMs > 0 && (
@@ -385,7 +401,7 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
                   </div>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
       </div>

@@ -1,0 +1,124 @@
+/* ── Question Form ─────────────────────────────────────────────────────── */
+
+.question-form {
+  @apply my-3 rounded-lg border bg-card/60 overflow-hidden;
+}
+
+.question-form-head {
+  @apply flex items-center gap-2.5 px-4 py-3 border-b bg-muted/30;
+}
+
+.question-form-icon {
+  @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full
+         bg-brand/10 text-brand text-xs font-bold;
+}
+
+.question-form-titles {
+  @apply min-w-0 flex-1;
+}
+
+.question-form-title {
+  @apply text-sm font-semibold;
+}
+
+.question-form-desc {
+  @apply text-xs text-muted-foreground mt-0.5;
+}
+
+.question-form-pill {
+  @apply shrink-0 rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-medium
+         text-muted-foreground;
+}
+
+.question-form-body {
+  @apply px-4 py-3 space-y-4;
+}
+
+.question-form-foot {
+  @apply flex items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20;
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────── */
+
+.qf-field {
+  @apply space-y-1.5;
+}
+
+.qf-label {
+  @apply flex items-center gap-1 text-sm font-medium;
+}
+
+.qf-required {
+  @apply text-destructive;
+}
+
+.qf-help {
+  @apply text-xs text-muted-foreground;
+}
+
+/* ── Radio / Checkbox chips ──────────────────────────────────────────── */
+
+.qf-options {
+  @apply flex flex-wrap gap-2;
+}
+
+.qf-chip {
+  @apply inline-flex cursor-pointer items-center gap-1.5 rounded-full border
+         bg-background px-3 py-1.5 text-sm transition-colors
+         hover:bg-accent hover:border-brand/50
+         focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/30
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.qf-chip-on {
+  @apply border-brand bg-brand/10 text-brand font-medium;
+}
+
+.qf-chip-disabled {
+  @apply cursor-not-allowed opacity-40;
+}
+
+.qf-chip-copy {
+  @apply flex flex-col gap-0;
+}
+
+.qf-chip-desc {
+  @apply text-[11px] text-muted-foreground;
+}
+
+/* ── Select ──────────────────────────────────────────────────────────── */
+
+.qf-select {
+  @apply w-full rounded-md border bg-background px-3 py-1.5 text-sm
+         focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand;
+}
+
+/* ── Text input ──────────────────────────────────────────────────────── */
+
+.qf-input {
+  @apply w-full rounded-md border bg-background px-3 py-1.5 text-sm
+         placeholder:text-muted-foreground
+         focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand;
+}
+
+.qf-textarea {
+  @apply w-full rounded-md border bg-background px-3 py-1.5 text-sm resize-y
+         placeholder:text-muted-foreground
+         focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+
+.qf-hint {
+  @apply text-xs text-muted-foreground;
+}
+
+.qf-submit-btn {
+  @apply inline-flex items-center justify-center rounded-md bg-brand px-4 py-1.5
+         text-sm font-medium text-brand-foreground transition-colors
+         hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.qf-locked-note {
+  @apply text-xs text-muted-foreground italic;
+}

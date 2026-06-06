@@ -92,6 +92,17 @@
     "aria_stop": "停止共享当前页面",
     "aria_start": "把当前页面共享给 AICortex"
   },
+  "question_form": {
+    "answered": "已回答",
+    "required": "必填",
+    "choose": "请选择...",
+    "hint": "你的回答将作为消息发送。",
+    "submit_default": "继续",
+    "submit_title": "发送你的回答",
+    "submit_disabled_title": "请先回答所有必填问题",
+    "locked_submitted": "你已经回答了这些问题。",
+    "locked_prev": "此表单来自之前的对话轮次，已不再可用。"
+  },
   "no_agent_banner": "需要先有一个Agent才能开始对话。",
   "offline_banner": {
     "fallback_name": "Agent",

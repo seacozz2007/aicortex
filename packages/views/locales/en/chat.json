@@ -96,6 +96,17 @@
     "aria_stop": "Stop sharing current page",
     "aria_start": "Share current page with AICortex"
   },
+  "question_form": {
+    "answered": "Answered",
+    "required": "Required",
+    "choose": "Choose...",
+    "hint": "Your answers will be sent as a message.",
+    "submit_default": "Continue",
+    "submit_title": "Send your answers",
+    "submit_disabled_title": "Answer all required questions first",
+    "locked_submitted": "You already answered these questions.",
+    "locked_prev": "This form is from a previous turn and is no longer active."
+  },
   "no_agent_banner": "You need an agent to start chatting.",
   "offline_banner": {
     "fallback_name": "the agent",
