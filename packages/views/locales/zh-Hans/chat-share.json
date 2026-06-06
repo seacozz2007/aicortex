@@ -1,0 +1,56 @@
+{
+  "management": {
+    "title": "聊天分享链接",
+    "description": "创建公开分享链接，让任何人可以与你的 Agent 对话。",
+    "empty": "暂无分享链接。",
+    "create": "创建分享链接",
+    "edit": "编辑分享链接",
+    "delete": "删除",
+    "delete_confirm": "确定要删除这个分享链接吗？此操作不可撤销。",
+    "copy_link": "复制链接",
+    "copied": "已复制！",
+    "status_active": "生效中",
+    "status_disabled": "已禁用",
+    "status_expired": "已过期",
+    "status_max_reached": "已达上限",
+    "table": {
+      "title": "标题",
+      "agent": "Agent",
+      "token": "标识",
+      "uses": "使用次数",
+      "expires": "过期时间",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "form": {
+      "title_label": "标题",
+      "title_placeholder": "例如：技术支持",
+      "agent_label": "Agent",
+      "agent_placeholder": "选择一个 Agent…",
+      "guide_message_label": "引导消息",
+      "guide_message_placeholder": "展示给访客的第一条消息（可选）",
+      "expires_label": "过期时间",
+      "never_expire": "永不过期",
+      "max_uses_label": "使用次数限制",
+      "max_uses_placeholder": "留空表示无限制",
+      "allow_new_sessions_label": "允许访客创建多个对话",
+      "allow_new_sessions_description": "开启后，每个访客可以新建多个独立对话。关闭后，访客每次打开都回到同一个对话。",
+      "create_success": "分享链接已创建！",
+      "update_success": "分享链接已更新！"
+    }
+  },
+  "public": {
+    "loading": "加载中…",
+    "disconnected": "已断开连接",
+    "reconnecting": "重新连接中…",
+    "agent_default_name": "AI Agent",
+    "thinking": "思考中",
+    "new_session": "新建对话",
+    "send_tooltip": "发送消息",
+    "stop_tooltip": "停止生成",
+    "status_expired": "此分享链接已过期。",
+    "status_disabled": "此分享链接已被禁用。",
+    "status_max_reached": "此分享链接已达到使用次数上限。",
+    "status_invalid": "此分享链接不可用。"
+  }
+}

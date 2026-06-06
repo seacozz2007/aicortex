@@ -62,6 +62,9 @@ import type {
   ChatPendingTask,
   PendingChatTasksResponse,
   SendChatMessageResponse,
+  ChatShareLink,
+  CreateChatShareLinkParams,
+  UpdateChatShareLinkParams,
   Project,
   CreateProjectRequest,
   UpdateProjectRequest,
@@ -1337,6 +1340,37 @@ export class ApiClient {
 
   async markChatSessionRead(sessionId: string): Promise<void> {
     await this.fetch(`/api/chat/sessions/${sessionId}/read`, { method: "POST" });
+  }
+
+  // ── Chat Share Links ────────────────────────────────────────────
+
+  async createChatShareLink(data: CreateChatShareLinkParams): Promise<ChatShareLink> {
+    return this.fetch("/api/chat/share-links", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listChatShareLinks(): Promise<ChatShareLink[]> {
+    return this.fetch("/api/chat/share-links");
+  }
+
+  async getChatShareLink(id: string): Promise<ChatShareLink> {
+    return this.fetch(`/api/chat/share-links/${id}`);
+  }
+
+  async updateChatShareLink(
+    id: string,
+    data: UpdateChatShareLinkParams,
+  ): Promise<ChatShareLink> {
+    return this.fetch(`/api/chat/share-links/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChatShareLink(id: string): Promise<void> {
+    await this.fetch(`/api/chat/share-links/${id}`, { method: "DELETE" });
   }
 
   async cancelTaskById(taskId: string): Promise<void> {

@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Bell,
   Plug,
+  Share2,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@aicortex/ui/components/ui/tabs";
 import { useCurrentWorkspace } from "@aicortex/core/paths";
@@ -24,6 +25,7 @@ import { RepositoriesTab } from "./repositories-tab";
 import { IntegrationsTab } from "./integrations-tab";
 import { LabsTab } from "./labs-tab";
 import { NotificationsTab } from "./notifications-tab";
+import { ChatShareManagementPage } from "../../chat-share/ChatShareManagementPage";
 import { useT } from "../../i18n";
 
 const ACCOUNT_TAB_KEYS = ["profile", "preferences", "notifications", "tokens"] as const;
@@ -34,13 +36,14 @@ const ACCOUNT_TAB_ICONS = {
   tokens: Key,
 } as const;
 
-const WORKSPACE_TAB_KEYS = ["general", "repositories", "integrations", "labs", "members"] as const;
+const WORKSPACE_TAB_KEYS = ["general", "repositories", "integrations", "labs", "members", "chat-share"] as const;
 const WORKSPACE_TAB_VALUES = {
   general: "workspace",
   repositories: "repositories",
   integrations: "integrations",
   labs: "labs",
   members: "members",
+  "chat-share": "chat-share",
 } as const;
 const WORKSPACE_TAB_ICONS = {
   general: Settings,
@@ -48,6 +51,7 @@ const WORKSPACE_TAB_ICONS = {
   integrations: Plug,
   labs: FlaskConical,
   members: Users,
+  "chat-share": Share2,
 } as const;
 
 const DEFAULT_TAB = "profile";
@@ -154,6 +158,7 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
           <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
           <TabsContent value="labs"><LabsTab /></TabsContent>
           <TabsContent value="members"><MembersTab /></TabsContent>
+          <TabsContent value="chat-share"><ChatShareManagementPage /></TabsContent>
           {extraAccountTabs?.map((tab) => (
             <TabsContent key={tab.value} value={tab.value}>{tab.content}</TabsContent>
           ))}

@@ -135,6 +135,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// (invalidate). DaemonTokenCache backs the DaemonAuth mdt_ path. Both
 	// constructors return nil when rdb is nil — every consumer handles that
 	// as "no cache, always hit DB".
+	// Chat share public handler (unauthenticated).
+	chatSharePublic := handler.NewChatSharePublicHandler(queries, h.TaskService, bus, store)
+
 	patCache := auth.NewPATCache(rdb)
 	daemonTokenCache := auth.NewDaemonTokenCache(rdb)
 	h.PATCache = patCache
@@ -257,6 +260,14 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	r.Post("/auth/verify-code", h.VerifyCode)
 	r.Post("/auth/google", h.GoogleLogin)
 	r.Post("/auth/logout", h.Logout)
+
+	// Chat share public endpoints (unauthenticated, token-based).
+	r.Get("/e/{token}", chatSharePublic.HandleGetInfo)
+	r.Get("/e/{token}/sessions", chatSharePublic.HandleListSessions)
+	r.Post("/e/{token}/sessions", chatSharePublic.HandleCreateSession)
+	r.Get("/e/{token}/sessions/{id}/messages", chatSharePublic.HandleGetMessages)
+	r.Get("/e/{token}/ws", chatSharePublic.HandleWebSocket)
+	r.Post("/e/{token}/upload", chatSharePublic.HandleUpload)
 
 	// Public API
 	r.Get("/api/config", h.GetConfig)
@@ -610,6 +621,15 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/messages", h.ListChatMessages)
 					r.Get("/pending-task", h.GetPendingChatTask)
 					r.Post("/read", h.MarkChatSessionRead)
+				})
+			})
+			r.Route("/api/chat/share-links", func(r chi.Router) {
+				r.Post("/", h.CreateChatShareLink)
+				r.Get("/", h.ListChatShareLinks)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetChatShareLink)
+					r.Patch("/", h.UpdateChatShareLink)
+					r.Delete("/", h.DeleteChatShareLink)
 				})
 			})
 			r.Get("/api/chat/pending-tasks", h.ListPendingChatTasks)

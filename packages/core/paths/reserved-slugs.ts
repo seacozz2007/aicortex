@@ -39,6 +39,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // `/homepage` landing variant in apps/web.
   "api",
   "admin",
+  "e",
   "aicortex",
   "www",
   "new",

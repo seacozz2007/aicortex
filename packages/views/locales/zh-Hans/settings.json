@@ -26,7 +26,8 @@
       "repositories": "代码仓库",
       "integrations": "集成",
       "labs": "实验室",
-      "members": "成员"
+      "members": "成员",
+      "chat-share": "聊天分享"
     }
   },
   "account": {
