@@ -3,12 +3,6 @@
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
 ENV_FILE ?= $(if $(wildcard $(MAIN_ENV_FILE)),$(MAIN_ENV_FILE),$(if $(wildcard $(WORKTREE_ENV_FILE)),$(WORKTREE_ENV_FILE),$(MAIN_ENV_FILE)))
-# BASH_ENV ensures non-interactive bash (e.g. Git Bash on Windows) loads ~/.bashrc PATH.
-# Only set on Windows — Linux bash may inherit a broken PATH from user's .bashrc.
-ifeq ($(OS),Windows_NT)
-BASH_ENV ?= "$(HOME)/.bashrc"
-export BASH_ENV
-endif
 
 ifneq ($(wildcard $(ENV_FILE)),)
 include $(ENV_FILE)
