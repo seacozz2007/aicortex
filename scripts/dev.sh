@@ -128,17 +128,16 @@ fi
 
 echo "==> Using $ENV_FILE"
 
-# Convert .env to Unix line endings before sourcing — WSL bash chokes on
-# embedded \r from Windows CRLF files.
-_env_tmp=$(mktemp)
-trap 'rm -f "$_env_tmp"' EXIT
-tr -d '\r' < "$ENV_FILE" > "$_env_tmp"
+# Source .env robustly — MSYS2 I/O translation makes tr/sed unreliable
+# for CRLF stripping. Using cat + process substitution ensures consistent
+# text-mode I/O so \r is handled transparently.
 set -a
-# shellcheck disable=SC1090
-. "$_env_tmp"
+while IFS='=' read -r key value; do
+  key="${key#export }"
+  [[ -z "$key" || "$key" == \#* ]] && continue
+  export "$key=$value"
+done < <(cat "$ENV_FILE"; echo)
 set +a
-trap - EXIT
-rm -f "$_env_tmp"
 
 # ---------- Install dependencies ----------
 if [ ! -d node_modules ]; then
