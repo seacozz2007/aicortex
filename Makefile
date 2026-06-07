@@ -259,7 +259,7 @@ check-worktree: ## Run the full verification pipeline for this worktree
 ##@ Individual commands
 
 dev: ## Bootstrap this checkout end-to-end: create env if needed, ensure DB, migrate, start services
-	@"C:\Program Files\Git\usr\bin\bash.exe" scripts/dev.sh
+	@bash scripts/dev.sh
 
 server: ## Run only the Go server for the current checkout
 	$(REQUIRE_ENV)

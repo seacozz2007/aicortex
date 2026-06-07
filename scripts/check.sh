@@ -14,8 +14,15 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 set -a
-# shellcheck disable=SC1090
-. "$ENV_FILE"
+# Source .env robustly — handle CRLF line endings that MSYS2 preserves
+# during source (. ) but strips during file redirection.
+while IFS='=' read -r key value; do
+  key="${key#export }"
+  key="${key%$'\r'}"
+  value="${value%$'\r'}"
+  [[ -z "$key" || "$key" == \#* ]] && continue
+  export "$key=$value"
+done < <(cat "$ENV_FILE"; echo)
 set +a
 
 POSTGRES_DB="${POSTGRES_DB:-aicortex}"
