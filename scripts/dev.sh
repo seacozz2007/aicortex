@@ -84,11 +84,14 @@ if command -v where.exe >/dev/null 2>&1; then
 fi
 
 # ---------- Check prerequisites ----------
+# WSL bash's command -v doesn't auto-append .exe, so try the
+# bare name first, then fall back to .exe and .cmd suffixes.
+_check_tool() { command -v "$1" >/dev/null 2>&1 || command -v "${1}.exe" >/dev/null 2>&1 || command -v "${1}.cmd" >/dev/null 2>&1; }
 missing=()
-command -v node >/dev/null 2>&1 || missing+=("node")
-command -v pnpm >/dev/null 2>&1 || missing+=("pnpm")
-command -v go >/dev/null 2>&1 || missing+=("go")
-command -v docker >/dev/null 2>&1 || missing+=("docker")
+_check_tool node   || missing+=("node")
+_check_tool pnpm   || missing+=("pnpm")
+_check_tool go     || missing+=("go")
+_check_tool docker || missing+=("docker")
 
 if [ ${#missing[@]} -gt 0 ]; then
   echo "✗ Missing prerequisites: ${missing[*]}"
