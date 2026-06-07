@@ -9,13 +9,15 @@ cd "$REPO_ROOT"
 # shells. Add common tool locations so the prerequisite check below passes.
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
-    # Resolve known Windows tool paths via their MSYS2 /c/ equivalents
+    # Resolve known Windows tool paths.
+    # Use C:/... (not /c/...) syntax — MSYS2 path translation may be absent when
+    # bash is spawned from a non-MSYS2 parent (e.g. GnuWin32 make from PowerShell).
     for _try in \
-      "/c/Program Files/nodejs" \
-      "/c/Program Files/Docker/Docker/resources/bin" \
-      "/c/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
-      "/c/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
-      "/c/Program Files (x86)/GnuWin32/bin"; do
+      "C:/Program Files/nodejs" \
+      "C:/Program Files/Docker/Docker/resources/bin" \
+      "C:/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
+      "C:/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
+      "C:/Program Files (x86)/GnuWin32/bin"; do
       [ -d "$_try" ] && PATH="${_try}:${PATH}"
     done
     # Restore the Go binary path from GOROOT if set
@@ -24,6 +26,22 @@ case "$(uname -s)" in
     fi
     ;;
 esac
+
+# ---------- Windows PATH fallback via cmd.exe / where ----------
+# If the hardcoded paths above didn't cover the user's install locations,
+# ask cmd.exe to resolve the tool paths from the Windows system PATH.
+_find_in_windows_path() {
+  local _tool="$1"
+  local _path
+  _path=$(cmd.exe /c "where $_tool" 2>/dev/null | head -1 | tr -d '\r')
+  [ -n "$_path" ] && [ -f "$_path" ] && PATH="$(dirname "$_path"):${PATH}"
+}
+if command -v cmd.exe >/dev/null 2>&1; then
+  command -v node  >/dev/null 2>&1 || _find_in_windows_path node.exe
+  command -v pnpm  >/dev/null 2>&1 || _find_in_windows_path pnpm.cmd
+  command -v go    >/dev/null 2>&1 || _find_in_windows_path go.exe
+  command -v docker>/dev/null 2>&1 || _find_in_windows_path docker.exe
+fi
 
 # ---------- Check prerequisites ----------
 missing=()
