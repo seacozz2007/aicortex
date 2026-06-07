@@ -5,7 +5,9 @@ import { Check, Copy, Terminal } from "lucide-react";
 import { useLocale } from "../../i18n";
 
 const INSTALL_CMD =
-  "curl -fsSL https://raw.githubusercontent.com/aicortex/aicortex/main/scripts/install.sh | bash";
+  "curl -fsSL https://gitee.com/seacozz2007/aicortex-release/raw/main/install.sh | sh";
+const WIN_INSTALL_CMD =
+  "irm https://gitee.com/seacozz2007/aicortex-release/raw/main/install.ps1 | iex";
 const SETUP_CMD = "aicortex setup";
 
 /**
@@ -29,8 +31,14 @@ export function CliSection() {
 
         <div className="mt-10 flex flex-col gap-5">
           <CommandBlock
-            label={d.installLabel}
+            label={d.macosLinuxLabel}
             cmd={INSTALL_CMD}
+            copyLabel={d.copyLabel}
+            copiedLabel={d.copiedLabel}
+          />
+          <CommandBlock
+            label={d.windowsLabel}
+            cmd={WIN_INSTALL_CMD}
             copyLabel={d.copyLabel}
             copiedLabel={d.copiedLabel}
           />

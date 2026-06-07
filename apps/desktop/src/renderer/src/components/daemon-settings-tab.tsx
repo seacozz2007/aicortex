@@ -125,7 +125,7 @@ export function DaemonSettingsTab() {
               className="mt-2"
               onClick={() =>
                 window.desktopAPI.openExternal(
-                  "https://github.com/aicortex/aicortex#cli-installation",
+                  "https://gitee.com/seacozz2007/aicortex-release",
                 )
               }
             >

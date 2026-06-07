@@ -17,7 +17,7 @@ import type { LatestRelease } from "@/features/landing/utils/github-release";
 import { captureDownloadPageViewed } from "@aicortex/core/analytics";
 
 const ALL_RELEASES_URL =
-  "https://github.com/aicortex/aicortex/releases";
+  "https://gitee.com/seacozz2007/aicortex-release";
 
 export function DownloadClient({ release }: { release: LatestRelease }) {
   const [detected, setDetected] = useState<DetectResult | null>(null);

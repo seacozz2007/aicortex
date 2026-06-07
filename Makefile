@@ -291,21 +291,42 @@ build: ## Build the server, CLI, and migrate binaries into server/bin
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/aicortex ./cmd/aicortex
 	cd server && go build -o bin/migrate ./cmd/migrate
 
-release-cli: ## Build CLI binary to release/win/{VERSION}/aicortex.exe
-	mkdir -p release/win/$(VERSION)
-	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/win/$(VERSION)/aicortex.exe ./cmd/aicortex
+release-cli: ## Build CLI binary for the current platform
+	mkdir -p "release/$(shell go env GOOS)/$(VERSION)"
+	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/$(shell go env GOOS)/$(VERSION)/aicortex$(shell go env GOEXE) ./cmd/aicortex
+	@echo "Built: release/$(shell go env GOOS)/$(VERSION)/aicortex$(shell go env GOEXE)"
+
+release-all: release-cli-win release-cli-linux release-cli-mac ## Build CLI for win/linux/mac
+
+release-cli-win:
+	cd server && GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/win/$(VERSION)/aicortex.exe ./cmd/aicortex
 	@echo "Built: release/win/$(VERSION)/aicortex.exe"
+
+release-cli-linux:
+	cd server && GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/linux/$(VERSION)/aicortex ./cmd/aicortex
+	@echo "Built: release/linux/$(VERSION)/aicortex"
+
+release-cli-mac:
+	cd server && GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/mac/$(VERSION)/aicortex ./cmd/aicortex
+	@echo "Built: release/mac/$(VERSION)/aicortex"
 
 RELEASE_REPO ?=
 RELEASE_DIR ?= .release-repo
 
-release-publish: release-cli ## Build + push CLI binary to public releases repo
+release-publish: release-all ## Build all + push to public releases repo
 	@test -n "$(RELEASE_REPO)" || { echo "Set RELEASE_REPO=<url>"; exit 1; }
 	test -d "$(RELEASE_DIR)" || git clone "$(RELEASE_REPO)" "$(RELEASE_DIR)"
-	mkdir -p "$(RELEASE_DIR)/win/$(VERSION)"
-	cp release/win/$(VERSION)/aicortex.exe "$(RELEASE_DIR)/win/$(VERSION)/"
-	cd "$(RELEASE_DIR)" && git add win/$(VERSION) && git commit -m "release aicortex $(VERSION)" && git push
-	@echo "Published: $(RELEASE_REPO)/win/$(VERSION)/aicortex.exe"
+	for os in win linux mac; do \
+	  src="release/$$os/$(VERSION)"; \
+	  if [ -d "$$src" ]; then \
+	    mkdir -p "$(RELEASE_DIR)/$$os/$(VERSION)"; \
+	    cp -r "$$src/." "$(RELEASE_DIR)/$$os/$(VERSION)/"; \
+	    rm -rf "$(RELEASE_DIR)/$$os/latest"; \
+	    cp -r "$$src" "$(RELEASE_DIR)/$$os/latest"; \
+	  fi; \
+	done
+	cd "$(RELEASE_DIR)" && git add -A && git commit -m "release aicortex $(VERSION)" && git push
+	@echo "Published to $(RELEASE_REPO)"
 
 prod: ## Production build and start (install, build, migrate, launch server + web)
 	$(REQUIRE_ENV)
