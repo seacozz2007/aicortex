@@ -310,7 +310,7 @@ release-cli-mac:
 	cd server && GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/mac/$(VERSION)/aicortex ./cmd/aicortex
 	@echo "Built: release/mac/$(VERSION)/aicortex"
 
-RELEASE_REPO ?=
+RELEASE_REPO ?= https://gitee.com/seacozz2007/aicortex-release.git
 RELEASE_DIR ?= .release-repo
 
 release-publish: release-all ## Build all + push to public releases repo
