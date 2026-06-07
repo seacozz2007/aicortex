@@ -296,7 +296,17 @@ release-cli: ## Build CLI binary for the current platform
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/$(shell go env GOOS)/$(VERSION)/aicortex$(shell go env GOEXE) ./cmd/aicortex
 	@echo "Built: release/$(shell go env GOOS)/$(VERSION)/aicortex$(shell go env GOEXE)"
 
-release-all: release-cli-win release-cli-linux release-cli-mac ## Build CLI for win/linux/mac
+release-all: release-cli-win release-cli-linux release-cli-mac release-latest ## Build CLI for win/linux/mac + update latest/
+
+release-latest: ## Copy versioned builds to release/{os}/latest/
+	for os in win linux mac; do \
+	  src="release/$$os/$(VERSION)"; \
+	  if [ -d "$$src" ]; then \
+	    rm -rf "release/$$os/latest"; \
+	    cp -r "$$src" "release/$$os/latest"; \
+	    echo "  latest/$$os  <-  $(VERSION)"; \
+	  fi; \
+	done
 
 release-cli-win:
 	cd server && GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/win/$(VERSION)/aicortex.exe ./cmd/aicortex
