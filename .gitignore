@@ -61,3 +61,6 @@ data/
 .idea
 
 demo/
+
+# Build artifacts
+release/
