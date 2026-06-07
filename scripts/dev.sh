@@ -10,13 +10,19 @@ cd "$REPO_ROOT"
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
     # Resolve known Windows tool paths.
-    # Use C:/... (not /c/...) syntax — MSYS2 path translation may be absent when
-    # bash is spawned from a non-MSYS2 parent (e.g. GnuWin32 make from PowerShell).
+    # Try both /c/... and C:/... formats — MSYS2 path translation may be
+    # partially absent when bash is spawned from a non-MSYS2 parent
+    # (e.g. GnuWin32 make from PowerShell).
     for _try in \
+      "/c/Program Files/nodejs" \
       "C:/Program Files/nodejs" \
+      "/c/Program Files/Docker/Docker/resources/bin" \
       "C:/Program Files/Docker/Docker/resources/bin" \
+      "/c/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
       "C:/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
+      "/c/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
       "C:/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
+      "/c/Program Files (x86)/GnuWin32/bin" \
       "C:/Program Files (x86)/GnuWin32/bin"; do
       [ -d "$_try" ] && PATH="${_try}:${PATH}"
     done
@@ -32,20 +38,22 @@ esac
 # ask cmd.exe to resolve the tool paths from the Windows system PATH.
 _find_in_windows_path() {
   local _tool="$1"
-  local _path _dir
+  local _path _dir _drive
   # Use where.exe directly (not cmd.exe /c) to avoid MSYS2 argument
   # path translation mangling the /c flag into C:\.
   _path=$(where.exe "$_tool" 2>/dev/null | head -1 | tr -d '\r')
   [ -n "$_path" ] || return 1
-  # Convert backslashes to forward slashes so MSYS2 bash can
-  # handle the path (cygpath -u may fail when bash is spawned
-  # from a non-MSYS2 parent like GnuWin32 make).
-  # This turns "C:\Program Files\nodejs\node.exe" into
-  # "C:/Program Files/nodejs/node.exe" which MSYS2 [ -f ] accepts.
-  _path="${_path//\\/\/}"
-  [ -f "$_path" ] || return 1
+  # Convert to canonical MSYS2 path: C:\Program Files\nodejs\node.exe
+  # → /c/Program Files/nodejs/node.exe. This avoids relying on MSYS2's
+  # X:/ PATH handling which may not work when bash is spawned from a
+  # non-MSYS2 parent (GnuWin32 make from PowerShell).
+  _path="${_path//\\/\/}"          # backslash → forward slash
+  _drive="${_path:0:1}"           # drive letter
+  _path="/${_drive,,}${_path:2}"  # / + lowercase drive + rest after :
   _dir="$(dirname "$_path")"
   PATH="${_dir}:${PATH}"
+  # Verify the tool is actually reachable via PATH now
+  command -v "${_tool%.exe}" >/dev/null 2>&1
 }
 if command -v where.exe >/dev/null 2>&1; then
   command -v node  >/dev/null 2>&1 || _find_in_windows_path node.exe
