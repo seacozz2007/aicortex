@@ -89,6 +89,10 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   const visitorId = useMemo(() => getVisitorId(), []);
+  const sessionStorageKey = `aicortex_share_session:${token}:${visitorId}`;
+  const savedSessionId = useMemo(() => {
+    try { return localStorage.getItem(sessionStorageKey); } catch { return null; }
+  }, [sessionStorageKey]);
   const agentName = info.agent_name ?? t(($) => $.public.agent_default_name);
 
   useAutoScroll(scrollRef);
@@ -102,7 +106,6 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
     (async () => {
       try {
         if (info.allow_new_sessions) {
-          // List existing sessions
           const res = await fetch(`${apiBase}/e/${token}/sessions?visitor_id=${visitorId}`);
           const data = await res.json();
           if (data.sessions?.length > 0) {
@@ -111,7 +114,13 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
             return;
           }
         }
-        // Create a session (first-time or single-session mode)
+        // Reuse saved session from localStorage if available (survives server restart).
+        if (savedSessionId) {
+          try { localStorage.setItem(sessionStorageKey, savedSessionId); } catch {}
+          setActiveSessionId(savedSessionId);
+          return;
+        }
+        // Create a new session.
         const createRes = await fetch(`${apiBase}/e/${token}/sessions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -119,6 +128,7 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
         });
         const createData = await createRes.json();
         if (createData.id) {
+          try { localStorage.setItem(sessionStorageKey, createData.id); } catch {}
           setActiveSessionId(createData.id);
           if (info.allow_new_sessions) {
             setSessions([{ id: createData.id, title: "Chat" }]);
@@ -267,6 +277,7 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content }]);
     wsRef.current.send(JSON.stringify({
       visitor_id: visitorId,
+      session_id: activeSessionId,
       message: content,
       attachment_ids: attachmentIds ?? [],
     }));
@@ -441,11 +452,13 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
         )}
         {/* Status pill — shows "思考中 · 3s" while agent is working */}
         {pendingTask && (
-          <TaskStatusPill
-            pendingTask={pendingTask}
-            taskMessages={liveTaskMessages}
-            availability={undefined}
-          />
+          <div className="flex justify-start ml-2.5">
+            <TaskStatusPill
+              pendingTask={pendingTask}
+              taskMessages={liveTaskMessages}
+              availability={undefined}
+            />
+          </div>
         )}
       </div>
 

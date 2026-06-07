@@ -366,6 +366,7 @@ var publicUpgrader = websocket.Upgrader{
 // ChatShareWSIncoming is the message format from the public client.
 type ChatShareWSIncoming struct {
 	VisitorID     string   `json:"visitor_id"`
+	SessionID     string   `json:"session_id,omitempty"`
 	Message       string   `json:"message"`
 	AttachmentIDs []string `json:"attachment_ids"`
 }
@@ -440,18 +441,47 @@ func (h *ChatSharePublicHandler) handleVisitorMessage(
 		return
 	}
 
-	cs, err := h.getOrCreateChatSession(ctx, link, msg.VisitorID)
-	if err != nil {
-		slog.Error("chat share: ws get/create session failed", "error", err)
-		h.WSHub.SendToToken(token, ChatShareWSOutgoing{
-			Type:  "error",
-			Error: "Failed to initialize chat session.",
-		})
-		return
+	var cs db.ChatSession
+	// When the client sends a session_id, try to reuse it first.
+	// This preserves sessions across server restarts where the
+	// in-memory cache is cleared.
+	if msg.SessionID != "" {
+		csUUID, parseErr := parsePublicUUID(msg.SessionID)
+		if parseErr == nil {
+			existing, getErr := h.Queries.GetChatSession(ctx, csUUID)
+			// Verify session belongs to the same workspace and agent as the link.
+			if getErr == nil &&
+				uuidToString(existing.WorkspaceID) == uuidToString(link.WorkspaceID) &&
+				uuidToString(existing.AgentID) == uuidToString(link.AgentID) {
+				cs = existing
+			}
+		}
+	}
+	if cs.ID == (pgtype.UUID{}) {
+		cs2, createErr := h.getOrCreateChatSession(ctx, link, msg.VisitorID)
+		if createErr != nil {
+			slog.Error("chat share: ws get/create session failed", "error", createErr)
+			h.WSHub.SendToToken(token, ChatShareWSOutgoing{
+				Type:  "error",
+				Error: "Failed to initialize chat session.",
+			})
+			return
+		}
+		cs = cs2
+		// Restore the cached mapping so forwardTaskMessage can route events.
+		h.smMu.Lock()
+		if h.sessionMap[token] == nil {
+			h.sessionMap[token] = make(map[string]pgtype.UUID)
+		}
+		h.sessionMap[token][msg.VisitorID] = cs.ID
+		h.smMu.Unlock()
+		h.rmMu.Lock()
+		h.reverseMap[uuidToString(cs.ID)] = chatShareSessionKey{Token: token, VisitorID: msg.VisitorID}
+		h.rmMu.Unlock()
 	}
 
 	// Persist user message.
-	_, err = h.Queries.CreateChatMessage(ctx, db.CreateChatMessageParams{
+	_, err := h.Queries.CreateChatMessage(ctx, db.CreateChatMessageParams{
 		ChatSessionID: cs.ID,
 		Role:          "user",
 		Content:       msg.Message,
