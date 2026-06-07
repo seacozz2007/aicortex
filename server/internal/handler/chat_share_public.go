@@ -578,6 +578,27 @@ func (h *ChatSharePublicHandler) getOrCreateChatSession(
 		}
 	}
 
+	// Slow path: query the DB for an existing session by title.
+		// The title embeds the visitor ID so sessions survive server restarts.
+		sessionTitle := link.Title + " - " + visitorID
+		rows, dbErr := h.Queries.ListChatSessionsByCreator(ctx, db.ListChatSessionsByCreatorParams{
+			WorkspaceID: link.WorkspaceID,
+			CreatorID:   link.CreatedBy,
+		})
+		if dbErr == nil {
+			for _, row := range rows {
+				if row.Title == sessionTitle {
+					cs, err := h.Queries.GetChatSession(ctx, row.ID)
+					if err == nil {
+						// Cache it for future lookups.
+						h.sessionMap[link.Token] = map[string]pgtype.UUID{visitorID: cs.ID}
+						h.reverseMap[uuidToString(cs.ID)] = chatShareSessionKey{Token: link.Token, VisitorID: visitorID}
+						return cs, nil
+					}
+				}
+			}
+		}
+
 	// Resolve creator user ID from the member who created the share link.
 	member, err := h.Queries.GetMember(ctx, link.CreatedBy)
 	if err != nil {
