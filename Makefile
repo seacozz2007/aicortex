@@ -259,7 +259,14 @@ check-worktree: ## Run the full verification pipeline for this worktree
 ##@ Individual commands
 
 dev: ## Bootstrap this checkout end-to-end: create env if needed, ensure DB, migrate, start services
-	@bash scripts/dev.sh
+	@bash="$$(command -v bash)"; \
+	if [ -f "C:/Program Files/Git/usr/bin/bash.exe" ]; then \
+	  "C:/Program Files/Git/usr/bin/bash.exe" scripts/dev.sh; \
+	elif [ -f "/c/Program Files/Git/usr/bin/bash.exe" ]; then \
+	  "/c/Program Files/Git/usr/bin/bash.exe" scripts/dev.sh; \
+	else \
+	  $$bash scripts/dev.sh; \
+	fi
 
 server: ## Run only the Go server for the current checkout
 	$(REQUIRE_ENV)

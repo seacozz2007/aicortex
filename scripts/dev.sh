@@ -119,7 +119,9 @@ echo "==> Using $ENV_FILE"
 
 set -a
 # shellcheck disable=SC1090
-. "$ENV_FILE"
+# Strip \r from .env (Windows CRLF) before sourcing — some bash flavors
+# like WSL's /bin/bash choke on embedded carriage returns.
+. <(tr -d '\r' < "$ENV_FILE")
 set +a
 
 # ---------- Install dependencies ----------
