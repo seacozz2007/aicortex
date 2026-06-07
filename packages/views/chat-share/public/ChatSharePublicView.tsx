@@ -429,18 +429,15 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
             );})}
           </div>
         )}
-      </div>
-
-      {/* Status pill — shows "思考中 · 3s" etc. while agent is working */}
-      {pendingTask && (
-        <div className="px-5 pb-1">
+        {/* Status pill — shows "思考中 · 3s" while agent is working */}
+        {pendingTask && (
           <TaskStatusPill
             pendingTask={pendingTask}
             taskMessages={liveTaskMessages}
             availability={undefined}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Input */}
       <ChatInput
