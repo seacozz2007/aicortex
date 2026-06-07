@@ -36,11 +36,12 @@ _find_in_windows_path() {
   # Use where.exe directly (not cmd.exe /c) to avoid MSYS2 argument
   # path translation mangling the /c flag into C:\.
   _path=$(where.exe "$_tool" 2>/dev/null | head -1 | tr -d '\r')
-  [ -n "$_path" ] && [ -f "$_path" ] || return 1
-  # Convert to MSYS2 path (/c/...) so the colon in "C:\" doesn't break
-  # the colon-separated PATH variable.
-  _dir="$(dirname "${_path//\\/\/}")"
-  _dir=$(cygpath -u "$_dir" 2>/dev/null || echo "$_dir")
+  [ -n "$_path" ] || return 1
+  # Convert to MSYS2 path (/c/...) BEFORE -f check, because MSYS2 bash
+  # does not accept Windows backslash paths in [ -f ... ].
+  _path=$(cygpath -u "$_path" 2>/dev/null || echo "$_path")
+  [ -f "$_path" ] || return 1
+  _dir="$(dirname "$_path")"
   PATH="${_dir}:${PATH}"
 }
 if command -v where.exe >/dev/null 2>&1; then
