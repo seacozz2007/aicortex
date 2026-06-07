@@ -130,6 +130,21 @@ func (d *Daemon) runTaskWakeupConnection(ctx context.Context, runtimeIDs []strin
 	})
 	defer d.terminalMgr.SetSendFunc(nil)
 
+	if d.tunnelProxy != nil {
+		d.tunnelProxy.SetSendFunc(func(msg protocol.Message) {
+			frame, err := json.Marshal(msg)
+			if err != nil {
+				return
+			}
+			select {
+			case writes <- frame:
+			default:
+				d.logger.Debug("tunnel ws write dropped (buffer full)")
+			}
+		})
+		defer d.tunnelProxy.SetSendFunc(nil)
+	}
+
 	heartbeatCtx, cancelHeartbeat := context.WithCancel(ctx)
 	hbDone := make(chan struct{})
 	go func() {
@@ -349,6 +364,15 @@ func (d *Daemon) readTaskWakeupMessages(conn *websocket.Conn, taskWakeups chan<-
 			}
 			if d.terminalMgr != nil {
 				d.terminalMgr.HandleClose(payload)
+			}
+		case protocol.EventTunnelRequest:
+			var payload protocol.TunnelRequestPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				d.logger.Debug("tunnel request invalid payload", "error", err)
+				continue
+			}
+			if d.tunnelProxy != nil {
+				d.tunnelProxy.HandleRequest(payload)
 			}
 		}
 	}

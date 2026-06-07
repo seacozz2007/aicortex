@@ -22,6 +22,7 @@ import type {
   AgentActivityBucket,
   AgentRunCount,
   AgentRuntime,
+  RuntimeTunnel,
   InboxItem,
   IssueSubscriber,
   Comment,
@@ -818,6 +819,26 @@ export class ApiClient {
     await this.fetch(`/api/runtimes/${runtimeId}`, { method: "DELETE" });
   }
 
+  async listRuntimeTunnels(runtimeId: string): Promise<RuntimeTunnel[]> {
+    return this.fetch(`/api/runtimes/${runtimeId}/tunnels`);
+  }
+
+  async createRuntimeTunnel(
+    runtimeId: string,
+    data: { port: number; title?: string },
+  ): Promise<RuntimeTunnel> {
+    return this.fetch(`/api/runtimes/${runtimeId}/tunnels`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRuntimeTunnel(runtimeId: string, tunnelId: string): Promise<void> {
+    await this.fetch(`/api/runtimes/${runtimeId}/tunnels/${tunnelId}`, {
+      method: "DELETE",
+    });
+  }
+
   async updateRuntime(
     runtimeId: string,
     patch: { timezone?: string; visibility?: "private" | "public" },
@@ -1091,6 +1112,9 @@ export class ApiClient {
     posthog_key?: string;
     posthog_host?: string;
     analytics_environment?: string;
+    features?: {
+      runtime_tunnel?: boolean;
+    };
   }> {
     return this.fetch("/api/config");
   }

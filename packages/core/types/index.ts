@@ -9,6 +9,7 @@ export type {
   AgentRunCount,
   TaskFailureReason,
   AgentRuntime,
+  RuntimeTunnel,
   RuntimeDevice,
   CreateAgentRequest,
   AgentTemplate,

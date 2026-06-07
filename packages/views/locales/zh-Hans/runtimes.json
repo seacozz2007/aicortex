@@ -237,5 +237,16 @@
     "session_closed": "此会话已关闭",
     "empty_prompt": "选择一个会话或新建一个",
     "unnamed": "终端"
+  },
+  "tunnels": {
+    "title": "预览隧道",
+    "hint": "通过 Daemon 暴露本机 loopback 上的 dev server 端口。",
+    "port_placeholder": "端口（如 5173）",
+    "add_action": "添加",
+    "loading": "加载隧道…",
+    "empty": "还没有隧道。先在本地启动 dev server，再登记端口。",
+    "open_external": "在新标签页打开预览",
+    "delete_aria": "删除隧道",
+    "preview_frame_title": "运行时预览"
   }
 }

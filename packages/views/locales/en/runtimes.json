@@ -245,5 +245,16 @@
     "session_closed": "This session has been closed",
     "empty_prompt": "Select a session or create a new one",
     "unnamed": "Terminal"
+  },
+  "tunnels": {
+    "title": "Preview tunnels",
+    "hint": "Expose a loopback dev server port on this runtime through the daemon.",
+    "port_placeholder": "Port (e.g. 5173)",
+    "add_action": "Add",
+    "loading": "Loading tunnels…",
+    "empty": "No tunnels yet. Start a dev server locally, then register its port.",
+    "open_external": "Open preview in new tab",
+    "delete_aria": "Remove tunnel",
+    "preview_frame_title": "Runtime preview"
   }
 }

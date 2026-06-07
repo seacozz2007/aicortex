@@ -23,6 +23,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/realtime"
 	"github.com/aicortex/aicortex/server/internal/service"
 	"github.com/aicortex/aicortex/server/internal/storage"
+	tunnelpkg "github.com/aicortex/aicortex/server/internal/tunnel"
 	"github.com/aicortex/aicortex/server/internal/util"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
 )
@@ -95,6 +96,7 @@ type Handler struct {
 	DaemonTokenCache      *auth.DaemonTokenCache
 	PreviewCmdHandler     *preview.CommandHandler
 	ForumAutoState        *forum.ForumAutoState
+	TunnelPending         *tunnelpkg.PendingStore
 	cfg                   Config
 }
 
@@ -134,6 +136,7 @@ func New(queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *event
 		Storage:               store,
 		CFSigner:              cfSigner,
 		Analytics:             analyticsClient,
+		TunnelPending:         tunnelpkg.NewPendingStore(),
 		cfg:                   cfg,
 	}
 }

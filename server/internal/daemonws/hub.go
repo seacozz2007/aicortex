@@ -74,6 +74,9 @@ type HeartbeatHandler func(ctx context.Context, identity ClientIdentity, runtime
 // TerminalRelayHandler relays terminal messages from daemon to browser clients.
 type TerminalRelayHandler func(msg protocol.Message)
 
+// TunnelRelayHandler completes pending HTTP proxy requests from daemon replies.
+type TunnelRelayHandler func(msg protocol.Message)
+
 // Hub keeps daemon WebSocket connections indexed by runtime ID. Messages are
 // best-effort wakeup hints; the daemon still uses HTTP claim for correctness.
 type Hub struct {
@@ -88,6 +91,9 @@ type Hub struct {
 
 	termMu     sync.RWMutex
 	onTerminal TerminalRelayHandler
+
+	tunnelMu     sync.RWMutex
+	onTunnel     TunnelRelayHandler
 }
 
 func NewHub() *Hub {
@@ -140,6 +146,22 @@ func (h *Hub) terminalHandler() TerminalRelayHandler {
 	h.termMu.RLock()
 	defer h.termMu.RUnlock()
 	return h.onTerminal
+}
+
+// SetTunnelHandler installs the callback for runtime preview tunnel responses.
+func (h *Hub) SetTunnelHandler(fn TunnelRelayHandler) {
+	if h == nil {
+		return
+	}
+	h.tunnelMu.Lock()
+	h.onTunnel = fn
+	h.tunnelMu.Unlock()
+}
+
+func (h *Hub) tunnelHandler() TunnelRelayHandler {
+	h.tunnelMu.RLock()
+	defer h.tunnelMu.RUnlock()
+	return h.onTunnel
 }
 
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request, identity ClientIdentity) {
@@ -385,6 +407,10 @@ func (c *client) handleFrame(raw []byte) {
 		c.handleHeartbeatFrame(msg.Payload)
 	case protocol.EventTerminalData, protocol.EventTerminalClose, protocol.EventTerminalError:
 		if handler := c.hub.terminalHandler(); handler != nil {
+			handler(msg)
+		}
+	case protocol.EventTunnelResponse:
+		if handler := c.hub.tunnelHandler(); handler != nil {
 			handler(msg)
 		}
 	default:

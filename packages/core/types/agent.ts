@@ -34,6 +34,17 @@ export interface RuntimeDevice {
 
 export type AgentRuntime = RuntimeDevice;
 
+export interface RuntimeTunnel {
+  id: string;
+  workspace_id: string;
+  runtime_id: string;
+  port: number;
+  title: string;
+  status: string;
+  created_at: string;
+  preview_url?: string;
+}
+
 // Coarse classifier set by the backend when a task transitions to "failed".
 // Mirrors the migration-055 enum in agent_task_queue.failure_reason. Used by
 // the agent presence derivation and the UI failure-message lookup.

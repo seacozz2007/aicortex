@@ -212,3 +212,25 @@ type TerminalErrorPayload struct {
 	SessionID string `json:"session_id"`
 	Error     string `json:"error"`
 }
+
+// --- Runtime preview tunnel payloads ---
+
+// TunnelRequestPayload asks the daemon to proxy one HTTP request to loopback.
+type TunnelRequestPayload struct {
+	RequestID string            `json:"request_id"`
+	RuntimeID string            `json:"runtime_id"`
+	Port      int               `json:"port"`
+	Method    string            `json:"method"`
+	Path      string            `json:"path"`
+	Headers   map[string]string `json:"headers,omitempty"`
+	Body      string            `json:"body,omitempty"` // base64
+}
+
+// TunnelResponsePayload returns the proxied HTTP response to the server.
+type TunnelResponsePayload struct {
+	RequestID string              `json:"request_id"`
+	Status    int                 `json:"status"`
+	Headers   map[string][]string `json:"headers,omitempty"`
+	Body      string              `json:"body,omitempty"` // base64
+	Error     string              `json:"error,omitempty"`
+}

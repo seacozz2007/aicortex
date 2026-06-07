@@ -173,6 +173,11 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		hub.Broadcast(frame)
 	})
 
+	// Wire runtime preview tunnel relay: daemon → server HTTP waiter.
+	daemonHub.SetTunnelHandler(func(msg protocol.Message) {
+		h.HandleTunnelResponse(msg)
+	})
+
 	// Wire terminal relay: browser → server → daemon.
 	hub.SetTerminalInboundHandler(func(raw json.RawMessage, msgType string) {
 		var p struct {
@@ -578,6 +583,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			r.Route("/api/runtimes", func(r chi.Router) {
 				r.Get("/", h.ListAgentRuntimes)
 				r.Route("/{runtimeId}", func(r chi.Router) {
+					r.Route("/tunnels", func(r chi.Router) {
+						r.Get("/", h.ListRuntimeTunnels)
+						r.Post("/", h.CreateRuntimeTunnel)
+						r.Delete("/{tunnelId}", h.DeleteRuntimeTunnel)
+					})
+					r.Handle("/tunnel/{port}", http.HandlerFunc(h.ProxyRuntimeTunnel))
+					r.Handle("/tunnel/{port}/*", http.HandlerFunc(h.ProxyRuntimeTunnel))
 					r.Patch("/", h.UpdateAgentRuntime)
 					r.Get("/usage", h.GetRuntimeUsage)
 					r.Get("/usage/by-agent", h.GetRuntimeUsageByAgent)

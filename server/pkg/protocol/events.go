@@ -135,4 +135,8 @@ const (
 	EventTerminalDetach = "terminal:detach"
 	EventTerminalClose  = "terminal:close"
 	EventTerminalError  = "terminal:error"
+
+	// Runtime preview tunnel (browser → server → daemon → localhost)
+	EventTunnelRequest  = "tunnel:request"
+	EventTunnelResponse = "tunnel:response"
 )

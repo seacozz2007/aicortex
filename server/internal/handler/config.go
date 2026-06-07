@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/aicortex/aicortex/server/internal/analytics"
+	"github.com/aicortex/aicortex/server/internal/tunnel"
 )
 
 type AppConfig struct {
@@ -27,6 +28,13 @@ type AppConfig struct {
 	// LLM config exposed to the frontend for informational purposes.
 	// The API key is NEVER returned here — it stays server-side.
 	LLMModel string `json:"llm_model,omitempty"`
+
+	// Feature flags exposed to authenticated clients after bootstrap.
+	Features AppFeatureFlags `json:"features"`
+}
+
+type AppFeatureFlags struct {
+	RuntimeTunnel bool `json:"runtime_tunnel"`
 }
 
 // GetConfig is mounted on the public (unauthenticated) route group because
@@ -55,6 +63,10 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 
 	if v := os.Getenv("LLM_MODEL"); v != "" {
 		config.LLMModel = v
+	}
+
+	config.Features = AppFeatureFlags{
+		RuntimeTunnel: tunnel.FeatureRuntimeTunnel(),
 	}
 
 	writeJSON(w, http.StatusOK, config)
