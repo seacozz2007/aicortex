@@ -4,6 +4,27 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# ---------- Windows (MSYS2/Git Bash) PATH helpers ----------
+# Git Bash on Windows doesn't inherit the full Windows PATH for non-interactive
+# shells. Add common tool locations so the prerequisite check below passes.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    # Resolve known Windows tool paths via their MSYS2 /c/ equivalents
+    for _try in \
+      "/c/Program Files/nodejs" \
+      "/c/Program Files/Docker/Docker/resources/bin" \
+      "/c/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
+      "/c/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
+      "/c/Program Files (x86)/GnuWin32/bin"; do
+      [ -d "$_try" ] && PATH="${_try}:${PATH}"
+    done
+    # Restore the Go binary path from GOROOT if set
+    if [ -n "${GOROOT:-}" ]; then
+      PATH="${GOROOT}/bin:${PATH}"
+    fi
+    ;;
+esac
+
 # ---------- Check prerequisites ----------
 missing=()
 command -v node >/dev/null 2>&1 || missing+=("node")
