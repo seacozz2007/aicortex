@@ -14,8 +14,15 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 set -a
-# shellcheck disable=SC1090
-. "$ENV_FILE"
+# robust .env sourcing — handles CRLF line endings that bash's
+# source (. ) preserves on Windows/WSL but tr/sed strip on input.
+while IFS='=' read -r key value; do
+  key="${key#export }"
+  key="${key%$'\r'}"
+  value="${value%$'\r'}"
+  [[ -z "$key" || "$key" == \#* ]] && continue
+  export "$key=$value"
+done < <(cat "$ENV_FILE"; echo)
 set +a
 
 POSTGRES_DB="${POSTGRES_DB:-aicortex}"
