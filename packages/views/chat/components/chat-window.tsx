@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { Minus, Maximize2, Minimize2, ChevronDown, ChevronRight, Plus, Check, Trash2, Pencil, FolderKanban } from "lucide-react";
+import { Minus, Maximize2, ChevronDown, ChevronRight, Plus, Check, Trash2, Pencil, FolderKanban } from "lucide-react";
 import { Button } from "@aicortex/ui/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@aicortex/ui/components/ui/tooltip";
 import {
@@ -62,7 +62,9 @@ import { ChatResizeHandles } from "./chat-resize-handles";
 import { useChatResize } from "./use-chat-resize";
 import { createLogger } from "@aicortex/core/logger";
 import type { Agent, ChatMessage, ChatPendingTask, ChatSession } from "@aicortex/core/types";
+import { useWorkspacePaths } from "@aicortex/core/paths";
 import { useT } from "../../i18n";
+import { useNavigation } from "../../navigation";
 
 const uiLogger = createLogger("chat.ui");
 const apiLogger = createLogger("chat.api");
@@ -434,10 +436,18 @@ export function ChatWindow() {
     setOpen(false);
   }, [activeSessionId, pendingTaskId, setOpen]);
 
+  const router = useNavigation();
+  const p = useWorkspacePaths();
+  const handleOpenChatPage = useCallback(() => {
+    uiLogger.info("openChatPage", { activeSessionId });
+    setOpen(false);
+    router.push(p.chat());
+  }, [activeSessionId, setOpen, router, p]);
+
   const isExpanded = useChatStore((s) => s.isExpanded);
 
   const windowRef = useRef<HTMLDivElement>(null);
-  const { renderWidth, renderHeight, isAtMax, boundsReady, isDragging, toggleExpand, startDrag } = useChatResize(windowRef);
+  const { renderWidth, renderHeight, boundsReady, isDragging, startDrag } = useChatResize(windowRef);
 
   // Show the list (vs empty state) as soon as there's anything to display —
   // a real message, or a pending task whose timeline will stream in.
@@ -509,14 +519,14 @@ export function ChatWindow() {
                   variant="ghost"
                   size="icon-sm"
                   className="text-muted-foreground"
-                  onClick={toggleExpand}
+                  onClick={handleOpenChatPage}
                 />
               }
             >
-              {isExpanded || isAtMax ? <Minimize2 /> : <Maximize2 />}
+              <Maximize2 />
             </TooltipTrigger>
             <TooltipContent side="top">
-              {isExpanded || isAtMax ? t(($) => $.window.restore_tooltip) : t(($) => $.window.expand_tooltip)}
+              {t(($) => $.window.open_chat_page_tooltip)}
             </TooltipContent>
           </Tooltip>
           <Tooltip>

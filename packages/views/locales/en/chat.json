@@ -51,6 +51,7 @@
     "new_chat_tooltip": "New chat",
     "restore_tooltip": "Restore",
     "expand_tooltip": "Expand",
+    "open_chat_page_tooltip": "Open in chat",
     "minimize_tooltip": "Minimize",
     "another_running": "Another chat is running",
     "another_unread": "Another chat has unread replies",

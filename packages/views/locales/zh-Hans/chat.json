@@ -48,6 +48,7 @@
     "new_chat_tooltip": "新对话",
     "restore_tooltip": "还原",
     "expand_tooltip": "展开",
+    "open_chat_page_tooltip": "在会话页打开",
     "minimize_tooltip": "最小化",
     "another_running": "另一个对话正在运行",
     "another_unread": "另一个对话有未读回复",
