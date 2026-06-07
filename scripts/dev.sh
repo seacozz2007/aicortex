@@ -128,12 +128,17 @@ fi
 
 echo "==> Using $ENV_FILE"
 
+# Convert .env to Unix line endings before sourcing — WSL bash chokes on
+# embedded \r from Windows CRLF files.
+_env_tmp=$(mktemp)
+trap 'rm -f "$_env_tmp"' EXIT
+tr -d '\r' < "$ENV_FILE" > "$_env_tmp"
 set -a
 # shellcheck disable=SC1090
-# Strip \r from .env (Windows CRLF) before sourcing — some bash flavors
-# like WSL's /bin/bash choke on embedded carriage returns.
-. <(tr -d '\r' < "$ENV_FILE")
+. "$_env_tmp"
 set +a
+trap - EXIT
+rm -f "$_env_tmp"
 
 # ---------- Install dependencies ----------
 if [ ! -d node_modules ]; then
