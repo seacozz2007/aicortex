@@ -56,8 +56,10 @@ export function RuntimeTunnelPanel({
     );
   };
 
+  const activeTunnels = tunnels.filter((tunnel) => tunnel.status === "active");
   const activePreview =
-    previewPort ?? (tunnels.length > 0 ? tunnels[0]!.port : null);
+    previewPort ??
+    (activeTunnels.length > 0 ? activeTunnels[0]!.port : null);
   const previewURL =
     activePreview != null && workspaceSlug
       ? buildTunnelPreviewURL(runtimeId, activePreview, workspaceSlug)
@@ -105,23 +107,33 @@ export function RuntimeTunnelPanel({
           <p className="text-xs text-muted-foreground">{t(($) => $.tunnels.empty)}</p>
         ) : (
           <div className="space-y-2">
-            {tunnels.map((tunnel: RuntimeTunnel) => (
+            {tunnels.map((tunnel: RuntimeTunnel) => {
+              const isActive = tunnel.status === "active";
+              return (
               <div
                 key={tunnel.id}
                 className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
               >
                 <button
                   type="button"
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => setPreviewPort(tunnel.port)}
+                  className="min-w-0 flex-1 text-left disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => isActive && setPreviewPort(tunnel.port)}
+                  disabled={!isActive}
                 >
-                  <div className="truncate text-xs font-medium">{tunnel.title}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="truncate text-xs font-medium">{tunnel.title}</div>
+                    {!isActive && (
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {t(($) => $.tunnels.status_disabled)}
+                      </span>
+                    )}
+                  </div>
                   <div className="font-mono text-[11px] text-muted-foreground">
                     :{tunnel.port}
                   </div>
                 </button>
                 <div className="flex items-center gap-1">
-                  {workspaceSlug && (
+                  {workspaceSlug && isActive && (
                     <a
                       href={buildTunnelPreviewURL(runtimeId, tunnel.port, workspaceSlug)}
                       target="_blank"
@@ -145,7 +157,8 @@ export function RuntimeTunnelPanel({
                   )}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 

@@ -160,9 +160,36 @@ func (h *Handler) CreateRuntimeTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.DaemonHub == nil || h.TunnelPending == nil {
+		writeError(w, http.StatusServiceUnavailable, "daemon relay unavailable")
+		return
+	}
+	if h.DaemonHub.RuntimeConnectionCount(uuidToString(rt.ID)) == 0 {
+		writeError(w, http.StatusServiceUnavailable, "daemon websocket not connected for this runtime")
+		return
+	}
+	probe, err := h.relayTunnelHTTP(
+		r.Context(),
+		rt,
+		req.Port,
+		http.MethodHead,
+		"/",
+		nil,
+		nil,
+		time.Duration(tunnel.ProbeTimeout)*time.Second,
+	)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	if probe.Error != "" {
+		writeError(w, http.StatusBadGateway, "port is not reachable on this runtime")
+		return
+	}
+
 	var count int
 	if err := h.DB.QueryRow(r.Context(),
-		`SELECT COUNT(*) FROM runtime_tunnel WHERE runtime_id = $1`,
+		`SELECT COUNT(*) FROM runtime_tunnel WHERE runtime_id = $1 AND status = 'active'`,
 		rt.ID,
 	).Scan(&count); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to count tunnels")
@@ -279,6 +306,11 @@ func (h *Handler) ProxyRuntimeTunnel(w http.ResponseWriter, r *http.Request) {
 		writeTunnelError(w, http.StatusServiceUnavailable, "daemon websocket not connected for this runtime")
 		return
 	}
+	limitKey := fmt.Sprintf("%s:%d", uuidToString(rt.ID), port)
+	if h.TunnelLimiter != nil && !h.TunnelLimiter.Allow(limitKey, tunnel.ProxyRateLimit, time.Minute) {
+		writeTunnelError(w, http.StatusTooManyRequests, "tunnel rate limit exceeded")
+		return
+	}
 
 	subPath := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
 	proxyPath := "/"
@@ -299,11 +331,6 @@ func (h *Handler) ProxyRuntimeTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestID := uuid.New().String()
-	timeout := time.Duration(tunnel.ProxyTimeout) * time.Second
-	ch, cancel := h.TunnelPending.Register(requestID, timeout)
-	defer cancel()
-
 	headers := map[string]string{}
 	for key, values := range r.Header {
 		if len(values) == 0 || isTunnelHopHeader(key) {
@@ -312,12 +339,73 @@ func (h *Handler) ProxyRuntimeTunnel(w http.ResponseWriter, r *http.Request) {
 		headers[key] = values[0]
 	}
 
+	timeout := time.Duration(tunnel.ProxyTimeout) * time.Second
+	resp, err := h.relayTunnelHTTP(r.Context(), rt, port, r.Method, proxyPath, headers, body, timeout)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			writeTunnelError(w, http.StatusRequestTimeout, "request cancelled")
+			return
+		}
+		writeTunnelError(w, http.StatusGatewayTimeout, err.Error())
+		return
+	}
+	if resp.Error != "" {
+		writeTunnelError(w, http.StatusBadGateway, resp.Error)
+		return
+	}
+	prepareTunnelEmbedResponse(w)
+	for key, values := range resp.Headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	if resp.Status <= 0 {
+		resp.Status = http.StatusBadGateway
+	}
+	w.WriteHeader(resp.Status)
+	if len(resp.Body) > 0 {
+		_, _ = w.Write(resp.Body)
+	}
+	go h.touchRuntimeTunnelActivity(rt.ID, port)
+}
+
+func (h *Handler) touchRuntimeTunnelActivity(runtimeID pgtype.UUID, port int) {
+	if h.DB == nil {
+		return
+	}
+	_, _ = h.DB.Exec(context.Background(),
+		`UPDATE runtime_tunnel SET updated_at = now()
+		 WHERE runtime_id = $1 AND port = $2 AND status = 'active'`,
+		runtimeID, port,
+	)
+}
+
+func (h *Handler) relayTunnelHTTP(
+	ctx context.Context,
+	rt db.AgentRuntime,
+	port int,
+	method, path string,
+	headers map[string]string,
+	body []byte,
+	timeout time.Duration,
+) (tunnel.ProxyResponse, error) {
+	if h.DaemonHub == nil || h.TunnelPending == nil {
+		return tunnel.ProxyResponse{}, fmt.Errorf("daemon relay unavailable")
+	}
+	if h.DaemonHub.RuntimeConnectionCount(uuidToString(rt.ID)) == 0 {
+		return tunnel.ProxyResponse{}, fmt.Errorf("daemon websocket not connected for this runtime")
+	}
+
+	requestID := uuid.New().String()
+	ch, cancel := h.TunnelPending.Register(requestID, timeout)
+	defer cancel()
+
 	payload := protocol.TunnelRequestPayload{
 		RequestID: requestID,
 		RuntimeID: uuidToString(rt.ID),
 		Port:      port,
-		Method:    r.Method,
-		Path:      proxyPath,
+		Method:    method,
+		Path:      path,
 		Headers:   headers,
 	}
 	if len(body) > 0 {
@@ -325,8 +413,7 @@ func (h *Handler) ProxyRuntimeTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
-		writeTunnelError(w, http.StatusInternalServerError, "failed to encode tunnel request")
-		return
+		return tunnel.ProxyResponse{}, fmt.Errorf("failed to encode tunnel request")
 	}
 	h.DaemonHub.SendToRuntime(uuidToString(rt.ID), protocol.Message{
 		Type:    protocol.EventTunnelRequest,
@@ -335,27 +422,11 @@ func (h *Handler) ProxyRuntimeTunnel(w http.ResponseWriter, r *http.Request) {
 
 	select {
 	case resp := <-ch:
-		if resp.Error != "" {
-			writeTunnelError(w, http.StatusBadGateway, resp.Error)
-			return
-		}
-		prepareTunnelEmbedResponse(w)
-		for key, values := range resp.Headers {
-			for _, value := range values {
-				w.Header().Add(key, value)
-			}
-		}
-		if resp.Status <= 0 {
-			resp.Status = http.StatusBadGateway
-		}
-		w.WriteHeader(resp.Status)
-		if len(resp.Body) > 0 {
-			_, _ = w.Write(resp.Body)
-		}
+		return resp, nil
 	case <-time.After(timeout):
-		writeTunnelError(w, http.StatusGatewayTimeout, "daemon did not respond")
-	case <-r.Context().Done():
-		writeTunnelError(w, http.StatusRequestTimeout, "request cancelled")
+		return tunnel.ProxyResponse{}, fmt.Errorf("daemon did not respond")
+	case <-ctx.Done():
+		return tunnel.ProxyResponse{}, ctx.Err()
 	}
 }
 

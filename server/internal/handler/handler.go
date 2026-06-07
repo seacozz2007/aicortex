@@ -97,6 +97,7 @@ type Handler struct {
 	PreviewCmdHandler     *preview.CommandHandler
 	ForumAutoState        *forum.ForumAutoState
 	TunnelPending         *tunnelpkg.PendingStore
+	TunnelLimiter         *tunnelpkg.ProxyLimiter
 	cfg                   Config
 }
 
@@ -137,6 +138,7 @@ func New(queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *event
 		CFSigner:              cfSigner,
 		Analytics:             analyticsClient,
 		TunnelPending:         tunnelpkg.NewPendingStore(),
+		TunnelLimiter:         tunnelpkg.NewProxyLimiter(),
 		cfg:                   cfg,
 	}
 }

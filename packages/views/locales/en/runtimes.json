@@ -255,6 +255,7 @@
     "empty": "No tunnels yet. Start a dev server locally, then register its port.",
     "open_external": "Open preview in new tab",
     "delete_aria": "Remove tunnel",
-    "preview_frame_title": "Runtime preview"
+    "preview_frame_title": "Runtime preview",
+    "status_disabled": "expired"
   }
 }

@@ -10,6 +10,9 @@ const (
 	MaxTunnelsPerRT = 3
 	MaxBodyBytes    = 10 << 20 // 10 MiB
 	ProxyTimeout    = 30       // seconds
+	ProbeTimeout    = 5        // seconds — health check on tunnel create
+	ProxyRateLimit  = 120      // max proxy requests per tunnel per minute
+	InactiveTTLHours = 24      // auto-disable tunnels with no proxy traffic
 )
 
 // ValidatePort returns an error when port is outside the allowed dev-server range.
