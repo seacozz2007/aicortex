@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Plus, Trash2, Pencil, Check, X, FolderKanban, ChevronDown } from "lucide-react";
+import { useDefaultLayout } from "react-resizable-panels";
+import { MessageSquare, Plus, Trash2, Pencil, Check, X, FolderKanban, ChevronDown, PanelLeftClose, PanelLeftOpen, PanelRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
@@ -30,9 +31,16 @@ import { useAgentPresenceDetail, useWorkspaceAgentAvailability } from "@aicortex
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
 import { useAuthStore } from "@aicortex/core/auth";
 import { api } from "@aicortex/core/api";
+import { useArtifactBrowseFeature } from "@aicortex/core/config/features";
+import { getCurrentSlug } from "@aicortex/core/platform";
 import { canAssignAgent } from "@aicortex/views/issues/components";
 import type { Agent, ChatSession, ChatMessage, ChatPendingTask } from "@aicortex/core/types";
 import { cn } from "@aicortex/ui/lib/utils";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@aicortex/ui/components/ui/resizable";
 import { useT } from "../../i18n";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { ChatMessageList, ChatMessageSkeleton } from "./chat-message-list";
@@ -45,6 +53,19 @@ import {
   buildAnchorMarkdown,
   useRouteAnchorCandidate,
 } from "./context-anchor";
+import { ChatToolsSidebar } from "./chat-tools-sidebar";
+
+const TOOLS_SIDEBAR_STORAGE_KEY = "aicortex:chat:tools-sidebar-open";
+
+function toolsSidebarStorageKey() {
+  const slug = getCurrentSlug();
+  return slug ? `${TOOLS_SIDEBAR_STORAGE_KEY}:${slug}` : TOOLS_SIDEBAR_STORAGE_KEY;
+}
+
+function readToolsSidebarOpen(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(toolsSidebarStorageKey()) === "true";
+}
 
 export function ChatPage() {
   const { t } = useT("chat");
@@ -230,145 +251,234 @@ export function ChatPage() {
   const activeSessions = useMemo(() => sessions.filter((s) => s.status === "active"), [sessions]);
   const archivedSessions = useMemo(() => sessions.filter((s) => s.status === "archived"), [sessions]);
   const hasMessages = messages.length > 0 || !!pendingTaskId;
+  const [sessionListOpen, setSessionListOpen] = useState(true);
+  const artifactBrowseEnabled = useArtifactBrowseFeature();
+  const [toolsSidebarOpen, setToolsSidebarOpen] = useState(readToolsSidebarOpen);
+  const { defaultLayout: toolsLayout, onLayoutChanged: onToolsLayoutChanged } = useDefaultLayout({
+    id: "aicortex_chat_tools_layout",
+  });
+  const showToolsSidebar = artifactBrowseEnabled && toolsSidebarOpen;
 
-  return (
-    <div className="flex h-full min-h-0">
-      {/* Left: Session list */}
-      <aside className="flex w-72 shrink-0 flex-col border-r bg-sidebar">
-        <div className="flex h-12 items-center justify-between border-b px-4">
-          <h2 className="text-sm font-medium">{t(($) => $.window.chats)}</h2>
-          <button
-            type="button"
-            onClick={handleNewChat}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title="新建会话"
-          >
-            <Plus className="size-4" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {sessions.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-              <MessageSquare className="size-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">{t(($) => $.window.no_previous)}</p>
-            </div>
-          ) : (
-            <div className="p-2 space-y-0.5">
-              {activeSessions.map((session) => (
-                <SessionItem
-                  key={session.id}
-                  session={session}
-                  agents={agents}
-                  projects={projects}
-                  isActive={session.id === activeSessionId}
-                  onSelect={() => setActiveSession(session.id)}
-                  onDelete={() => handleDelete(session.id)}
-                  onRename={(title) => handleRename(session.id, title)}
-                />
-              ))}
-              {archivedSessions.length > 0 && (
-                <>
-                  <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
-                    {t(($) => $.window.archived_group, { count: archivedSessions.length })}
-                  </p>
-                  {archivedSessions.map((session) => (
-                    <SessionItem
-                      key={session.id}
-                      session={session}
-                      agents={agents}
-                      projects={projects}
-                      isActive={session.id === activeSessionId}
-                      onSelect={() => setActiveSession(session.id)}
-                      onDelete={() => handleDelete(session.id)}
-                      onRename={(title) => handleRename(session.id, title)}
-                    />
-                  ))}
-                </>
-              )}
-            </div>
+  useEffect(() => {
+    if (!artifactBrowseEnabled) return;
+    localStorage.setItem(toolsSidebarStorageKey(), String(toolsSidebarOpen));
+  }, [toolsSidebarOpen, artifactBrowseEnabled]);
+
+  const activeSessionTitle =
+    currentSession?.title ||
+    (activeSessionId ? t(($) => $.session_history.untitled) : t(($) => $.window.untitled));
+
+  const chatMain = (
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {!sessionListOpen && (
+            <button
+              type="button"
+              onClick={() => setSessionListOpen(true)}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title={t(($) => $.session_list.expand_tooltip)}
+            >
+              <PanelLeftOpen className="size-4" />
+            </button>
+          )}
+          {(!sessionListOpen || activeSessionId) && (
+            <span className="min-w-0 truncate text-sm text-muted-foreground">
+              {activeSessionTitle}
+            </span>
           )}
         </div>
-      </aside>
-
-      {/* Right: Chat area */}
-      <main className="flex min-w-0 flex-1 flex-col bg-background">
-        {showSkeleton ? (
-          <ChatMessageSkeleton />
-        ) : hasMessages ? (
-          <>
-            <ChatMessageList
-              messages={messages}
-              pendingTask={pendingTask}
-              availability={availability}
-              onFormSubmit={handleSend}
-            />
-            {noAgent ? (
-              <NoAgentBanner />
-            ) : (
-              <OfflineBanner agentName={activeAgent?.name} availability={availability} />
+        {artifactBrowseEnabled && (
+          <button
+            type="button"
+            onClick={() => setToolsSidebarOpen((open) => !open)}
+            className={cn(
+              "rounded-md p-1.5 transition-colors hover:bg-accent hover:text-foreground",
+              toolsSidebarOpen ? "bg-accent text-foreground" : "text-muted-foreground",
             )}
-            <ChatInput
-              onSend={handleSend}
-              onUploadFile={handleUploadFile}
-              onStop={handleStop}
-              isRunning={!!pendingTaskId}
-              disabled={isSessionArchived}
-              noAgent={noAgent}
-              agentName={activeAgent?.name}
-              topSlot={<ContextAnchorCard />}
-              leftAdornment={
+            title={t(($) => $.tools_sidebar.toggle_tooltip)}
+          >
+            <PanelRight className="size-4" />
+          </button>
+        )}
+      </div>
+      {showSkeleton ? (
+        <ChatMessageSkeleton />
+      ) : hasMessages ? (
+        <>
+          <ChatMessageList
+            messages={messages}
+            pendingTask={pendingTask}
+            availability={availability}
+            onFormSubmit={handleSend}
+          />
+          {noAgent ? (
+            <NoAgentBanner />
+          ) : (
+            <OfflineBanner agentName={activeAgent?.name} availability={availability} />
+          )}
+          <ChatInput
+            onSend={handleSend}
+            onUploadFile={handleUploadFile}
+            onStop={handleStop}
+            isRunning={!!pendingTaskId}
+            disabled={isSessionArchived}
+            noAgent={noAgent}
+            agentName={activeAgent?.name}
+            topSlot={<ContextAnchorCard />}
+            leftAdornment={
+              <AgentPicker
+                agents={availableAgents}
+                activeAgent={activeAgent}
+                onSelect={handleSelectAgent}
+              />
+            }
+            rightAdornment={<ContextAnchorButton />}
+          />
+        </>
+      ) : (
+        <>
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+              <MessageSquare className="mx-auto size-10 text-muted-foreground/30" />
+              <p className="mt-3 text-sm text-muted-foreground">
+                {activeAgent ? t(($) => $.empty_state.chat_with_name, { name: activeAgent.name }) : t(($) => $.empty_state.select_agent)}
+              </p>
+            </div>
+          </div>
+          {noAgent ? (
+            <NoAgentBanner />
+          ) : (
+            <OfflineBanner agentName={activeAgent?.name} availability={availability} />
+          )}
+          <ChatInput
+            onSend={handleSend}
+            onUploadFile={handleUploadFile}
+            isRunning={false}
+            noAgent={noAgent}
+            agentName={activeAgent?.name}
+            topSlot={<ContextAnchorCard />}
+            leftAdornment={
+              <>
                 <AgentPicker
                   agents={availableAgents}
                   activeAgent={activeAgent}
                   onSelect={handleSelectAgent}
                 />
-              }
-              rightAdornment={<ContextAnchorButton />}
-            />
-          </>
-        ) : (
-          <>
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
-                <MessageSquare className="mx-auto size-10 text-muted-foreground/30" />
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {activeAgent ? t(($) => $.empty_state.chat_with_name, { name: activeAgent.name }) : t(($) => $.empty_state.select_agent)}
-                </p>
-              </div>
-            </div>
-            {noAgent ? (
-              <NoAgentBanner />
-            ) : (
-              <OfflineBanner agentName={activeAgent?.name} availability={availability} />
-            )}
-            <ChatInput
-              onSend={handleSend}
-              onUploadFile={handleUploadFile}
-              isRunning={false}
-              noAgent={noAgent}
-              agentName={activeAgent?.name}
-              topSlot={<ContextAnchorCard />}
-              leftAdornment={
-                <>
-                  <AgentPicker
-                    agents={availableAgents}
-                    activeAgent={activeAgent}
-                    onSelect={handleSelectAgent}
+                {!activeSessionId && (
+                  <ProjectPicker
+                    projects={projects}
+                    selectedProjectId={selectedProjectId}
+                    onSelect={setSelectedProjectId}
                   />
-                  {!activeSessionId && (
-                    <ProjectPicker
-                      projects={projects}
-                      selectedProjectId={selectedProjectId}
-                      onSelect={setSelectedProjectId}
-                    />
-                  )}
-                </>
-              }
-              rightAdornment={<ContextAnchorButton />}
-            />
-          </>
+                )}
+              </>
+            }
+            rightAdornment={<ContextAnchorButton />}
+          />
+        </>
+      )}
+    </main>
+  );
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Left: Session list */}
+      {sessionListOpen && (
+        <aside className="flex w-72 shrink-0 flex-col border-r bg-sidebar">
+          <div className="flex h-12 items-center justify-between border-b px-4">
+            <h2 className="text-sm font-medium">{t(($) => $.window.chats)}</h2>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={handleNewChat}
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title={t(($) => $.window.new_chat_tooltip)}
+              >
+                <Plus className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSessionListOpen(false)}
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title={t(($) => $.session_list.collapse_tooltip)}
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {sessions.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
+                <MessageSquare className="size-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">{t(($) => $.window.no_previous)}</p>
+              </div>
+            ) : (
+              <div className="p-2 space-y-0.5">
+                {activeSessions.map((session) => (
+                  <SessionItem
+                    key={session.id}
+                    session={session}
+                    agents={agents}
+                    projects={projects}
+                    isActive={session.id === activeSessionId}
+                    onSelect={() => setActiveSession(session.id)}
+                    onDelete={() => handleDelete(session.id)}
+                    onRename={(title) => handleRename(session.id, title)}
+                  />
+                ))}
+                {archivedSessions.length > 0 && (
+                  <>
+                    <p className="px-3 pt-4 pb-1 text-xs font-medium text-muted-foreground">
+                      {t(($) => $.window.archived_group, { count: archivedSessions.length })}
+                    </p>
+                    {archivedSessions.map((session) => (
+                      <SessionItem
+                        key={session.id}
+                        session={session}
+                        agents={agents}
+                        projects={projects}
+                        isActive={session.id === activeSessionId}
+                        onSelect={() => setActiveSession(session.id)}
+                        onDelete={() => handleDelete(session.id)}
+                        onRename={(title) => handleRename(session.id, title)}
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* Center + optional resizable tools sidebar */}
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {showToolsSidebar ? (
+          <ResizablePanelGroup
+            orientation="horizontal"
+            className="min-h-0 flex-1"
+            defaultLayout={toolsLayout}
+            onLayoutChanged={onToolsLayoutChanged}
+          >
+            <ResizablePanel id="chat" minSize="20%">
+              {chatMain}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel
+              id="tools"
+              defaultSize="42%"
+              minSize={360}
+              maxSize="80%"
+              groupResizeBehavior="preserve-pixel-size"
+            >
+              <ChatToolsSidebar session={currentSession} />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          chatMain
         )}
-      </main>
+      </div>
     </div>
   );
 }

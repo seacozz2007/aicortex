@@ -44,6 +44,29 @@
       "confirming": "删除中..."
     }
   },
+  "session_list": {
+    "collapse_tooltip": "收起会话列表",
+    "expand_tooltip": "展开会话列表"
+  },
+  "tools_sidebar": {
+    "title": "工具",
+    "toggle_tooltip": "展开/收起工具面板",
+    "coming_soon": "即将推出。",
+    "tabs": {
+      "files": "文件",
+      "terminal": "终端",
+      "web": "网页"
+    },
+    "files": {
+      "hint": "浏览本会话最近一次任务的工作目录文件。",
+      "empty": "尚无工作目录。发送消息并等待 Agent 完成任务后即可浏览文件。",
+      "select_file": "选择一个文本文件进行预览。",
+      "loading_content": "正在加载文件…",
+      "load_error": "无法加载此文件。",
+      "too_large": "文件过大，无法预览（上限 512 KB）。",
+      "binary_unsupported": "仅支持预览文本文件。"
+    }
+  },
   "window": {
     "new_chat_tooltip": "新对话",
     "restore_tooltip": "还原",

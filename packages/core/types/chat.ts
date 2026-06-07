@@ -10,6 +10,11 @@ export interface ChatSession {
   has_unread: boolean;
   created_at: string;
   updated_at: string;
+  /** Daemon-owned resume pointer. Omitted until a task has produced a work dir. */
+  work_dir?: string;
+  runtime_id?: string;
+  /** Latest task in this session that has a work_dir — used for artifact browse. */
+  last_task_id?: string;
 }
 
 export interface PendingChatTaskItem {

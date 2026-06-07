@@ -47,6 +47,29 @@
       "confirming": "Deleting..."
     }
   },
+  "session_list": {
+    "collapse_tooltip": "Hide chat list",
+    "expand_tooltip": "Show chat list"
+  },
+  "tools_sidebar": {
+    "title": "Tools",
+    "toggle_tooltip": "Toggle tools panel",
+    "coming_soon": "Coming soon.",
+    "tabs": {
+      "files": "Files",
+      "terminal": "Terminal",
+      "web": "Web"
+    },
+    "files": {
+      "hint": "Browse files from the latest task work directory in this chat.",
+      "empty": "No work directory yet. Send a message and wait for the agent to finish a task.",
+      "select_file": "Select a text file to preview.",
+      "loading_content": "Loading file…",
+      "load_error": "Could not load this file.",
+      "too_large": "File is too large to preview (max 512 KB).",
+      "binary_unsupported": "Only text files can be previewed."
+    }
+  },
   "window": {
     "new_chat_tooltip": "New chat",
     "restore_tooltip": "Restore",

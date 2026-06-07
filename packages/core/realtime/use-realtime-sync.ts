@@ -753,6 +753,8 @@ export function useRealtimeSync(
       qc.invalidateQueries({ queryKey: chatKeys.messages(payload.chat_session_id) });
       qc.invalidateQueries({ queryKey: chatKeys.pendingTask(payload.chat_session_id) });
       invalidatePendingAggregate();
+      // FailTask may still persist work_dir — refresh last_task_id for the tools sidebar.
+      invalidateSessionLists();
     });
 
     const unsubChatSessionRead = ws.on("chat:session_read", (p) => {

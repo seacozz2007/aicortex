@@ -91,6 +91,16 @@ INSERT INTO agent_task_queue (agent_id, runtime_id, issue_id, status, priority, 
 VALUES ($1, $2, NULL, 'queued', $3, $4)
 RETURNING *;
 
+-- name: GetLastChatTaskWithWorkDir :one
+-- Most recent task in this chat session that recorded a work_dir. Used to
+-- expose last_task_id for artifact browse without a new chat-scoped API.
+SELECT id FROM agent_task_queue
+WHERE chat_session_id = $1
+  AND work_dir IS NOT NULL
+  AND btrim(work_dir) <> ''
+ORDER BY COALESCE(completed_at, started_at, dispatched_at, created_at) DESC, created_at DESC
+LIMIT 1;
+
 -- name: GetLastChatTaskSession :one
 -- Returns the most recent task in this chat session that managed to record a
 -- session_id. Includes both completed and failed tasks: even a failed task

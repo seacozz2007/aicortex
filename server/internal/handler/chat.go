@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -97,7 +98,7 @@ func (h *Handler) CreateChatSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, chatSessionToResponse(session))
+	writeJSON(w, http.StatusCreated, h.buildChatSessionResponse(r.Context(), session, false))
 }
 
 func (h *Handler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
@@ -143,18 +144,7 @@ func (h *Handler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
 			if _, ok := allowed[uuidToString(s.AgentID)]; !ok {
 				continue
 			}
-			resp = append(resp, ChatSessionResponse{
-				ID:          uuidToString(s.ID),
-				WorkspaceID: uuidToString(s.WorkspaceID),
-				AgentID:     uuidToString(s.AgentID),
-				CreatorID:   uuidToString(s.CreatorID),
-				Title:       s.Title,
-				Status:      s.Status,
-				ProjectID:   uuidToString(s.ProjectID),
-				HasUnread:   s.HasUnread,
-				CreatedAt:   timestampToString(s.CreatedAt),
-				UpdatedAt:   timestampToString(s.UpdatedAt),
-			})
+			resp = append(resp, h.buildChatSessionResponse(r.Context(), chatSessionFromAllListRow(s), s.HasUnread))
 		}
 	} else {
 		rows, err := h.Queries.ListChatSessionsByCreator(r.Context(), db.ListChatSessionsByCreatorParams{
@@ -170,18 +160,7 @@ func (h *Handler) ListChatSessions(w http.ResponseWriter, r *http.Request) {
 			if _, ok := allowed[uuidToString(s.AgentID)]; !ok {
 				continue
 			}
-			resp = append(resp, ChatSessionResponse{
-				ID:          uuidToString(s.ID),
-				WorkspaceID: uuidToString(s.WorkspaceID),
-				AgentID:     uuidToString(s.AgentID),
-				CreatorID:   uuidToString(s.CreatorID),
-				Title:       s.Title,
-				Status:      s.Status,
-				ProjectID:   uuidToString(s.ProjectID),
-				HasUnread:   s.HasUnread,
-				CreatedAt:   timestampToString(s.CreatedAt),
-				UpdatedAt:   timestampToString(s.UpdatedAt),
-			})
+			resp = append(resp, h.buildChatSessionResponse(r.Context(), chatSessionFromListRow(s), s.HasUnread))
 		}
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -247,7 +226,7 @@ func (h *Handler) GetChatSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, chatSessionToResponse(session))
+	writeJSON(w, http.StatusOK, h.buildChatSessionResponse(r.Context(), session, false))
 }
 
 type UpdateChatSessionRequest struct {
@@ -307,7 +286,7 @@ func (h *Handler) UpdateChatSession(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:     timestampToString(updated.UpdatedAt),
 	})
 
-	writeJSON(w, http.StatusOK, chatSessionToResponse(updated))
+	writeJSON(w, http.StatusOK, h.buildChatSessionResponse(r.Context(), updated, false))
 }
 
 // DeleteChatSession hard-deletes a chat session owned by the caller. The
@@ -779,6 +758,10 @@ type ChatSessionResponse struct {
 	HasUnread bool   `json:"has_unread"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+	// Resume pointers (daemon-owned). Omitted when unset.
+	WorkDir    string `json:"work_dir,omitempty"`
+	RuntimeID  string `json:"runtime_id,omitempty"`
+	LastTaskID string `json:"last_task_id,omitempty"`
 }
 
 type ChatMessageResponse struct {
@@ -802,17 +785,76 @@ type ChatMessageResponse struct {
 	Attachments []AttachmentResponse `json:"attachments,omitempty"`
 }
 
-func chatSessionToResponse(s db.ChatSession) ChatSessionResponse {
-	return ChatSessionResponse{
+func chatSessionFromListRow(s db.ListChatSessionsByCreatorRow) db.ChatSession {
+	return db.ChatSession{
+		ID:          s.ID,
+		WorkspaceID: s.WorkspaceID,
+		AgentID:     s.AgentID,
+		CreatorID:   s.CreatorID,
+		Title:       s.Title,
+		SessionID:   s.SessionID,
+		WorkDir:     s.WorkDir,
+		Status:      s.Status,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+		UnreadSince: s.UnreadSince,
+		RuntimeID:   s.RuntimeID,
+		ProjectID:   s.ProjectID,
+	}
+}
+
+func chatSessionFromAllListRow(s db.ListAllChatSessionsByCreatorRow) db.ChatSession {
+	return db.ChatSession{
+		ID:          s.ID,
+		WorkspaceID: s.WorkspaceID,
+		AgentID:     s.AgentID,
+		CreatorID:   s.CreatorID,
+		Title:       s.Title,
+		SessionID:   s.SessionID,
+		WorkDir:     s.WorkDir,
+		Status:      s.Status,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+		UnreadSince: s.UnreadSince,
+		RuntimeID:   s.RuntimeID,
+		ProjectID:   s.ProjectID,
+	}
+}
+
+func (h *Handler) buildChatSessionResponse(ctx context.Context, s db.ChatSession, hasUnread bool) ChatSessionResponse {
+	resp := ChatSessionResponse{
 		ID:          uuidToString(s.ID),
 		WorkspaceID: uuidToString(s.WorkspaceID),
 		AgentID:     uuidToString(s.AgentID),
 		CreatorID:   uuidToString(s.CreatorID),
 		Title:       s.Title,
 		Status:      s.Status,
+		ProjectID:   uuidToString(s.ProjectID),
+		HasUnread:   hasUnread,
 		CreatedAt:   timestampToString(s.CreatedAt),
 		UpdatedAt:   timestampToString(s.UpdatedAt),
 	}
+	if s.WorkDir.Valid && strings.TrimSpace(s.WorkDir.String) != "" {
+		resp.WorkDir = s.WorkDir.String
+	}
+	if s.RuntimeID.Valid {
+		resp.RuntimeID = uuidToString(s.RuntimeID)
+	}
+	if h.DB != nil {
+		var taskID pgtype.UUID
+		err := h.DB.QueryRow(ctx,
+			`SELECT id FROM agent_task_queue
+			 WHERE chat_session_id = $1
+			   AND work_dir IS NOT NULL AND btrim(work_dir) <> ''
+			 ORDER BY COALESCE(completed_at, started_at, dispatched_at, created_at) DESC, created_at DESC
+			 LIMIT 1`,
+			s.ID,
+		).Scan(&taskID)
+		if err == nil {
+			resp.LastTaskID = uuidToString(taskID)
+		}
+	}
+	return resp
 }
 
 func chatMessageToResponse(m db.ChatMessage, attachments []AttachmentResponse) ChatMessageResponse {
