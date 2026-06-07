@@ -37,9 +37,12 @@ _find_in_windows_path() {
   # path translation mangling the /c flag into C:\.
   _path=$(where.exe "$_tool" 2>/dev/null | head -1 | tr -d '\r')
   [ -n "$_path" ] || return 1
-  # Convert to MSYS2 path (/c/...) BEFORE -f check, because MSYS2 bash
-  # does not accept Windows backslash paths in [ -f ... ].
-  _path=$(cygpath -u "$_path" 2>/dev/null || echo "$_path")
+  # Convert backslashes to forward slashes so MSYS2 bash can
+  # handle the path (cygpath -u may fail when bash is spawned
+  # from a non-MSYS2 parent like GnuWin32 make).
+  # This turns "C:\Program Files\nodejs\node.exe" into
+  # "C:/Program Files/nodejs/node.exe" which MSYS2 [ -f ] accepts.
+  _path="${_path//\\/\/}"
   [ -f "$_path" ] || return 1
   _dir="$(dirname "$_path")"
   PATH="${_dir}:${PATH}"
