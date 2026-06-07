@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ---------- Self-elevate to Git Bash if running under WSL ----------
+# WSL's /bin/bash chokes on Windows CRLF in .env files and its
+# command -v doesn't auto-append .exe. Re-exec via Git Bash when
+# available so the rest of the script runs in a native MSYS2 shell.
+if [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+  if [ -f "/mnt/c/Program Files/Git/usr/bin/bash.exe" ] && \
+     [ "$(command -v bash)" != "/mnt/c/Program Files/Git/usr/bin/bash.exe" ]; then
+    exec "/mnt/c/Program Files/Git/usr/bin/bash.exe" "$0" "$@"
+  fi
+fi
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
