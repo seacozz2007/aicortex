@@ -5,9 +5,9 @@ import { Check, Copy, Terminal } from "lucide-react";
 import { useLocale } from "../../i18n";
 
 const INSTALL_CMD =
-  "curl -fsSL https://gitee.com/seacozz2007/aicortex-release/raw/main/install.sh | sh";
+  "curl -fsSL https://raw.giteeusercontent.com/seacozz2007/aicortex-release/raw/master/install.sh | sh";
 const WIN_INSTALL_CMD =
-  "irm https://gitee.com/seacozz2007/aicortex-release/raw/main/install.ps1 | iex";
+  "irm https://raw.giteeusercontent.com/seacozz2007/aicortex-release/raw/master/install.ps1 | iex";
 const SETUP_CMD = "aicortex setup";
 
 /**
