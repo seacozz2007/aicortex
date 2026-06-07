@@ -69,8 +69,12 @@ _find_in_windows_path() {
   fi
   _dir="$(dirname "$_path")"
   PATH="${_dir}:${PATH}"
-  # Verify the tool is actually reachable via PATH now
-  command -v "${_tool%.exe}" >/dev/null 2>&1
+  # Verify the tool is reachable. WSL bash may not find node via
+  # command -v node (it doesn't auto-append .exe), so also try
+  # with the .exe suffix and a direct exec test.
+  command -v "${_tool%.exe}" >/dev/null 2>&1 && return 0
+  command -v "$_tool" >/dev/null 2>&1 && return 0
+  "${_tool%.exe}" --version >/dev/null 2>&1
 }
 if command -v where.exe >/dev/null 2>&1; then
   command -v node  >/dev/null 2>&1 || _find_in_windows_path node.exe
