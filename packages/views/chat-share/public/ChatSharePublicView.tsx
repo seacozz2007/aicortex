@@ -80,6 +80,8 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
   // Track live task messages and pending task for the status pill.
   const [liveTaskMessages, setLiveTaskMessages] = useState<TaskMessagePayload[]>([]);
   const [pendingTask, setPendingTask] = useState<ChatPendingTask | null>(null);
+  const pendingTaskRef = useRef(pendingTask);
+  pendingTaskRef.current = pendingTask;
 
   // Session management (when allow_new_sessions)
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -187,12 +189,12 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
               ...prev,
               { type: msgType, tool: (data as any).tool_name ?? "", content: data.content ?? "", seq, task_id: data.task_id ?? "", issue_id: "" },
             ]);
-            if (!pendingTask) {
-              setPendingTask({
-                task_id: data.task_id ?? "",
+            if (pendingTaskRef.current?.status === "queued") {
+              setPendingTask((prev) => prev ? {
+                ...prev,
+                task_id: data.task_id ?? prev.task_id,
                 status: "running",
-                created_at: new Date().toISOString(),
-              });
+              } : null);
             }
             const isThinking = msgType === "thinking";
             setMessages((prev) => {
@@ -254,6 +256,14 @@ export function ChatSharePublicView({ token, info, apiBase = "" }: ChatSharePubl
 
   const handleSend = useCallback((content: string, attachmentIds?: string[]) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    setIsRunning(true);
+    setLiveTaskMessages([]);
+    // Show "queued" immediately — the first task_message will flip it to "running".
+    setPendingTask({
+      task_id: "",
+      status: "queued",
+      created_at: new Date().toISOString(),
+    });
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content }]);
     wsRef.current.send(JSON.stringify({
       visitor_id: visitorId,
