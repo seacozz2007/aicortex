@@ -2058,7 +2058,7 @@ func (d *Daemon) handleTask(ctx context.Context, task Task, slot int) {
 		autoCommitAndPush(result.WorkDir, task.ID, agentName, taskLog)
 	}
 
-	d.reportTaskResult(ctx, task.ID, result, taskLog)
+	d.reportTaskResult(ctx, task.ID, task.IssueID, result, taskLog)
 
 	// Write GC metadata after the task finishes so the periodic GC loop
 	// can look up the parent record (issue / chat session / autopilot run /
@@ -2083,7 +2083,19 @@ func (d *Daemon) handleTask(ctx context.Context, task Task, slot int) {
 // the agent may have built a real session before getting stuck, and we want
 // the next chat turn to resume there rather than start over and "forget"
 // the conversation.
-func (d *Daemon) reportTaskResult(ctx context.Context, taskID string, result TaskResult, taskLog *slog.Logger) {
+// reportIssueArtifactsAfterComplete scans the task workdir and reports HTML
+// artifacts for issue preview. Runs asynchronously; failures are logged only.
+func (d *Daemon) reportIssueArtifactsAfterComplete(taskID, workDir string, taskLog *slog.Logger) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		daemonartifact.ReportIssueArtifacts(ctx, workDir, func(ctx context.Context, artifacts []map[string]string) error {
+			return d.client.ReportTaskArtifacts(ctx, taskID, artifacts)
+		}, taskLog)
+	}()
+}
+
+func (d *Daemon) reportTaskResult(ctx context.Context, taskID, issueID string, result TaskResult, taskLog *slog.Logger) {
 	switch result.Status {
 	case "completed":
 		taskLog.Info("task completed", "status", result.Status)
@@ -2092,6 +2104,8 @@ func (d *Daemon) reportTaskResult(ctx context.Context, taskID string, result Tas
 			if failErr := d.client.FailTask(ctx, taskID, fmt.Sprintf("complete task failed: %s", err.Error()), result.SessionID, result.WorkDir, "agent_error"); failErr != nil {
 				taskLog.Error("fail task fallback also failed", "error", failErr)
 			}
+		} else if issueID != "" && result.WorkDir != "" {
+			d.reportIssueArtifactsAfterComplete(taskID, result.WorkDir, taskLog)
 		}
 	default:
 		failureReason := result.FailureReason

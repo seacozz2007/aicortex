@@ -266,6 +266,7 @@ export function useRealtimeSync(
         // shape as the tasks invalidation above — any task lifecycle
         // event shifts the aggregated usage numbers.
         qc.invalidateQueries({ queryKey: ["issues", "usage"] });
+        qc.invalidateQueries({ queryKey: ["issues", "artifacts"] });
       },
     };
 

@@ -7,3 +7,7 @@ export function useRuntimeTunnelFeature(): boolean {
 export function useArtifactBrowseFeature(): boolean {
   return useConfigStore((s) => s.features.artifact_browse);
 }
+
+export function useIssuePreviewFeature(): boolean {
+  return useConfigStore((s) => s.features.issue_preview);
+}

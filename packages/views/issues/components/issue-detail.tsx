@@ -53,6 +53,7 @@ import { ResolvedThreadBar } from "./resolved-thread-bar";
 import { collectThreadReplies } from "./thread-utils";
 import { AgentLiveCard } from "./agent-live-card";
 import { ExecutionLogSection } from "./execution-log-section";
+import { IssuePreviewSection } from "./issue-preview-section";
 import { PullRequestList } from "./pull-request-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@aicortex/core/auth";
@@ -1365,6 +1366,8 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
           owns its own collapse state and WS subscriptions. Hides itself
           when there are no runs to show. */}
       <ExecutionLogSection issueId={id} />
+
+      <IssuePreviewSection issueId={id} />
 
       {/* Token usage */}
       {usage && usage.task_count > 0 && (

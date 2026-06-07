@@ -265,6 +265,13 @@
     "stop_tooltip": "Stop agent",
     "cancel_failed": "Failed to cancel task"
   },
+  "issue_preview": {
+    "section": "Preview",
+    "loading": "Loading previews…",
+    "empty": "No previewable pages from recent runs yet. HTML files such as index.html are detected automatically after a task completes.",
+    "open_new_tab": "Open in new tab",
+    "frame_title": "Issue preview"
+  },
   "execution_log": {
     "section": "Execution log",
     "show_past": "Show past runs ({{count}})",

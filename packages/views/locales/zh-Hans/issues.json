@@ -260,6 +260,13 @@
     "stop_tooltip": "停止Agent",
     "cancel_failed": "取消 task 失败"
   },
+  "issue_preview": {
+    "section": "预览",
+    "loading": "加载预览…",
+    "empty": "暂无可用预览页面。任务完成后会自动扫描 index.html 等 HTML 文件。",
+    "open_new_tab": "新标签页打开",
+    "frame_title": "Issue 预览"
+  },
   "execution_log": {
     "section": "执行日志",
     "show_past": "显示历史运行（{{count}}）",

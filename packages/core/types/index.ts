@@ -12,6 +12,7 @@ export type {
   ArtifactSource,
   ArtifactEntry,
   ArtifactListResult,
+  IssueArtifact,
   RuntimeTunnel,
   RuntimeDevice,
   CreateAgentRequest,

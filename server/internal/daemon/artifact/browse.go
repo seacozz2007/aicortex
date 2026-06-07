@@ -34,7 +34,7 @@ func (b *Browser) HandleRequest(payload protocol.ArtifactRequestPayload) {
 
 func (b *Browser) handle(payload protocol.ArtifactRequestPayload) {
 	resp := protocol.ArtifactResponsePayload{RequestID: payload.RequestID}
-	defer b.send(resp)
+	defer func() { b.send(resp) }()
 
 	if strings.TrimSpace(payload.RootPath) == "" {
 		resp.Error = "root path required"
@@ -47,7 +47,12 @@ func (b *Browser) handle(payload protocol.ArtifactRequestPayload) {
 		return
 	}
 
-	switch strings.ToLower(strings.TrimSpace(payload.Op)) {
+	op := strings.ToLower(strings.TrimSpace(payload.Op))
+	if op == "" {
+		resp.Error = "artifact operation required"
+		return
+	}
+	switch op {
 	case "list":
 		entries, listErr := listDir(abs, payload.RelPath)
 		if listErr != nil {
@@ -66,7 +71,7 @@ func (b *Browser) handle(payload protocol.ArtifactRequestPayload) {
 			resp.Body = base64.StdEncoding.EncodeToString(body)
 		}
 	default:
-		resp.Error = "unsupported artifact operation"
+		resp.Error = "unsupported artifact operation: " + op
 	}
 }
 

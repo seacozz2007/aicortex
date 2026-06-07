@@ -309,6 +309,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		r.Post("/tasks/{taskId}/fail", h.FailTask)
 		r.Post("/tasks/{taskId}/usage", h.ReportTaskUsage)
 		r.Post("/tasks/{taskId}/messages", h.ReportTaskMessages)
+		r.Post("/tasks/{taskId}/artifacts", h.ReportTaskArtifacts)
 		r.Get("/tasks/{taskId}/messages", h.ListTaskMessages)
 
 		r.Get("/issues/{issueId}/gc-check", h.GetIssueGCCheck)
@@ -431,6 +432,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Post("/labels", h.AttachLabel)
 					r.Delete("/labels/{labelId}", h.DetachLabel)
 					r.Get("/pull-requests", h.ListPullRequestsForIssue)
+					r.Get("/artifacts", h.ListIssueArtifacts)
 				})
 			})
 

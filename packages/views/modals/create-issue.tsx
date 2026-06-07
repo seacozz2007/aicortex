@@ -48,6 +48,7 @@ import { FileUploadButton } from "@aicortex/ui/components/common/file-upload-but
 import { PillButton } from "../common/pill-button";
 import { IssuePickerModal } from "./issue-picker-modal";
 import { useT } from "../i18n";
+import { showCreateIssueErrorToast } from "../issues/utils/create-issue-error";
 
 // ---------------------------------------------------------------------------
 // ManualCreatePanel — manual-mode body of the create-issue dialog. Renders
@@ -260,8 +261,18 @@ export function ManualCreatePanel({
           </div>
         ), { duration: 5000 });
       }
-    } catch {
-      toast.error(t(($) => $.create_issue.toast_failed));
+    } catch (err) {
+      showCreateIssueErrorToast(
+        err,
+        {
+          genericFailed: t(($) => $.create_issue.toast_failed),
+          duplicateTitle: t(($) => $.create_issue.toast_duplicate_title),
+          duplicateBody: (identifier, title, status) =>
+            t(($) => $.create_issue.toast_duplicate_body, { identifier, title, status }),
+          viewExisting: t(($) => $.create_issue.toast_duplicate_view),
+        },
+        (issueId) => router.push(p.issueDetail(issueId)),
+      );
     } finally {
       setSubmitting(false);
     }

@@ -53,6 +53,8 @@ export const issueKeys = {
    *  the global WS task: prefix path so any task lifecycle event refreshes
    *  every per-issue list, regardless of which issue is currently mounted. */
   tasksAll: () => ["issues", "tasks"] as const,
+  artifacts: (issueId: string) => ["issues", "artifacts", issueId] as const,
+  artifactsAll: () => ["issues", "artifacts"] as const,
 };
 
 export type MyIssuesFilter = Pick<
@@ -242,5 +244,14 @@ export function issueAttachmentsOptions(issueId: string) {
   return queryOptions({
     queryKey: issueKeys.attachments(issueId),
     queryFn: () => api.listAttachments(issueId),
+  });
+}
+
+export function issueArtifactsOptions(issueId: string, enabled = true) {
+  return queryOptions({
+    queryKey: issueKeys.artifacts(issueId),
+    queryFn: () => api.listIssueArtifacts(issueId),
+    enabled,
+    staleTime: 30_000,
   });
 }

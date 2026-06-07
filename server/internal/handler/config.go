@@ -37,6 +37,7 @@ type AppConfig struct {
 type AppFeatureFlags struct {
 	RuntimeTunnel  bool `json:"runtime_tunnel"`
 	ArtifactBrowse bool `json:"artifact_browse"`
+	IssuePreview   bool `json:"issue_preview"`
 }
 
 // GetConfig is mounted on the public (unauthenticated) route group because
@@ -70,6 +71,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	config.Features = AppFeatureFlags{
 		RuntimeTunnel:  tunnel.FeatureRuntimeTunnel(),
 		ArtifactBrowse: artifact.FeatureArtifactBrowse(),
+		IssuePreview:   artifact.FeatureIssuePreview(),
 	}
 
 	writeJSON(w, http.StatusOK, config)

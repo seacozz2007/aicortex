@@ -40,6 +40,14 @@ func (h *Handler) artifactBrowseEnabled(w http.ResponseWriter) bool {
 	return true
 }
 
+func (h *Handler) artifactServingEnabled(w http.ResponseWriter) bool {
+	if !art.FeatureArtifactServing() {
+		writeError(w, http.StatusNotFound, "not found")
+		return false
+	}
+	return true
+}
+
 func (h *Handler) authorizeTaskArtifactUse(w http.ResponseWriter, r *http.Request, taskID string) (db.AgentTaskQueue, bool) {
 	taskUUID, valid := parseUUIDOrBadRequest(w, taskID, "task_id")
 	if !valid {
@@ -146,7 +154,7 @@ func (h *Handler) ListTaskArtifacts(w http.ResponseWriter, r *http.Request) {
 
 // ServeTaskArtifactRaw returns one file from a task work directory.
 func (h *Handler) ServeTaskArtifactRaw(w http.ResponseWriter, r *http.Request) {
-	if !h.artifactBrowseEnabled(w) {
+	if !h.artifactServingEnabled(w) {
 		return
 	}
 	taskID := chi.URLParam(r, "taskId")

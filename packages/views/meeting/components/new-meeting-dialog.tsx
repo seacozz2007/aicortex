@@ -23,12 +23,15 @@ import { X, Bot, Check, Loader2 } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
 import type { Label } from "@aicortex/core/types";
 import { ActorAvatar } from "../../common/actor-avatar";
+import { useT } from "../../i18n";
+import { showCreateIssueErrorToast } from "../../issues/utils/create-issue-error";
 
 // ---------------------------------------------------------------------------
 // NewMeetingDialog
 // ---------------------------------------------------------------------------
 
 export function NewMeetingDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useT("modals");
   const wsId = useWorkspaceId();
   const paths = useWorkspacePaths();
   const navigation = useNavigation();
@@ -123,8 +126,22 @@ export function NewMeetingDialog({ onClose }: { onClose: () => void }) {
       toast.success(`Meeting "${issue.title}" created`);
       onClose();
       navigation.push(paths.meetingDetail(issue.id));
-    } catch {
-      toast.error("Failed to create meeting");
+    } catch (err) {
+      showCreateIssueErrorToast(
+        err,
+        {
+          genericFailed: "Failed to create meeting",
+          duplicateTitle: t(($) => $.create_issue.toast_duplicate_title),
+          duplicateBody: (identifier, issueTitle, status) =>
+            t(($) => $.create_issue.toast_duplicate_body, {
+              identifier,
+              title: issueTitle,
+              status,
+            }),
+          viewExisting: t(($) => $.create_issue.toast_duplicate_view),
+        },
+        (issueId) => navigation.push(paths.issueDetail(issueId)),
+      );
     } finally {
       setSubmitting(false);
     }

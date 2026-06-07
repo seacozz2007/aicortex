@@ -4,6 +4,7 @@ import { useStore } from "zustand";
 export interface AppFeatureFlags {
   runtime_tunnel: boolean;
   artifact_browse: boolean;
+  issue_preview: boolean;
 }
 
 interface ConfigState {
@@ -19,6 +20,7 @@ interface ConfigState {
 const defaultFeatures: AppFeatureFlags = {
   runtime_tunnel: false,
   artifact_browse: false,
+  issue_preview: false,
 };
 
 export const configStore = createStore<ConfigState>((set) => ({

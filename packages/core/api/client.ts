@@ -24,6 +24,7 @@ import type {
   AgentRuntime,
   ArtifactListResult,
   ArtifactSource,
+  IssueArtifact,
   RuntimeTunnel,
   InboxItem,
   IssueSubscriber,
@@ -348,7 +349,8 @@ export class ApiClient {
     if (!res.ok) {
       if (res.status === 401) this.handleUnauthorized();
       const { message, body } = await this.parseErrorBody(res, `API error: ${res.status} ${res.statusText}`);
-      const logLevel = res.status === 404 ? "warn" : "error";
+      const logLevel =
+        res.status === 404 || res.status === 409 ? "warn" : "error";
       this.logger[logLevel](`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms`, error: message });
       throw new ApiError(message, res.status, res.statusText, body);
     }
@@ -1054,6 +1056,10 @@ export class ApiClient {
     return this.fetch(`/api/issues/${issueId}/task-runs`);
   }
 
+  async listIssueArtifacts(issueId: string): Promise<IssueArtifact[]> {
+    return this.fetch(`/api/issues/${issueId}/artifacts`);
+  }
+
   async getIssueUsage(issueId: string): Promise<IssueUsageSummary> {
     return this.fetch(`/api/issues/${issueId}/usage`);
   }
@@ -1126,6 +1132,7 @@ export class ApiClient {
     features?: {
       runtime_tunnel?: boolean;
       artifact_browse?: boolean;
+      issue_preview?: boolean;
     };
   }> {
     return this.fetch("/api/config");

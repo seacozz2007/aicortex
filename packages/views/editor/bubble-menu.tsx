@@ -34,7 +34,10 @@ import { posToDOMRect } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
 import { toast } from "sonner";
 import { useCreateIssue } from "@aicortex/core/issues/mutations";
+import { useWorkspacePaths } from "@aicortex/core/paths";
 import { useT } from "../i18n";
+import { useNavigation } from "../navigation";
+import { showCreateIssueErrorToast } from "../issues/utils/create-issue-error";
 import { modKey } from "@aicortex/core/platform";
 import { Toggle } from "@aicortex/ui/components/ui/toggle";
 import { Separator } from "@aicortex/ui/components/ui/separator";
@@ -367,6 +370,9 @@ function CreateSubIssueButton({
   parentIssueId: string;
 }) {
   const { t } = useT("editor");
+  const { t: tModals } = useT("modals");
+  const router = useNavigation();
+  const p = useWorkspacePaths();
   const createIssue = useCreateIssue();
   const [pending, setPending] = useState(false);
 
@@ -406,12 +412,26 @@ function CreateSubIssueButton({
         )
         .run();
       toast.success(t(($) => $.bubble_menu.sub_issue.created, { identifier: newIssue.identifier }));
-    } catch {
-      toast.error(t(($) => $.bubble_menu.sub_issue.create_failed));
+    } catch (err) {
+      showCreateIssueErrorToast(
+        err,
+        {
+          genericFailed: t(($) => $.bubble_menu.sub_issue.create_failed),
+          duplicateTitle: tModals(($) => $.create_issue.toast_duplicate_title),
+          duplicateBody: (identifier, title, status) =>
+            tModals(($) => $.create_issue.toast_duplicate_body, {
+              identifier,
+              title,
+              status,
+            }),
+          viewExisting: tModals(($) => $.create_issue.toast_duplicate_view),
+        },
+        (issueId) => router.push(p.issueDetail(issueId)),
+      );
     } finally {
       setPending(false);
     }
-  }, [editor, parentIssueId, createIssue, pending, t]);
+  }, [editor, parentIssueId, createIssue, pending, t, tModals, router, p]);
 
   return (
     <Tooltip>

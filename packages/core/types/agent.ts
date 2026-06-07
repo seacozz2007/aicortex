@@ -55,6 +55,17 @@ export interface ArtifactListResult {
   entries: ArtifactEntry[];
 }
 
+export interface IssueArtifact {
+  id: string;
+  issue_id: string;
+  task_id: string;
+  runtime_id: string;
+  rel_path: string;
+  kind: string;
+  title: string;
+  created_at: string;
+}
+
 export interface RuntimeTunnel {
   id: string;
   workspace_id: string;
