@@ -255,8 +255,18 @@ check-worktree: ## Run the full verification pipeline for this worktree
 # ---------- Individual commands ----------
 ##@ Individual commands
 
+# Use Windows-optimized script on native Windows (not WSL).
+# WSL exports WSL_DISTRO_NAME; native Windows + Git Bash does not.
+ifdef WSL_DISTRO_NAME
+  DEV_SCRIPT := scripts/dev.sh
+else ifeq ($(OS),Windows_NT)
+  DEV_SCRIPT := scripts/dev-win.sh
+else
+  DEV_SCRIPT := scripts/dev.sh
+endif
+
 dev: ## Bootstrap this checkout end-to-end: create env if needed, ensure DB, migrate, start services
-	@bash scripts/dev.sh
+	@bash $(DEV_SCRIPT)
 
 server: ## Run only the Go server for the current checkout
 	$(REQUIRE_ENV)
