@@ -1820,7 +1820,7 @@ func (h *Handler) ReportTaskMessages(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if workspaceID != "" {
-			h.publishTask(protocol.EventTaskMessage, workspaceID, "system", "", taskID, protocol.TaskMessagePayload{
+			payload := protocol.TaskMessagePayload{
 				TaskID:  taskID,
 				IssueID: uuidToString(task.IssueID),
 				Seq:     msg.Seq,
@@ -1829,7 +1829,12 @@ func (h *Handler) ReportTaskMessages(w http.ResponseWriter, r *http.Request) {
 				Content: msg.Content,
 				Input:   msg.Input,
 				Output:  msg.Output,
-			})
+			}
+			if task.ChatSessionID.Valid {
+				h.publishChat(protocol.EventTaskMessage, workspaceID, "system", "", uuidToString(task.ChatSessionID), payload)
+			} else {
+				h.publishTask(protocol.EventTaskMessage, workspaceID, "system", "", taskID, payload)
+			}
 		}
 	}
 
