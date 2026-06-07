@@ -296,6 +296,17 @@ release-cli: ## Build CLI binary to release/win/{VERSION}/aicortex.exe
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/win/$(VERSION)/aicortex.exe ./cmd/aicortex
 	@echo "Built: release/win/$(VERSION)/aicortex.exe"
 
+RELEASE_REPO ?=
+RELEASE_DIR ?= .release-repo
+
+release-publish: release-cli ## Build + push CLI binary to public releases repo
+	@test -n "$(RELEASE_REPO)" || { echo "Set RELEASE_REPO=<url>"; exit 1; }
+	test -d "$(RELEASE_DIR)" || git clone "$(RELEASE_REPO)" "$(RELEASE_DIR)"
+	mkdir -p "$(RELEASE_DIR)/win/$(VERSION)"
+	cp release/win/$(VERSION)/aicortex.exe "$(RELEASE_DIR)/win/$(VERSION)/"
+	cd "$(RELEASE_DIR)" && git add win/$(VERSION) && git commit -m "release aicortex $(VERSION)" && git push
+	@echo "Published: $(RELEASE_REPO)/win/$(VERSION)/aicortex.exe"
+
 prod: ## Production build and start (install, build, migrate, launch server + web)
 	$(REQUIRE_ENV)
 	@echo "==> Installing dependencies..."
