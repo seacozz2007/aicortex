@@ -145,6 +145,21 @@ func (d *Daemon) runTaskWakeupConnection(ctx context.Context, runtimeIDs []strin
 		defer d.tunnelProxy.SetSendFunc(nil)
 	}
 
+	if d.artifactBrowser != nil {
+		d.artifactBrowser.SetSendFunc(func(msg protocol.Message) {
+			frame, err := json.Marshal(msg)
+			if err != nil {
+				return
+			}
+			select {
+			case writes <- frame:
+			default:
+				d.logger.Debug("artifact ws write dropped (buffer full)")
+			}
+		})
+		defer d.artifactBrowser.SetSendFunc(nil)
+	}
+
 	heartbeatCtx, cancelHeartbeat := context.WithCancel(ctx)
 	hbDone := make(chan struct{})
 	go func() {
@@ -373,6 +388,15 @@ func (d *Daemon) readTaskWakeupMessages(conn *websocket.Conn, taskWakeups chan<-
 			}
 			if d.tunnelProxy != nil {
 				d.tunnelProxy.HandleRequest(payload)
+			}
+		case protocol.EventArtifactRequest:
+			var payload protocol.ArtifactRequestPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				d.logger.Debug("artifact request invalid payload", "error", err)
+				continue
+			}
+			if d.artifactBrowser != nil {
+				d.artifactBrowser.HandleRequest(payload)
 			}
 		}
 	}

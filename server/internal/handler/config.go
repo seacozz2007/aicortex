@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/aicortex/aicortex/server/internal/analytics"
+	"github.com/aicortex/aicortex/server/internal/artifact"
 	"github.com/aicortex/aicortex/server/internal/tunnel"
 )
 
@@ -34,7 +35,8 @@ type AppConfig struct {
 }
 
 type AppFeatureFlags struct {
-	RuntimeTunnel bool `json:"runtime_tunnel"`
+	RuntimeTunnel  bool `json:"runtime_tunnel"`
+	ArtifactBrowse bool `json:"artifact_browse"`
 }
 
 // GetConfig is mounted on the public (unauthenticated) route group because
@@ -66,7 +68,8 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	config.Features = AppFeatureFlags{
-		RuntimeTunnel: tunnel.FeatureRuntimeTunnel(),
+		RuntimeTunnel:  tunnel.FeatureRuntimeTunnel(),
+		ArtifactBrowse: artifact.FeatureArtifactBrowse(),
 	}
 
 	writeJSON(w, http.StatusOK, config)

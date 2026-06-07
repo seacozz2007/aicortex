@@ -22,6 +22,8 @@ import type {
   AgentActivityBucket,
   AgentRunCount,
   AgentRuntime,
+  ArtifactListResult,
+  ArtifactSource,
   RuntimeTunnel,
   InboxItem,
   IssueSubscriber,
@@ -839,6 +841,15 @@ export class ApiClient {
     });
   }
 
+  async listRuntimeArtifactSources(runtimeId: string): Promise<ArtifactSource[]> {
+    return this.fetch(`/api/runtimes/${runtimeId}/artifact-sources`);
+  }
+
+  async listTaskArtifacts(taskId: string, path = ""): Promise<ArtifactListResult> {
+    const params = path ? `?path=${encodeURIComponent(path)}` : "";
+    return this.fetch(`/api/tasks/${taskId}/artifacts${params}`);
+  }
+
   async updateRuntime(
     runtimeId: string,
     patch: { timezone?: string; visibility?: "private" | "public" },
@@ -1114,6 +1125,7 @@ export class ApiClient {
     analytics_environment?: string;
     features?: {
       runtime_tunnel?: boolean;
+      artifact_browse?: boolean;
     };
   }> {
     return this.fetch("/api/config");

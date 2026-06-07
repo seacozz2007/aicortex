@@ -47,6 +47,7 @@ import { HealthBadge } from "./shared";
 import { ProviderLogo } from "./provider-logo";
 import { UpdateSection } from "./update-section";
 import { UsageSection } from "./usage-section";
+import { RuntimeArtifactPanel } from "./runtime-artifact-panel";
 import { RuntimeTunnelPanel } from "./runtime-tunnel-panel";
 import { useT } from "../../i18n";
 
@@ -207,6 +208,7 @@ export function RuntimeDetail({ runtime }: { runtime: AgentRuntime }) {
             />
             <UsageSection runtimeId={runtime.id} />
             <RuntimeTunnelPanel runtimeId={runtime.id} canManage={!!canDelete} />
+            <RuntimeArtifactPanel runtimeId={runtime.id} />
           </div>
 
           {/* Right rail: serving agents + diagnostics */}

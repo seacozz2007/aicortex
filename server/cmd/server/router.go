@@ -177,6 +177,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	daemonHub.SetTunnelHandler(func(msg protocol.Message) {
 		h.HandleTunnelResponse(msg)
 	})
+	daemonHub.SetArtifactHandler(func(msg protocol.Message) {
+		h.HandleArtifactResponse(msg)
+	})
 
 	// Wire terminal relay: browser → server → daemon.
 	hub.SetTerminalInboundHandler(func(raw json.RawMessage, msgType string) {
@@ -433,6 +436,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 
 			// Task messages (user-facing, not daemon auth)
 			r.Get("/api/tasks/{taskId}/messages", h.ListTaskMessagesByUser)
+			r.Get("/api/tasks/{taskId}/artifacts", h.ListTaskArtifacts)
+			r.Handle("/api/tasks/{taskId}/artifacts/raw", http.HandlerFunc(h.ServeTaskArtifactRaw))
+			r.Handle("/api/tasks/{taskId}/artifacts/raw/*", http.HandlerFunc(h.ServeTaskArtifactRaw))
 
 			// Labels
 			r.Route("/api/labels", func(r chi.Router) {
@@ -590,6 +596,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					})
 					r.Handle("/tunnel/{port}", http.HandlerFunc(h.ProxyRuntimeTunnel))
 					r.Handle("/tunnel/{port}/*", http.HandlerFunc(h.ProxyRuntimeTunnel))
+					r.Get("/artifact-sources", h.ListRuntimeArtifactSources)
 					r.Patch("/", h.UpdateAgentRuntime)
 					r.Get("/usage", h.GetRuntimeUsage)
 					r.Get("/usage/by-agent", h.GetRuntimeUsageByAgent)

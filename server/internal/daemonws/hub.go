@@ -77,6 +77,9 @@ type TerminalRelayHandler func(msg protocol.Message)
 // TunnelRelayHandler completes pending HTTP proxy requests from daemon replies.
 type TunnelRelayHandler func(msg protocol.Message)
 
+// ArtifactRelayHandler completes pending artifact browse requests from daemon replies.
+type ArtifactRelayHandler func(msg protocol.Message)
+
 // Hub keeps daemon WebSocket connections indexed by runtime ID. Messages are
 // best-effort wakeup hints; the daemon still uses HTTP claim for correctness.
 type Hub struct {
@@ -94,6 +97,9 @@ type Hub struct {
 
 	tunnelMu     sync.RWMutex
 	onTunnel     TunnelRelayHandler
+
+	artifactMu     sync.RWMutex
+	onArtifact     ArtifactRelayHandler
 }
 
 func NewHub() *Hub {
@@ -162,6 +168,22 @@ func (h *Hub) tunnelHandler() TunnelRelayHandler {
 	h.tunnelMu.RLock()
 	defer h.tunnelMu.RUnlock()
 	return h.onTunnel
+}
+
+// SetArtifactHandler installs the callback for read-only artifact browse responses.
+func (h *Hub) SetArtifactHandler(fn ArtifactRelayHandler) {
+	if h == nil {
+		return
+	}
+	h.artifactMu.Lock()
+	h.onArtifact = fn
+	h.artifactMu.Unlock()
+}
+
+func (h *Hub) artifactHandler() ArtifactRelayHandler {
+	h.artifactMu.RLock()
+	defer h.artifactMu.RUnlock()
+	return h.onArtifact
 }
 
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request, identity ClientIdentity) {
@@ -411,6 +433,10 @@ func (c *client) handleFrame(raw []byte) {
 		}
 	case protocol.EventTunnelResponse:
 		if handler := c.hub.tunnelHandler(); handler != nil {
+			handler(msg)
+		}
+	case protocol.EventArtifactResponse:
+		if handler := c.hub.artifactHandler(); handler != nil {
 			handler(msg)
 		}
 	default:

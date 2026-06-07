@@ -139,4 +139,8 @@ const (
 	// Runtime preview tunnel (browser → server → daemon → localhost)
 	EventTunnelRequest  = "tunnel:request"
 	EventTunnelResponse = "tunnel:response"
+
+	// Read-only task artifact browse (browser → server → daemon → workdir)
+	EventArtifactRequest  = "artifact:request"
+	EventArtifactResponse = "artifact:response"
 )

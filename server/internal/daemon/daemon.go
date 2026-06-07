@@ -17,6 +17,7 @@ import (
 
 	"github.com/aicortex/aicortex/server/internal/cli"
 	"github.com/aicortex/aicortex/server/internal/daemon/execenv"
+	daemonartifact "github.com/aicortex/aicortex/server/internal/daemon/artifact"
 	daemontunnel "github.com/aicortex/aicortex/server/internal/daemon/tunnel"
 	"github.com/aicortex/aicortex/server/internal/daemon/repocache"
 	"github.com/aicortex/aicortex/server/pkg/agent"
@@ -146,8 +147,9 @@ type Daemon struct {
 	// without touching the real network or the brew CLI.
 	runUpdateFn func(targetVersion string) (string, error)
 
-	terminalMgr *TerminalManager // manages PTY sessions for remote terminal access
-	tunnelProxy *daemontunnel.Proxy
+	terminalMgr     *TerminalManager // manages PTY sessions for remote terminal access
+	tunnelProxy     *daemontunnel.Proxy
+	artifactBrowser *daemonartifact.Browser
 }
 
 // New creates a new Daemon instance.
@@ -177,6 +179,7 @@ func New(cfg Config, logger *slog.Logger) *Daemon {
 	d.runUpdateFn = d.runUpdate
 	d.terminalMgr = NewTerminalManager(logger)
 	d.tunnelProxy = daemontunnel.NewProxy(logger)
+	d.artifactBrowser = daemonartifact.NewBrowser(logger)
 	return d
 }
 

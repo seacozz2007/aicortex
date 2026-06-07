@@ -23,6 +23,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/realtime"
 	"github.com/aicortex/aicortex/server/internal/service"
 	"github.com/aicortex/aicortex/server/internal/storage"
+	artifactpkg "github.com/aicortex/aicortex/server/internal/artifact"
 	tunnelpkg "github.com/aicortex/aicortex/server/internal/tunnel"
 	"github.com/aicortex/aicortex/server/internal/util"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
@@ -98,6 +99,7 @@ type Handler struct {
 	ForumAutoState        *forum.ForumAutoState
 	TunnelPending         *tunnelpkg.PendingStore
 	TunnelLimiter         *tunnelpkg.ProxyLimiter
+	ArtifactPending       *artifactpkg.PendingStore
 	cfg                   Config
 }
 
@@ -139,6 +141,7 @@ func New(queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *event
 		Analytics:             analyticsClient,
 		TunnelPending:         tunnelpkg.NewPendingStore(),
 		TunnelLimiter:         tunnelpkg.NewProxyLimiter(),
+		ArtifactPending:       artifactpkg.NewPendingStore(),
 		cfg:                   cfg,
 	}
 }

@@ -34,6 +34,27 @@ export interface RuntimeDevice {
 
 export type AgentRuntime = RuntimeDevice;
 
+export interface ArtifactSource {
+  task_id: string;
+  issue_id?: string;
+  work_dir: string;
+  label: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface ArtifactEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  size: number;
+}
+
+export interface ArtifactListResult {
+  path: string;
+  entries: ArtifactEntry[];
+}
+
 export interface RuntimeTunnel {
   id: string;
   workspace_id: string;

@@ -249,5 +249,14 @@
     "delete_aria": "删除隧道",
     "preview_frame_title": "运行时预览",
     "status_disabled": "已过期"
+  },
+  "artifacts": {
+    "title": "制品浏览",
+    "hint": "只读浏览此 Runtime 上任务的工作目录。",
+    "loading_sources": "加载任务来源…",
+    "empty_sources": "还没有带工作目录的任务。",
+    "loading_files": "加载文件…",
+    "empty_dir": "此目录为空。",
+    "preview_frame_title": "制品预览"
   }
 }

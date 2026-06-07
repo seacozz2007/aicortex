@@ -257,5 +257,14 @@
     "delete_aria": "Remove tunnel",
     "preview_frame_title": "Runtime preview",
     "status_disabled": "expired"
+  },
+  "artifacts": {
+    "title": "Artifact browser",
+    "hint": "Read-only browse of task work directories on this runtime.",
+    "loading_sources": "Loading task sources…",
+    "empty_sources": "No tasks with a work directory yet.",
+    "loading_files": "Loading files…",
+    "empty_dir": "This directory is empty.",
+    "preview_frame_title": "Artifact preview"
   }
 }

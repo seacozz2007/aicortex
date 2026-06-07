@@ -234,3 +234,27 @@ type TunnelResponsePayload struct {
 	Body      string              `json:"body,omitempty"` // base64
 	Error     string              `json:"error,omitempty"`
 }
+
+// --- Task artifact browse payloads ---
+
+type ArtifactRequestPayload struct {
+	RequestID string `json:"request_id"`
+	Op        string `json:"op"` // list | read
+	RootPath  string `json:"root_path"`
+	RelPath   string `json:"rel_path,omitempty"`
+}
+
+type ArtifactListEntry struct {
+	Name  string `json:"name"`
+	Path  string `json:"path"`
+	IsDir bool   `json:"is_dir"`
+	Size  int64  `json:"size"`
+}
+
+type ArtifactResponsePayload struct {
+	RequestID   string              `json:"request_id"`
+	Entries     []ArtifactListEntry `json:"entries,omitempty"`
+	ContentType string              `json:"content_type,omitempty"`
+	Body        string              `json:"body,omitempty"` // base64
+	Error       string              `json:"error,omitempty"`
+}
