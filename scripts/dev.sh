@@ -4,52 +4,69 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# ---------- Windows (MSYS2/Git Bash) PATH helpers ----------
-# Git Bash on Windows doesn't inherit the full Windows PATH for non-interactive
-# shells. Add common tool locations so the prerequisite check below passes.
+# ---------- WSL detection ----------
+_is_wsl=
+if [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+  _is_wsl=1
+fi
+
+# ---------- Windows PATH helpers ----------
+# Git Bash / WSL on Windows doesn't inherit the full Windows PATH for
+# non-interactive shells. Add common tool locations so the prerequisite
+# check below passes.
+
+_windows_path_try() {
+  local _p
+  for _p in "$@"; do
+    [ -d "$_p" ] && PATH="${_p}:${PATH}" && return 0
+  done
+  return 0  # not finding paths is not an error
+}
+
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
-    # Resolve known Windows tool paths.
-    # Try both /c/... and C:/... formats — MSYS2 path translation may be
-    # partially absent when bash is spawned from a non-MSYS2 parent
-    # (e.g. GnuWin32 make from PowerShell).
-    for _try in \
-      "/c/Program Files/nodejs" \
-      "C:/Program Files/nodejs" \
-      "/c/Program Files/Docker/Docker/resources/bin" \
-      "C:/Program Files/Docker/Docker/resources/bin" \
-      "/c/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
-      "C:/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
-      "/c/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
-      "C:/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
-      "/c/Program Files (x86)/GnuWin32/bin" \
-      "C:/Program Files (x86)/GnuWin32/bin"; do
-      [ -d "$_try" ] && PATH="${_try}:${PATH}"
-    done
-    # Restore the Go binary path from GOROOT if set
+    # MSYS2/Git Bash — try /c/... and C:/... formats
+    _windows_path_try \
+      "/c/Program Files/nodejs" "C:/Program Files/nodejs" \
+      "/c/Program Files/Docker/Docker/resources/bin" "C:/Program Files/Docker/Docker/resources/bin" \
+      "/c/Users/${USER:-$(whoami)}/AppData/Roaming/npm" "C:/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
+      "/c/Users/${USER:-$(whoami)}/go1.26.1/go/bin" "C:/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
+      "/c/Program Files (x86)/GnuWin32/bin" "C:/Program Files (x86)/GnuWin32/bin"
     if [ -n "${GOROOT:-}" ]; then
       PATH="${GOROOT}/bin:${PATH}"
     fi
     ;;
 esac
 
-# ---------- Windows PATH fallback via cmd.exe / where ----------
+if [ -n "$_is_wsl" ]; then
+  # WSL — /mnt/c/... format
+  _windows_path_try \
+    "/mnt/c/Program Files/nodejs" \
+    "/mnt/c/Program Files/Docker/Docker/resources/bin" \
+    "/mnt/c/Users/${USER:-$(whoami)}/AppData/Roaming/npm" \
+    "/mnt/c/Users/${USER:-$(whoami)}/go1.26.1/go/bin" \
+    "/mnt/c/Program Files (x86)/GnuWin32/bin"
+  if [ -n "${GOROOT:-}" ]; then
+    PATH="${GOROOT}/bin:${PATH}"
+  fi
+fi
+
+# ---------- Windows PATH fallback via where.exe ----------
 # If the hardcoded paths above didn't cover the user's install locations,
-# ask cmd.exe to resolve the tool paths from the Windows system PATH.
+# ask where.exe to resolve the tool paths from the Windows system PATH.
 _find_in_windows_path() {
   local _tool="$1"
   local _path _dir _drive
-  # Use where.exe directly (not cmd.exe /c) to avoid MSYS2 argument
-  # path translation mangling the /c flag into C:\.
   _path=$(where.exe "$_tool" 2>/dev/null | head -1 | tr -d '\r')
   [ -n "$_path" ] || return 1
-  # Convert to canonical MSYS2 path: C:\Program Files\nodejs\node.exe
-  # → /c/Program Files/nodejs/node.exe. This avoids relying on MSYS2's
-  # X:/ PATH handling which may not work when bash is spawned from a
-  # non-MSYS2 parent (GnuWin32 make from PowerShell).
+  # Convert C:\... → /c/... (MSYS2) or /mnt/c/... (WSL)
   _path="${_path//\\/\/}"          # backslash → forward slash
   _drive="${_path:0:1}"           # drive letter
-  _path="/${_drive,,}${_path:2}"  # / + lowercase drive + rest after :
+  if [ -n "$_is_wsl" ]; then
+    _path="/mnt/${_drive,,}${_path:2}"
+  else
+    _path="/${_drive,,}${_path:2}"
+  fi
   _dir="$(dirname "$_path")"
   PATH="${_dir}:${PATH}"
   # Verify the tool is actually reachable via PATH now
