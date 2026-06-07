@@ -32,11 +32,18 @@ esac
 # ask cmd.exe to resolve the tool paths from the Windows system PATH.
 _find_in_windows_path() {
   local _tool="$1"
-  local _path
-  _path=$(cmd.exe /c "where $_tool" 2>/dev/null | head -1 | tr -d '\r')
-  [ -n "$_path" ] && [ -f "$_path" ] && PATH="$(dirname "$_path"):${PATH}"
+  local _path _dir
+  # Use where.exe directly (not cmd.exe /c) to avoid MSYS2 argument
+  # path translation mangling the /c flag into C:\.
+  _path=$(where.exe "$_tool" 2>/dev/null | head -1 | tr -d '\r')
+  [ -n "$_path" ] && [ -f "$_path" ] || return 1
+  # Convert to MSYS2 path (/c/...) so the colon in "C:\" doesn't break
+  # the colon-separated PATH variable.
+  _dir="$(dirname "${_path//\\/\/}")"
+  _dir=$(cygpath -u "$_dir" 2>/dev/null || echo "$_dir")
+  PATH="${_dir}:${PATH}"
 }
-if command -v cmd.exe >/dev/null 2>&1; then
+if command -v where.exe >/dev/null 2>&1; then
   command -v node  >/dev/null 2>&1 || _find_in_windows_path node.exe
   command -v pnpm  >/dev/null 2>&1 || _find_in_windows_path pnpm.cmd
   command -v go    >/dev/null 2>&1 || _find_in_windows_path go.exe
