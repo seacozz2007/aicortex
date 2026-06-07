@@ -51,11 +51,41 @@
   "tools_sidebar": {
     "title": "工具",
     "toggle_tooltip": "展开/收起工具面板",
-    "coming_soon": "即将推出。",
+    "unavailable": "此会话暂无可用的工具。请先运行一次任务以绑定 runtime。",
     "tabs": {
       "files": "文件",
       "terminal": "终端",
       "web": "网页"
+    },
+    "terminal": {
+      "hint": "在此会话 runtime 上的交互式终端。",
+      "no_runtime": "尚无 runtime。发送消息并等待 Agent 启动任务。",
+      "work_dir_hint": "工作目录：{{path}} — 如需可执行 cd \"{{path}}\"",
+      "connecting": "正在连接终端…",
+      "start_error": "无法启动终端。请确认 runtime 是否在线。",
+      "closed": "终端会话已关闭。",
+      "retry": "重试",
+      "reconnect_tooltip": "重新连接",
+      "close_tooltip": "关闭终端",
+      "session_title": "会话 · {{title}}",
+      "session_title_default": "Chat 终端"
+    },
+    "web": {
+      "hint": "预览此会话 runtime 上的开发服务端口。",
+      "no_runtime": "尚无 runtime。发送消息并等待 Agent 启动任务。",
+      "select_port": "添加或选择一个端口进行预览。",
+      "disabled": "此会话暂不可用网页预览。",
+      "mode_static": "index.html",
+      "mode_tunnel": "开发服务",
+      "static_hint": "渲染任务工作目录中的 index.html。",
+      "static_frame_title": "HTML 预览",
+      "checking_index": "正在检查 index.html…",
+      "index_missing": "工作目录根路径下没有 index.html。",
+      "tunnel_hint": "通过 runtime 代理本地开发服务端口。"
+    },
+    "html": {
+      "view_render_tooltip": "渲染预览",
+      "view_source_tooltip": "查看源码"
     },
     "files": {
       "hint": "浏览本会话最近一次任务的工作目录文件。",

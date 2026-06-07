@@ -14,6 +14,8 @@ import {
 } from "@aicortex/ui/components/ui/resizable";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
+import { isHtmlArtifact } from "./chat-artifact-url";
+import { ChatHtmlFilePreview } from "./chat-html-file-preview";
 
 const MAX_TEXT_BYTES = 512 * 1024;
 
@@ -33,8 +35,6 @@ const TEXT_EXTENSIONS = new Set([
   ".py",
   ".go",
   ".rs",
-  ".html",
-  ".htm",
   ".css",
   ".scss",
   ".less",
@@ -54,17 +54,8 @@ const TEXT_EXTENSIONS = new Set([
   ".properties",
 ]);
 
-function buildArtifactRawURL(
-  taskId: string,
-  relPath: string,
-  workspaceSlug: string,
-): string {
-  const params = new URLSearchParams({ workspace_slug: workspaceSlug });
-  const trimmed = relPath.replace(/^\/+/, "");
-  return `/api/tasks/${taskId}/artifacts/raw/${trimmed}?${params.toString()}`;
-}
-
 function isTextArtifact(path: string): boolean {
+  if (isHtmlArtifact(path)) return false;
   const lower = path.toLowerCase();
   const base = lower.split("/").pop() ?? lower;
   if (base === ".env" || base.startsWith(".env.")) return true;
@@ -145,7 +136,13 @@ export function ChatArtifactPanel({
   }, [taskId]);
 
   useEffect(() => {
-    if (!selectedPath || !taskId || !workspaceSlug || !isTextArtifact(selectedPath)) {
+    if (
+      !selectedPath ||
+      !taskId ||
+      !workspaceSlug ||
+      isHtmlArtifact(selectedPath) ||
+      !isTextArtifact(selectedPath)
+    ) {
       return;
     }
 
@@ -208,6 +205,13 @@ export function ChatArtifactPanel({
         setUnsupportedPath(null);
         return;
       }
+      if (isHtmlArtifact(entry.path)) {
+        setContentError(null);
+        setUnsupportedPath(null);
+        setTextContent(null);
+        setSelectedPath(entry.path);
+        return;
+      }
       if (!isTextArtifact(entry.path)) {
         setSelectedPath(null);
         setTextContent(null);
@@ -252,6 +256,20 @@ export function ChatArtifactPanel({
     }
     if (contentError) {
       return <p className="p-4 text-xs text-destructive">{contentError}</p>;
+    }
+    if (
+      selectedPath &&
+      taskId &&
+      workspaceSlug &&
+      isHtmlArtifact(selectedPath)
+    ) {
+      return (
+        <ChatHtmlFilePreview
+          path={selectedPath}
+          taskId={taskId}
+          workspaceSlug={workspaceSlug}
+        />
+      );
     }
     if (selectedPath && textContent !== null) {
       return <TextPreview path={selectedPath} content={textContent} />;

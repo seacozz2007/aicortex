@@ -54,11 +54,41 @@
   "tools_sidebar": {
     "title": "Tools",
     "toggle_tooltip": "Toggle tools panel",
-    "coming_soon": "Coming soon.",
+    "unavailable": "No tools are available for this chat yet. Run a task first to attach a runtime.",
     "tabs": {
       "files": "Files",
       "terminal": "Terminal",
       "web": "Web"
+    },
+    "terminal": {
+      "hint": "Interactive shell on this chat's runtime.",
+      "no_runtime": "No runtime yet. Send a message and wait for the agent to start a task.",
+      "work_dir_hint": "Work dir: {{path}} — run cd \"{{path}}\" if needed.",
+      "connecting": "Connecting terminal…",
+      "start_error": "Could not start the terminal. Is the runtime online?",
+      "closed": "Terminal session closed.",
+      "retry": "Retry",
+      "reconnect_tooltip": "Reconnect",
+      "close_tooltip": "Close terminal",
+      "session_title": "Chat · {{title}}",
+      "session_title_default": "Chat terminal"
+    },
+    "web": {
+      "hint": "Preview a dev server port on this chat's runtime.",
+      "no_runtime": "No runtime yet. Send a message and wait for the agent to start a task.",
+      "select_port": "Add or select a port to preview.",
+      "disabled": "Web preview is not available for this chat yet.",
+      "mode_static": "index.html",
+      "mode_tunnel": "Dev server",
+      "static_hint": "Renders index.html from the task work directory.",
+      "static_frame_title": "HTML preview",
+      "checking_index": "Checking for index.html…",
+      "index_missing": "No index.html in the work directory root.",
+      "tunnel_hint": "Proxy a local dev server port through the runtime."
+    },
+    "html": {
+      "view_render_tooltip": "Rendered preview",
+      "view_source_tooltip": "View source"
     },
     "files": {
       "hint": "Browse files from the latest task work directory in this chat.",
