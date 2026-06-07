@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/creack/pty"
@@ -122,7 +121,7 @@ func (tm *TerminalManager) HandleOpen(payload protocol.TerminalOpenPayload) {
 
 	cmd := exec.Command(shell)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "LANG=C.UTF-8")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	setProcessGroupAttr(cmd)
 
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
 		Rows: uint16(payload.Rows),
@@ -236,7 +235,7 @@ func (tm *TerminalManager) closeSession(sess *TerminalSession) {
 		close(sess.done)
 		_ = sess.ptmx.Close()
 		if sess.cmd.Process != nil {
-			_ = syscall.Kill(-sess.cmd.Process.Pid, syscall.SIGKILL)
+			_ = killProcessGroup(sess)
 		}
 		tm.mu.Lock()
 		delete(tm.sessions, sess.id)
