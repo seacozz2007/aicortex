@@ -129,11 +129,12 @@ fi
 echo "==> Using $ENV_FILE"
 
 # Source .env robustly — MSYS2 I/O translation makes tr/sed unreliable
-# for CRLF stripping. Using cat + process substitution ensures consistent
-# text-mode I/O so \r is handled transparently.
+# for CRLF stripping. Read line by line, stripping \r from key and value.
 set -a
 while IFS='=' read -r key value; do
   key="${key#export }"
+  key="${key%$'\r'}"
+  value="${value%$'\r'}"
   [[ -z "$key" || "$key" == \#* ]] && continue
   export "$key=$value"
 done < <(cat "$ENV_FILE"; echo)
