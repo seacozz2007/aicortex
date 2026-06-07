@@ -291,10 +291,10 @@ build: ## Build the server, CLI, and migrate binaries into server/bin
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/aicortex ./cmd/aicortex
 	cd server && go build -o bin/migrate ./cmd/migrate
 
-release-cli: ## Build CLI binary to release/win/aicortex-{VERSION}.exe
-	mkdir -p release/win
-	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/win/aicortex-$(VERSION).exe ./cmd/aicortex
-	@echo "Built: release/win/aicortex-$(VERSION).exe"
+release-cli: ## Build CLI binary to release/win/{VERSION}/aicortex.exe
+	mkdir -p release/win/$(VERSION)
+	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o ../release/win/$(VERSION)/aicortex.exe ./cmd/aicortex
+	@echo "Built: release/win/$(VERSION)/aicortex.exe"
 
 prod: ## Production build and start (install, build, migrate, launch server + web)
 	$(REQUIRE_ENV)
