@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { MessageSquare, Plus, Trash2, Pencil, Check, X, FolderKanban, ChevronDown, PanelLeftClose, PanelLeftOpen, PanelRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,16 +21,21 @@ import {
   chatKeys,
 } from "@aicortex/core/chat/queries";
 import {
-  useCreateChatSession,
   useDeleteChatSession,
   useMarkChatSessionRead,
   useUpdateChatSession,
 } from "@aicortex/core/chat/mutations";
 import { useChatStore } from "@aicortex/core/chat";
+import { useEnsureChatSession } from "@aicortex/core/chat/ensure-session";
+import { sendChatMessageWithRecovery } from "@aicortex/core/chat/send-message";
+import { useStaleChatSessionGuard } from "@aicortex/core/chat/stale-session-guard";
 import { useAgentPresenceDetail, useWorkspaceAgentAvailability } from "@aicortex/core/agents";
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
 import { useAuthStore } from "@aicortex/core/auth";
 import { api } from "@aicortex/core/api";
+import { createLogger } from "@aicortex/core/logger";
+
+const apiLogger = createLogger("chat.api");
 import {
   useArtifactBrowseFeature,
   useRuntimeTunnelFeature,
@@ -86,6 +91,7 @@ export function ChatPage() {
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const { data: sessions = [] } = useQuery(chatSessionsOptions(wsId));
+  useStaleChatSessionGuard(activeSessionId);
   const { data: projects = [] } = useQuery(projectListOptions(wsId));
   const { data: rawMessages, isLoading: messagesLoading } = useQuery(
     chatMessagesOptions(activeSessionId ?? ""),
@@ -103,7 +109,6 @@ export function ChatPage() {
     : null;
   const isSessionArchived = currentSession?.status === "archived";
 
-  const createSession = useCreateChatSession();
   const deleteSession = useDeleteChatSession();
   const markRead = useMarkChatSessionRead();
   const updateSession = useUpdateChatSession();
@@ -141,36 +146,12 @@ export function ChatPage() {
   const { candidate: anchorCandidate } = useRouteAnchorCandidate(wsId);
   const { uploadWithToast } = useFileUpload(api);
 
-  // Lazy session creation
-  const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
-  const ensureSession = useCallback(
-    async (titleSeed: string): Promise<string | null> => {
-      if (activeSessionId) return activeSessionId;
-      if (!activeAgent) return null;
-      if (sessionPromiseRef.current) return sessionPromiseRef.current;
-
-      const promise = (async () => {
-        try {
-          const session = await createSession.mutateAsync({
-            agent_id: activeAgent.id,
-            title: titleSeed.slice(0, 50),
-            ...(selectedProjectId ? { project_id: selectedProjectId } : {}),
-          });
-          return session.id;
-        } finally {
-          sessionPromiseRef.current = null;
-        }
-      })();
-      sessionPromiseRef.current = promise;
-      return promise;
-    },
-    [activeSessionId, activeAgent, createSession, selectedProjectId],
-  );
+  const ensureSession = useEnsureChatSession();
 
   // File upload
   const handleUploadFile = useCallback(
     async (file: File) => {
-      const sessionId = await ensureSession("");
+      const sessionId = await ensureSession("", activeAgent);
       if (!sessionId) return null;
       qc.setQueryData<ChatMessage[]>(
         chatKeys.messages(sessionId),
@@ -185,45 +166,50 @@ export function ChatPage() {
   // Send message
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
-      if (!activeAgent) return;
+      try {
+        if (!activeAgent) return;
 
-      const focusOn = useChatStore.getState().focusMode;
-      const finalContent = focusOn && anchorCandidate
-        ? `${buildAnchorMarkdown(anchorCandidate)}\n\n${content}`
-        : content;
+        const focusOn = useChatStore.getState().focusMode;
+        const finalContent = focusOn && anchorCandidate
+          ? `${buildAnchorMarkdown(anchorCandidate)}\n\n${content}`
+          : content;
 
-      const sessionId = await ensureSession(finalContent);
-      if (!sessionId) return;
+        const sessionId = await ensureSession(finalContent, activeAgent);
+        if (!sessionId) return;
 
-      const sentAt = new Date().toISOString();
-      const optimistic: ChatMessage = {
-        id: `optimistic-${Date.now()}`,
-        chat_session_id: sessionId,
-        role: "user",
-        content: finalContent,
-        task_id: null,
-        created_at: sentAt,
-      };
-      qc.setQueryData<ChatMessage[]>(
-        chatKeys.messages(sessionId),
-        (old) => (old ? [...old, optimistic] : [optimistic]),
-      );
-      qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
-        task_id: `optimistic-${optimistic.id}`,
-        status: "queued",
-        created_at: sentAt,
-      });
-      setActiveSession(sessionId);
+        const sentAt = new Date().toISOString();
+        const optimistic: ChatMessage = {
+          id: `optimistic-${Date.now()}`,
+          chat_session_id: sessionId,
+          role: "user",
+          content: finalContent,
+          task_id: null,
+          created_at: sentAt,
+        };
+        qc.setQueryData<ChatMessage[]>(
+          chatKeys.messages(sessionId),
+          (old) => (old ? [...old, optimistic] : [optimistic]),
+        );
+        qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
+          task_id: `optimistic-${optimistic.id}`,
+          status: "queued",
+          created_at: sentAt,
+        });
+        setActiveSession(sessionId);
 
-      const result = await api.sendChatMessage(sessionId, finalContent, attachmentIds);
-      qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
-        task_id: result.task_id,
-        status: "queued",
-        created_at: result.created_at,
-      });
-      qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
+        await sendChatMessageWithRecovery(
+          qc,
+          wsId,
+          { sessionId, content: finalContent, attachmentIds, optimistic },
+          ensureSession,
+          activeAgent,
+          setActiveSession,
+        );
+      } catch (err) {
+        apiLogger.error("handleSend.failed", err);
+      }
     },
-    [activeAgent, anchorCandidate, ensureSession, qc, setActiveSession],
+    [activeAgent, anchorCandidate, ensureSession, qc, setActiveSession, wsId],
   );
 
   // Stop task

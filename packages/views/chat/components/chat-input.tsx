@@ -20,7 +20,7 @@ import { useT } from "../../i18n";
 const logger = createLogger("chat.ui");
 
 interface ChatInputProps {
-  onSend: (content: string, attachmentIds?: string[]) => void;
+  onSend: (content: string, attachmentIds?: string[]) => void | Promise<unknown>;
   /** Receives a File and returns the attachment row (with id + CDN link).
    *  The wrapper owner (ChatWindow) lazy-creates a chat_session if needed
    *  and forwards `chatSessionId` to the upload — chat-input only cares
@@ -164,7 +164,11 @@ export function ChatInput({
       draftKey: keyAtSend,
       attachmentCount: activeIds.length,
     });
-    onSend(content, activeIds.length > 0 ? activeIds : undefined);
+    void Promise.resolve(
+      onSend(content, activeIds.length > 0 ? activeIds : undefined),
+    ).catch((err) => {
+      logger.error("input.send failed", err);
+    });
     editorRef.current?.clearContent();
     // Drop focus so the caret doesn't keep blinking under the StatusPill /
     // streaming reply that's about to take over the user's attention. The

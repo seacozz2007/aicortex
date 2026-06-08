@@ -11,6 +11,7 @@ export type {
   ImportStarterIssuePayload,
   ImportStarterWelcomeIssueTemplate,
 } from "./client";
+export { apiErrorStatus, isChatSessionNotFound } from "./error-status";
 export { parseWithFallback, setSchemaLogger } from "./schema";
 export type { ParseOptions } from "./schema";
 export { WSClient } from "./ws-client";

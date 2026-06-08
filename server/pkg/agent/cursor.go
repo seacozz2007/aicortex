@@ -401,7 +401,6 @@ var cursorBlockedArgs = map[string]blockedArgMode{
 //	--workspace <cwd> --yolo [--model <m>] [--resume <id>]
 func buildCursorArgs(prompt string, opts ExecOptions, logger *slog.Logger) []string {
 	args := []string{
-		"chat",
 		"-p", prompt,
 		"--output-format", "stream-json",
 		"--yolo",

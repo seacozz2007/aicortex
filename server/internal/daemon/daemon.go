@@ -150,6 +150,7 @@ type Daemon struct {
 	terminalMgr     *TerminalManager // manages PTY sessions for remote terminal access
 	tunnelProxy     *daemontunnel.Proxy
 	artifactBrowser *daemonartifact.Browser
+	cursorChatPool  *cursorChatPool
 }
 
 // New creates a new Daemon instance.
@@ -180,6 +181,7 @@ func New(cfg Config, logger *slog.Logger) *Daemon {
 	d.terminalMgr = NewTerminalManager(logger)
 	d.tunnelProxy = daemontunnel.NewProxy(logger)
 	d.artifactBrowser = daemonartifact.NewBrowser(logger)
+	d.cursorChatPool = newCursorChatPool(cfg, logger)
 	return d
 }
 
@@ -2504,7 +2506,26 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		execOpts.SystemPrompt = runtimeBrief
 	}
 
-	result, tools, err := d.executeAndDrain(ctx, backend, prompt, execOpts, taskLog, task.ID)
+	agentCfg := agent.Config{
+		ExecutablePath: entry.Path,
+		Env:            agentEnv,
+		Logger:         d.logger,
+	}
+
+	var result agent.Result
+	var tools int32
+	usedChatPool := false
+	if task.ChatSessionID != "" && provider == "cursor" && d.cursorChatPoolEnabled() {
+		result, tools, err = d.cursorChatPool.runTask(ctx, d, task, prompt, execOpts, agentCfg, taskLog)
+		if err == nil {
+			usedChatPool = true
+		} else {
+			taskLog.Warn("cursor chat acp pool failed, falling back to stream-json", "error", err)
+		}
+	}
+	if !usedChatPool {
+		result, tools, err = d.executeAndDrain(ctx, backend, prompt, execOpts, taskLog, task.ID)
+	}
 	if err != nil {
 		return TaskResult{}, err
 	}
@@ -2515,8 +2536,19 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	if result.Status == "failed" && task.PriorSessionID != "" && result.SessionID == "" {
 		firstUsage := result.Usage
 		taskLog.Warn("session resume failed, retrying with fresh session", "error", result.Error)
+		if task.ChatSessionID != "" && provider == "cursor" && d.cursorChatPool != nil {
+			d.cursorChatPool.removeEntry(cursorChatPoolKey(task.ChatSessionID, agentIDFromTask(task), execOpts.Cwd))
+		}
 		execOpts.ResumeSessionID = ""
-		retryResult, retryTools, retryErr := d.executeAndDrain(ctx, backend, prompt, execOpts, taskLog, task.ID)
+		var retryResult agent.Result
+		var retryTools int32
+		var retryErr error
+		if task.ChatSessionID != "" && provider == "cursor" && d.cursorChatPoolEnabled() {
+			retryResult, retryTools, retryErr = d.cursorChatPool.runTask(ctx, d, task, prompt, execOpts, agentCfg, taskLog)
+		}
+		if retryErr != nil || task.ChatSessionID == "" || provider != "cursor" || !d.cursorChatPoolEnabled() {
+			retryResult, retryTools, retryErr = d.executeAndDrain(ctx, backend, prompt, execOpts, taskLog, task.ID)
+		}
 		if retryErr != nil {
 			taskLog.Error("fresh session also failed to start", "error", retryErr)
 		} else {
@@ -2696,6 +2728,12 @@ func (d *Daemon) executeAndDrain(ctx context.Context, backend agent.Backend, pro
 	if err != nil {
 		return agent.Result{}, 0, err
 	}
+	return d.drainSession(agentCtx, session, opts, taskLog, taskID)
+}
+
+func (d *Daemon) drainSession(agentCtx context.Context, session *agent.Session, opts agent.ExecOptions, taskLog *slog.Logger, taskID string) (agent.Result, int32, error) {
+	_, agentCancel := context.WithCancel(agentCtx)
+	defer agentCancel()
 
 	// Create an independent drain deadline so we don't block forever if the
 	// backend's internal timeout fails to produce a Result (e.g. scanner

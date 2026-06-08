@@ -147,7 +147,7 @@ var launchHeaders = map[string]string{
 	"claude":   "claude (stream-json)",
 	"codex":    "codex app-server",
 	"copilot":  "copilot (json)",
-	"cursor":   "cursor-agent (stream-json)",
+	"cursor":   "cursor-agent (stream-json or acp)",
 	"gemini":   "gemini (stream-json)",
 	"hermes":   "hermes acp",
 	"openclaw": "openclaw agent (json)",

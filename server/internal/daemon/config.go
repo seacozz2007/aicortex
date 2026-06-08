@@ -39,6 +39,8 @@ const (
 	DefaultGCOrphanTTL                    = 72 * time.Hour // 3 days — orphans with no meta (crashes, pre-GC leftovers)
 	DefaultGCArtifactTTL                  = 12 * time.Hour // 12h — drop regenerable artifacts on completed but still-open issues
 	DefaultAutoUpdateCheckInterval        = 6 * time.Hour  // how often the daemon polls GitHub for a newer CLI release
+	DefaultChatACPIdleTimeout             = 5 * time.Minute
+	DefaultChatACPMaxConnections          = 50
 )
 
 // DefaultGCArtifactPatterns lists basename matches that the GC loop treats as
@@ -80,6 +82,9 @@ type Config struct {
 	ClaudeArgs                     []string
 	CodexArgs                      []string
 	PinnedProjectWorkdir           bool // when true, tasks with a project_id reuse a fixed workdir per (project, agent)
+	CursorACPEnabled               bool          // when true, cursor chat tasks prefer agent acp with a connection pool
+	ChatACPIdleTimeout             time.Duration // evict idle pooled cursor chat connections after this long
+	ChatACPMaxConnections          int           // cap on concurrently pooled cursor chat connections
 }
 
 // Overrides allows CLI flags to override environment variables and defaults.
@@ -374,6 +379,19 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		autoUpdateInterval = overrides.AutoUpdateCheckInterval
 	}
 
+	cursorACPEnabled := true
+	if v := strings.TrimSpace(os.Getenv("AICORTEX_CURSOR_ACP_ENABLED")); v == "false" || v == "0" {
+		cursorACPEnabled = false
+	}
+	chatACPIdleTimeout, err := durationFromEnv("AICORTEX_CHAT_ACP_IDLE_TIMEOUT", DefaultChatACPIdleTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+	chatACPMaxConnections, err := intFromEnv("AICORTEX_CHAT_ACP_MAX_CONNECTIONS", DefaultChatACPMaxConnections)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		ServerBaseURL:                  serverBaseURL,
 		DaemonID:                       daemonID,
@@ -402,6 +420,9 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		AgentIdleWatchdog:              agentIdleWatchdog,
 		ClaudeArgs:                     claudeArgs,
 		CodexArgs:                      codexArgs,
+		CursorACPEnabled:               cursorACPEnabled,
+		ChatACPIdleTimeout:             chatACPIdleTimeout,
+		ChatACPMaxConnections:          chatACPMaxConnections,
 	}, nil
 }
 
