@@ -121,6 +121,23 @@ func sanitizeAgentName(name string) string {
 	return name
 }
 
+// projectUsesPinnedWorkdir reports whether this task should reuse the fixed
+// per-(project, agent) workdir. Design Studio runs stay isolated even when
+// the project enables pinning.
+func projectUsesPinnedWorkdir(task Task) bool {
+	return task.ProjectPinnedWorkdir && task.ProjectID != "" && !isDesignStudioTask(task)
+}
+
+// isDesignStudioTask reports whether the task is a Design Studio run.
+// These tasks must not share the pinned project workdir — each session
+// gets its own isolated artifact directory (except explicit continue/local_path).
+func isDesignStudioTask(task Task) bool {
+	if strings.TrimSpace(task.DesignMode) != "" {
+		return true
+	}
+	return strings.TrimSpace(task.SessionKind) == "design"
+}
+
 // extractLocalPath returns the path from the first local_path project resource,
 // or empty string if none exists.
 func extractLocalPath(resources []ProjectResourceData) string {

@@ -38,6 +38,142 @@
   @apply flex items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20;
 }
 
+.question-form-head-trigger {
+  @apply flex w-full items-center gap-3 border-0 bg-transparent px-4 py-3.5 text-left
+         transition-colors hover:bg-muted/25 cursor-pointer;
+}
+
+.question-form-head-actions {
+  @apply ml-2 flex shrink-0 items-center gap-2;
+}
+
+.question-form-summary {
+  @apply mt-0.5 text-[12px] leading-snug text-muted-foreground/90 line-clamp-1;
+}
+
+/* Collapsed answered — compact summary bar (OD-style) */
+.question-form-answered-collapsed {
+  @apply my-2 overflow-hidden rounded-xl border border-white/8 bg-card/90
+         shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_24px_-12px_rgba(0,0,0,0.45)];
+}
+
+.question-form-answered-collapsed .question-form-head-trigger {
+  @apply gap-3 border-b-0 px-4 py-3 hover:bg-white/[0.03];
+}
+
+.question-form-answered-collapsed .question-form-icon {
+  @apply h-8 w-8 rounded-full bg-violet-500/15 text-[13px] font-semibold text-violet-300
+         ring-1 ring-violet-400/20;
+}
+
+.question-form-answered-collapsed .question-form-title {
+  @apply text-[14px] font-semibold leading-tight tracking-tight text-foreground;
+}
+
+.question-form-answered-collapsed .question-form-pill {
+  @apply rounded-md border border-white/8 bg-white/5 px-2.5 py-1 text-[11px]
+         font-medium text-muted-foreground;
+}
+
+.question-form-answered-collapsed .question-form-chevron {
+  @apply text-muted-foreground/60 transition-transform;
+}
+
+.question-form-answered-collapsed.question-form-studio {
+  @apply border-amber-500/15 bg-gradient-to-r from-amber-950/35 via-card/85 to-card/70
+         shadow-[0_1px_0_0_rgba(251,191,36,0.06)_inset];
+}
+
+.question-form-answered-collapsed.question-form-studio .question-form-head-trigger {
+  @apply hover:bg-amber-950/25;
+}
+
+.question-form-answered-collapsed.question-form-studio .question-form-icon {
+  @apply bg-amber-500/15 text-amber-200 ring-amber-400/20;
+}
+
+.question-form-answered-collapsed.question-form-studio .question-form-pill {
+  @apply border-amber-500/15 bg-amber-950/30 text-amber-100/70;
+}
+
+/* Design Studio sidebar — OD-style two-column brief */
+.question-form-studio {
+  @apply my-0 h-full rounded-xl border border-amber-500/15 bg-gradient-to-b
+         from-amber-950/25 via-card/80 to-card/60 shadow-sm;
+}
+
+.question-form-studio .question-form-head {
+  @apply border-amber-500/10 bg-amber-950/20 px-5 py-4;
+}
+
+.question-form-studio .question-form-icon {
+  @apply h-7 w-7 rounded-lg bg-amber-500/15 text-amber-200 text-sm;
+}
+
+.question-form-studio .question-form-title {
+  @apply text-[15px] font-semibold tracking-tight;
+}
+
+.question-form-studio .question-form-desc {
+  @apply mt-1 text-[12px] leading-relaxed text-muted-foreground;
+}
+
+.question-form-studio .question-form-body {
+  @apply space-y-0 px-5 py-2;
+}
+
+.question-form-studio .qf-field {
+  @apply grid grid-cols-[minmax(7.5rem,34%)_minmax(0,1fr)] items-start gap-x-4 gap-y-2
+         border-b border-border/30 py-4 last:border-b-0;
+}
+
+.question-form-studio .qf-label {
+  @apply pt-1 text-[13px] font-medium leading-snug text-foreground/90;
+}
+
+.question-form-studio .qf-help {
+  @apply col-start-2 text-[11px];
+}
+
+.question-form-studio .qf-options {
+  @apply justify-start gap-2;
+}
+
+.question-form-studio .qf-chip {
+  @apply min-h-[2.25rem] min-w-[5.5rem] items-start rounded-lg px-3 py-2 text-left
+         text-[13px] leading-tight;
+}
+
+.question-form-studio .qf-chip-on {
+  @apply border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-sm;
+}
+
+.question-form-studio .qf-chip-desc {
+  @apply mt-0.5 text-[11px] leading-snug text-muted-foreground;
+}
+
+.question-form-studio .qf-chip-on .qf-chip-desc {
+  @apply text-amber-100/70;
+}
+
+.question-form-studio .qf-select,
+.question-form-studio .qf-input,
+.question-form-studio .qf-textarea {
+  @apply max-w-none border-border/60 bg-background/80;
+}
+
+.question-form-studio .question-form-foot {
+  @apply justify-end gap-4 border-amber-500/10 bg-amber-950/10 px-5 py-3;
+}
+
+.question-form-studio .qf-hint {
+  @apply text-[11px];
+}
+
+.question-form-studio .qf-submit-btn {
+  @apply min-w-[5.5rem] px-5;
+}
+
 /* ── Fields ──────────────────────────────────────────────────────────── */
 
 .qf-field {
@@ -121,4 +257,14 @@
 
 .qf-locked-note {
   @apply text-xs text-muted-foreground italic;
+}
+
+.question-form-redirect {
+  @apply my-2 w-full rounded-xl border border-white/8 bg-card/90 px-4 py-3.5 text-left
+         shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_8px_24px_-12px_rgba(0,0,0,0.45)]
+         transition-colors hover:border-violet-400/20 hover:bg-white/[0.03];
+}
+
+.question-form-redirect .text-sm {
+  @apply text-[14px] font-semibold tracking-tight;
 }

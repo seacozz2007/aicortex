@@ -16,7 +16,8 @@
     "completed_7d": "已完成（7 天）",
     "run_time_7d": "运行时长（7 天）",
     "success_rate": "成功率",
-    "online_agents": "在线 Agent"
+    "online_agents": "在线 Agent",
+    "design_studio": "设计工作室"
   },
   "virtualOffice": {
     "title": "🏢 虚拟办公室",

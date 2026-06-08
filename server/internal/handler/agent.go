@@ -2,12 +2,14 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
@@ -155,6 +157,7 @@ type AgentTaskResponse struct {
 	ProjectID               string                `json:"project_id,omitempty"`        // issue's project, when present
 	ProjectTitle            string                `json:"project_title,omitempty"`     // for surfacing in agent context
 	ProjectResources        []ProjectResourceData `json:"project_resources,omitempty"` // resources attached to the project
+	ProjectPinnedWorkdir    bool                  `json:"project_pinned_workdir,omitempty"`
 	CreatedAt               string                `json:"created_at"`
 	PriorSessionID          string                `json:"prior_session_id,omitempty"`          // session ID from a previous task on same issue
 	PriorWorkDir            string                `json:"prior_work_dir,omitempty"`            // work_dir from a previous task on same issue
@@ -181,9 +184,20 @@ type AgentTaskResponse struct {
 	DesignSystemResourceID  string                `json:"design_system_resource_id,omitempty"`
 	DesignSystemContent     string                `json:"design_system_content,omitempty"`
 	DesignSystemName        string                `json:"design_system_name,omitempty"`
+	DesignCraftRequires     []string              `json:"design_craft_requires,omitempty"`
+	DesignExampleID         string                `json:"design_example_id,omitempty"`
+	DesignExampleHint       string                `json:"design_example_hint,omitempty"`
+	DesignExampleBundles    []DesignExampleBundle `json:"design_example_bundles,omitempty"`
 	ArtifactEntry           string                `json:"artifact_entry,omitempty"`
+	ChatSessionTitle        string                `json:"chat_session_title,omitempty"` // design session title when kind=design
 	SessionKind             string                `json:"session_kind,omitempty"`
-	Kind                    string                `json:"kind"`                                // discriminator: "comment" | "autopilot" | "chat" | "quick_create" | "direct" — used by the activity row to label tasks that have no linked issue
+	Kind                    string                `json:"kind"`                                // discriminator: "comment" | "autopilot" | "chat" | "design" | "quick_create" | "direct" — used by the activity row to label tasks that have no linked issue
+}
+
+// DesignExampleBundle is a server-resolved copy instruction for template seeding.
+type DesignExampleBundle struct {
+	Src  string `json:"src"`
+	Dest string `json:"dest"`
 }
 
 // ChatAttachmentMeta is the structured attachment metadata embedded in
@@ -224,7 +238,7 @@ func taskToResponse(t db.AgentTaskQueue) AgentTaskResponse {
 	if t.WorkDir.Valid {
 		workDir = t.WorkDir.String
 	}
-	return AgentTaskResponse{
+	resp := AgentTaskResponse{
 		ID:               uuidToString(t.ID),
 		AgentID:          uuidToString(t.AgentID),
 		RuntimeID:        uuidToString(t.RuntimeID),
@@ -251,6 +265,28 @@ func taskToResponse(t db.AgentTaskQueue) AgentTaskResponse {
 		AutopilotRunID: uuidToString(t.AutopilotRunID),
 		Kind:           computeTaskKind(t),
 	}
+	if t.DesignMode.Valid {
+		resp.DesignMode = t.DesignMode.String
+	}
+	return resp
+}
+
+func (h *Handler) enrichDesignTasksFromChatSessions(ctx context.Context, resp []AgentTaskResponse) {
+	for i := range resp {
+		if resp[i].Kind != "design" || resp[i].ChatSessionID == "" {
+			continue
+		}
+		csID, err := parseUUIDLoose(resp[i].ChatSessionID)
+		if err != nil {
+			continue
+		}
+		cs, err := h.Queries.GetChatSession(ctx, csID)
+		if err != nil {
+			continue
+		}
+		resp[i].ProjectID = uuidToString(cs.ProjectID)
+		resp[i].ChatSessionTitle = cs.Title
+	}
 }
 
 // computeTaskKind picks the source-discriminator string the activity UI uses
@@ -260,6 +296,9 @@ func taskToResponse(t db.AgentTaskQueue) AgentTaskResponse {
 // (no linked source — the agent is creating the issue itself) / direct
 // (assignee-driven task on an existing issue).
 func computeTaskKind(t db.AgentTaskQueue) string {
+	if t.DesignMode.Valid && strings.TrimSpace(t.DesignMode.String) != "" {
+		return "design"
+	}
 	if uuidToString(t.ChatSessionID) != "" {
 		return "chat"
 	}
@@ -893,6 +932,7 @@ func (h *Handler) ListAgentTasks(w http.ResponseWriter, r *http.Request) {
 	for i, t := range tasks {
 		resp[i] = taskToResponse(t)
 	}
+	h.enrichDesignTasksFromChatSessions(r.Context(), resp)
 
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -1030,6 +1070,7 @@ func (h *Handler) ListWorkspaceAgentTaskSnapshot(w http.ResponseWriter, r *http.
 		}
 		resp = append(resp, taskToResponse(t))
 	}
+	h.enrichDesignTasksFromChatSessions(r.Context(), resp)
 
 	writeJSON(w, http.StatusOK, resp)
 }

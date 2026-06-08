@@ -16,7 +16,8 @@
     "completed_7d": "Completed (7d)",
     "run_time_7d": "Run Time (7d)",
     "success_rate": "Success Rate",
-    "online_agents": "Online Agents"
+    "online_agents": "Online Agents",
+    "design_studio": "Design Studio"
   },
   "virtualOffice": {
     "title": "🏢 Virtual Office",

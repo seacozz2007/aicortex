@@ -66,6 +66,7 @@ type TaskContextForEnv struct {
 	DesignSystemContent     string // active DESIGN.md body
 	DesignSystemName        string // design system resource name
 	ArtifactEntry           string // primary HTML entry for preview
+	DesignExampleHint       string // bundled OD example template locations (when seeded)
 }
 
 // SkillContextForEnv represents a skill to be written into the execution environment.

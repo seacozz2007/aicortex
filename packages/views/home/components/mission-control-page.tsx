@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ListTodo,
   FolderKanban,
+  Palette,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -39,12 +40,14 @@ import type { AgentPresenceDetail } from "@aicortex/core/agents";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { AppLink } from "../../navigation";
 import { useT } from "../../i18n";
+import { useDesignStudioFeature } from "@aicortex/core/config/features";
 import { useWorkspacePaths } from "@aicortex/core/paths";
 
 export function MissionControlPage() {
   const { t } = useT("common");
   const wsId = useWorkspaceId();
   const p = useWorkspacePaths();
+  const designStudioEnabled = useDesignStudioFeature();
   const user = useAuthStore((s) => s.user);
 
   const { data: agents } = useQuery(agentListOptions(wsId));
@@ -351,6 +354,13 @@ export function MissionControlPage() {
                 count={projects?.length}
                 href={p.projects()}
               />
+              {designStudioEnabled && (
+                <QuickLink
+                  icon={<Palette className="size-4" />}
+                  label={t(($) => $.missionControl.design_studio)}
+                  href={p.design()}
+                />
+              )}
             </div>
           </div>
         </div>

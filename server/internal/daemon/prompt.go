@@ -24,6 +24,9 @@ func BuildPrompt(task Task, provider string) string {
 			DesignSystemName:    task.DesignSystemName,
 			ArtifactEntry:       task.ArtifactEntry,
 			ProjectTitle:        task.ProjectTitle,
+			CraftRequires:       task.DesignCraftRequires,
+			DesignExampleHint:   task.DesignExampleHint,
+			DesignExampleID:     task.DesignExampleID,
 		})
 	}
 	if task.ChatSessionID != "" {
@@ -72,7 +75,7 @@ func buildQuickCreatePrompt(task Task) string {
 	b.WriteString("  Hard rules: never invent requirements, implementation details, or acceptance criteria the user did not express; never reduce multi-sentence input to a single vague sentence; never echo the title.\n\n")
 
 	// priority
-	b.WriteString("- **priority**: one of `urgent`, `high`, `medium`, `low`, or omit. Map P0/P1 → urgent/high; \"asap\" → urgent. If unspecified, omit.\n\n")
+	b.WriteString("- **priority**: one of `urgent`, `high`, `medium`, `low`, or omit. Also accepts Linear-style `P0`–`P4` (`P0`→urgent, `P1`→high, `P2`→medium, `P3`→low, `P4`→none). Map \"asap\" → urgent. If unspecified, omit.\n\n")
 
 	// assignee
 	b.WriteString("- **assignee**:\n")

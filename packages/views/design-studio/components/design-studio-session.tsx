@@ -5,13 +5,14 @@ import { useDefaultLayout } from "react-resizable-panels";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MessageSquare, PanelRight } from "lucide-react";
 import { useWorkspaceId } from "@aicortex/core/hooks";
-import { useWorkspacePaths } from "@aicortex/core/paths";
+import { useWorkspacePaths, useWorkspaceSlug } from "@aicortex/core/paths";
 import { api } from "@aicortex/core/api";
 import {
   chatMessagesOptions,
   pendingChatTaskOptions,
   chatKeys,
   chatSessionsOptions,
+  taskMessagesOptions,
 } from "@aicortex/core/chat/queries";
 import { useMarkChatSessionRead } from "@aicortex/core/chat/mutations";
 import { useAgentPresenceDetail } from "@aicortex/core/agents";
@@ -20,14 +21,16 @@ import {
   designSessionsOptions,
   designKeys,
 } from "@aicortex/core/design/queries";
-import { useExportDesignSession } from "@aicortex/core/design/mutations";
+import { useExportDesignSession, useStartDesignJury } from "@aicortex/core/design/mutations";
 import {
   useArtifactBrowseFeature,
   useDesignExportFeature,
+  useDesignJuryFeature,
   useRuntimeTunnelFeature,
 } from "@aicortex/core/config/features";
 import { getCurrentSlug } from "@aicortex/core/platform";
-import type { ChatMessage, DesignSession } from "@aicortex/core/types";
+import type { ChatMessage, DesignSession, TaskMessagePayload } from "@aicortex/core/types";
+import type { ChatTimelineItem } from "@aicortex/core/chat";
 import { cn } from "@aicortex/ui/lib/utils";
 import {
   ResizableHandle,
@@ -38,7 +41,8 @@ import { AppLink } from "../../navigation";
 import { useT } from "../../i18n";
 import { ChatMessageList, ChatMessageSkeleton } from "../../chat/components/chat-message-list";
 import { ChatInput } from "../../chat/components/chat-input";
-import { DesignToolsSidebar } from "./design-tools-sidebar";
+import { DesignToolsSidebar, type DesignToolsTab } from "./design-tools-sidebar";
+import { findLatestPendingQuestionForm } from "../lib/pending-question-form";
 
 const TOOLS_SIDEBAR_STORAGE_KEY = "aicortex:design:tools-sidebar-open";
 
@@ -62,14 +66,17 @@ export function DesignStudioSession({
 }) {
   const { t } = useT("design");
   const wsId = useWorkspaceId();
+  const workspaceSlug = useWorkspaceSlug() ?? "";
   const p = useWorkspacePaths();
   const qc = useQueryClient();
   const markRead = useMarkChatSessionRead();
   const exportSession = useExportDesignSession(projectId);
+  const startJury = useStartDesignJury(projectId);
 
   const artifactBrowseEnabled = useArtifactBrowseFeature();
   const runtimeTunnelEnabled = useRuntimeTunnelFeature();
   const exportEnabled = useDesignExportFeature();
+  const juryEnabled = useDesignJuryFeature();
 
   const { data: session } = useQuery(designSessionOptions(wsId, projectId, sessionId));
   const { data: chatSessions = [] } = useQuery(chatSessionsOptions(wsId));
@@ -80,7 +87,40 @@ export function DesignStudioSession({
   const messages = rawMessages ?? [];
   const { data: pendingTask } = useQuery(pendingChatTaskOptions(sessionId));
 
+  const pendingTaskId = pendingTask?.task_id;
+  const pendingAlreadyPersisted =
+    !!pendingTaskId &&
+    messages.some((m) => m.role === "assistant" && m.task_id === pendingTaskId);
+  const showLiveTimeline =
+    !!pendingTaskId &&
+    !pendingAlreadyPersisted &&
+    !pendingTaskId.startsWith("optimistic-");
+  const { data: liveTaskMessages } = useQuery({
+    ...taskMessagesOptions(pendingTaskId ?? ""),
+    enabled: showLiveTimeline,
+  });
+  const liveTimeline: ChatTimelineItem[] = useMemo(
+    () =>
+      (liveTaskMessages ?? []).map(
+        (m: TaskMessagePayload): ChatTimelineItem => ({
+          seq: m.seq,
+          type: m.type,
+          tool: m.tool,
+          content: m.content,
+          input: m.input,
+          output: m.output,
+        }),
+      ),
+    [liveTaskMessages],
+  );
+
+  const pendingQuestionForm = useMemo(
+    () => findLatestPendingQuestionForm(messages, liveTimeline),
+    [messages, liveTimeline],
+  );
+
   const [toolsOpen, setToolsOpen] = useState(readToolsSidebarOpen);
+  const [preferredToolsTab, setPreferredToolsTab] = useState<DesignToolsTab | null>(null);
   const [commentMode, setCommentMode] = useState(false);
   const [commentNote, setCommentNote] = useState<string | null>(null);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -116,11 +156,26 @@ export function DesignStudioSession({
     runtimeTunnelEnabled ||
     !!chatSessionForTools?.runtime_id;
 
+  const showToolsSidebar = toolsOpen && (canUseTools || !!pendingQuestionForm);
+
   useEffect(() => {
     if (sessionId) {
       void markRead.mutateAsync(sessionId).catch(() => {});
     }
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!pendingQuestionForm) return;
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("questions");
+  }, [pendingQuestionForm?.form.id]);
+
+  const openQuestionsPanel = useCallback(() => {
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("questions");
+  }, []);
 
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
@@ -138,9 +193,23 @@ export function DesignStudioSession({
     [commentNote, projectId, qc, sessionId, wsId],
   );
 
-  const handleExport = useCallback(async () => {
-    await exportSession.mutateAsync({ sessionId, format: "html" });
-  }, [exportSession, sessionId]);
+  const handleExport = useCallback(
+    async (format: string) => {
+      const result = await exportSession.mutateAsync({ sessionId, format });
+      const url =
+        result.download_urls?.[format] ??
+        result.download_url ??
+        api.designExportDownloadPath(projectId, sessionId, format, workspaceSlug);
+      window.open(url, "_blank");
+    },
+    [exportSession, projectId, sessionId, workspaceSlug],
+  );
+
+  const handleJury = useCallback(async () => {
+    await startJury.mutateAsync({ sessionId, rounds: 3 });
+    qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
+    qc.invalidateQueries({ queryKey: chatKeys.pendingTask(sessionId) });
+  }, [qc, sessionId, startJury]);
 
   const handlePreviewComment = useCallback((elementId: string, note: string) => {
     setCommentNote(`[${elementId}] ${note}`);
@@ -159,7 +228,7 @@ export function DesignStudioSession({
         </AppLink>
         <span className="text-sm font-medium truncate">{currentSession?.title}</span>
         <div className="ml-auto flex items-center gap-2">
-          {canUseTools && (
+          {(canUseTools || pendingQuestionForm) && (
             <>
               <button
                 type="button"
@@ -222,7 +291,7 @@ export function DesignStudioSession({
           defaultLayout={defaultLayout}
           onLayoutChanged={onLayoutChanged}
         >
-          <ResizablePanel defaultSize={toolsOpen && canUseTools ? 55 : 100} minSize={35}>
+          <ResizablePanel defaultSize={showToolsSidebar ? 55 : 100} minSize={35}>
             <div className="flex h-full min-h-0 flex-col">
               {messagesLoading ? (
                 <ChatMessageSkeleton />
@@ -231,6 +300,8 @@ export function DesignStudioSession({
                   messages={messages as ChatMessage[]}
                   pendingTask={pendingTask}
                   availability={availability}
+                  hideQuestionForms={!!pendingQuestionForm}
+                  onOpenQuestionsPanel={openQuestionsPanel}
                   onFormSubmit={(text) => void handleSend(text)}
                 />
               )}
@@ -254,16 +325,23 @@ export function DesignStudioSession({
             </div>
           </ResizablePanel>
 
-          {toolsOpen && canUseTools && (
+          {showToolsSidebar && (
             <>
               <ResizableHandle />
               <ResizablePanel defaultSize={45} minSize={25}>
                 <DesignToolsSidebar
                   session={chatSessionForTools}
+                  projectId={projectId}
                   commentMode={commentMode}
                   onComment={handlePreviewComment}
-                  onExport={exportEnabled ? () => void handleExport() : undefined}
+                  onExport={exportEnabled ? (format) => void handleExport(format) : undefined}
                   exportPending={exportSession.isPending}
+                  onJury={juryEnabled ? () => void handleJury() : undefined}
+                  juryPending={startJury.isPending}
+                  pendingQuestionForm={pendingQuestionForm?.form}
+                  preferredTab={preferredToolsTab}
+                  onPreferredTabApplied={() => setPreferredToolsTab(null)}
+                  onFormSubmit={(text) => void handleSend(text)}
                 />
               </ResizablePanel>
             </>

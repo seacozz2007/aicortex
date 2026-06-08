@@ -17,6 +17,7 @@ import (
 
 	"github.com/aicortex/aicortex/server/internal/cli"
 	"github.com/aicortex/aicortex/server/internal/util"
+	"github.com/aicortex/aicortex/server/pkg/issueutil"
 )
 
 // resolveTextFlag picks between a `--<name>` inline value, a `--<name>-stdin`
@@ -620,7 +621,11 @@ func runIssueCreate(cmd *cobra.Command, _ []string) error {
 		body["status"] = v
 	}
 	if v, _ := cmd.Flags().GetString("priority"); v != "" {
-		body["priority"] = v
+		normalized, err := issueutil.NormalizeIssuePriority(v)
+		if err != nil {
+			return err
+		}
+		body["priority"] = normalized
 	}
 	if v, _ := cmd.Flags().GetString("parent"); v != "" {
 		parent, err := resolveIssueRef(ctx, client, v)
@@ -796,7 +801,11 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 	}
 	if cmd.Flags().Changed("priority") {
 		v, _ := cmd.Flags().GetString("priority")
-		body["priority"] = v
+		normalized, err := issueutil.NormalizeIssuePriority(v)
+		if err != nil {
+			return err
+		}
+		body["priority"] = normalized
 	}
 	if cmd.Flags().Changed("project") {
 		v, _ := cmd.Flags().GetString("project")

@@ -96,9 +96,9 @@ export function IssuePreviewSection({ issueId, projectId }: IssuePreviewSectionP
               {previewURL && (
                 <div className="overflow-hidden rounded-md border bg-muted/20">
                   <div className="flex items-center justify-end gap-2 border-b px-2 py-1">
-                    {designStudioEnabled && projectId && (
+                    {designStudioEnabled && projectId && active && (
                       <AppLink
-                        href={p.projectDesign(projectId)}
+                        href={`${p.projectDesign(projectId)}?continue_task=${encodeURIComponent(active.task_id)}&artifact_entry=${encodeURIComponent(active.rel_path)}`}
                         className="inline-flex items-center gap-1 text-[10px] text-brand hover:underline"
                       >
                         <Palette className="h-3 w-3" />

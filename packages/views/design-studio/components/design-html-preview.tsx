@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, MessageSquare, Monitor, Smartphone, Tablet } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Monitor, Smartphone, Tablet } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
 import { buildArtifactRawURL } from "../../chat/components/chat-artifact-url";
@@ -38,7 +38,20 @@ export function DesignHtmlPreview({
 
   const attachCommentHandlers = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
-    if (!doc || !commentMode) return;
+    if (!doc) return;
+
+    // html-ppt decks use 100vw/100vh; inside the studio iframe use 100% so one
+    // slide fills the panel instead of stacking like a scrolling document.
+    if (doc.querySelector(".deck")) {
+      const fix = doc.createElement("style");
+      fix.textContent = `
+        html, body { height: 100%; margin: 0; overflow: hidden; }
+        .deck { width: 100% !important; height: 100% !important; }
+      `;
+      doc.head?.appendChild(fix);
+    }
+
+    if (!commentMode) return;
 
     const style = doc.createElement("style");
     style.textContent =
@@ -116,12 +129,24 @@ export function DesignHtmlPreview({
             </button>
           ))}
         </div>
-        {commentMode && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-brand">
-            <MessageSquare className="size-3" />
-            {t(($) => $.preview.comment_mode_hint)}
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          <a
+            href={previewURL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            title={t(($) => $.preview.open_external)}
+            aria-label={t(($) => $.preview.open_external)}
+          >
+            <ExternalLink className="size-3.5" />
+          </a>
+          {commentMode && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-brand">
+              <MessageSquare className="size-3" />
+              {t(($) => $.preview.comment_mode_hint)}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative min-h-0 flex-1 overflow-auto bg-muted/30 p-2">
@@ -141,7 +166,7 @@ export function DesignHtmlPreview({
             title={t(($) => $.preview.frame_title)}
             src={previewURL}
             className="h-full w-full rounded-md border bg-background shadow-sm"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
           />
         </div>
       </div>

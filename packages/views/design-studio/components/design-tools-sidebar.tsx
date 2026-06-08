@@ -1,41 +1,64 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Globe, MessageSquare, Terminal } from "lucide-react";
+import { Download, ExternalLink, FileText, Globe, Gavel, MessageSquare, Terminal } from "lucide-react";
 import {
   useArtifactBrowseFeature,
   useDesignExportFeature,
+  useDesignJuryFeature,
 } from "@aicortex/core/config/features";
 import type { ChatSession } from "@aicortex/core/types";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useWorkspaceSlug } from "@aicortex/core/paths";
 import { useTaskArtifacts } from "@aicortex/core/artifacts/queries";
+import { api } from "@aicortex/core/api";
 import { useT } from "../../i18n";
 import { ChatArtifactPanel } from "../../chat/components/chat-artifact-panel";
 import { ChatTerminalPanel } from "../../chat/components/chat-terminal-panel";
-import { ChatWebPanel } from "../../chat/components/chat-web-panel";
 import { DesignHtmlPreview } from "./design-html-preview";
-import { buildArtifactRawURL } from "../../chat/components/chat-artifact-url";
+import { isHtmlArtifact } from "../../chat/components/chat-artifact-url";
+import { DesignQuestionsPanel } from "./design-questions-panel";
+import type { QuestionForm } from "../../chat/lib/question-form-parser";
+import {
+  buildTunnelPreviewURL,
+  DesignPreviewSourceBar,
+  useDesignPreviewSource,
+} from "./design-preview-source-bar";
 
-type DesignToolsTab = "preview" | "files" | "terminal" | "export";
+export type DesignToolsTab = "questions" | "preview" | "files" | "terminal" | "export";
 
 export function DesignToolsSidebar({
   session,
+  projectId,
   commentMode = false,
   onComment,
   onExport,
   exportPending = false,
+  onJury,
+  juryPending = false,
+  pendingQuestionForm,
+  preferredTab,
+  onPreferredTabApplied,
+  onFormSubmit,
 }: {
   session: ChatSession | null;
+  projectId?: string;
   commentMode?: boolean;
   onComment?: (elementId: string, note: string) => void;
-  onExport?: () => void;
+  onExport?: (format: string) => void;
   exportPending?: boolean;
+  onJury?: () => void;
+  juryPending?: boolean;
+  pendingQuestionForm?: QuestionForm | null;
+  preferredTab?: DesignToolsTab | null;
+  onPreferredTabApplied?: () => void;
+  onFormSubmit?: (text: string) => void;
 }) {
   const { t } = useT("design");
   const workspaceSlug = useWorkspaceSlug() ?? "";
   const artifactEnabled = useArtifactBrowseFeature();
   const exportEnabled = useDesignExportFeature();
+  const juryEnabled = useDesignJuryFeature();
   const runtimeId = session?.runtime_id;
   const taskId = session?.last_task_id;
   const workDir = session?.work_dir;
@@ -43,29 +66,44 @@ export function DesignToolsSidebar({
 
   const [tab, setTab] = useState<DesignToolsTab>("preview");
 
-  const { data: rootListing } = useTaskArtifacts(
+  const { data: rootListing, isLoading: rootListingLoading } = useTaskArtifacts(
     taskId ?? null,
     "",
     artifactEnabled && !!taskId,
   );
 
-  const previewPath = useMemo(() => {
-    const entries = rootListing?.entries ?? [];
-    const entryName = artifactEntry.split("/").pop() ?? artifactEntry;
-    const exact = entries.find((e) => !e.is_dir && e.name === entryName);
-    if (exact) return exact.path;
-    const index = entries.find(
-      (e) => !e.is_dir && e.name.toLowerCase() === "index.html",
-    );
-    if (index) return index.path;
-    const html = entries.find(
-      (e) => !e.is_dir && e.name.toLowerCase().endsWith(".html"),
-    );
-    return html?.path ?? artifactEntry;
-  }, [artifactEntry, rootListing?.entries]);
+  const htmlEntries = useMemo(
+    () =>
+      (rootListing?.entries ?? [])
+        .filter((entry) => !entry.is_dir && isHtmlArtifact(entry.path))
+        .map((entry) => ({ path: entry.path, name: entry.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [rootListing?.entries],
+  );
+
+  const previewSource = useDesignPreviewSource({
+    sessionId: session?.id ?? "unknown",
+    artifactEntry,
+    htmlEntries,
+    runtimeId,
+    commentMode,
+  });
 
   const tabs = useMemo(() => {
-    const result: { id: DesignToolsTab; label: string; icon: typeof Globe }[] = [];
+    const result: {
+      id: DesignToolsTab;
+      label: string;
+      icon: typeof Globe;
+      notify?: boolean;
+    }[] = [];
+    if (pendingQuestionForm) {
+      result.push({
+        id: "questions",
+        label: t(($) => $.tools.tabs.questions),
+        icon: MessageSquare,
+        notify: true,
+      });
+    }
     if (artifactEnabled && taskId) {
       result.push({
         id: "preview",
@@ -95,7 +133,14 @@ export function DesignToolsSidebar({
       });
     }
     return result;
-  }, [artifactEnabled, exportEnabled, runtimeId, taskId, t]);
+  }, [artifactEnabled, exportEnabled, pendingQuestionForm, runtimeId, taskId, t]);
+
+  useEffect(() => {
+    if (preferredTab && tabs.some((item) => item.id === preferredTab)) {
+      setTab(preferredTab);
+      onPreferredTabApplied?.();
+    }
+  }, [preferredTab, tabs, onPreferredTabApplied]);
 
   useEffect(() => {
     if (tabs.length === 0) return;
@@ -134,6 +179,9 @@ export function DesignToolsSidebar({
               >
                 <Icon className="size-3.5" />
                 {item.label}
+                {item.notify ? (
+                  <span className="size-1.5 rounded-full bg-destructive" aria-hidden />
+                ) : null}
               </button>
             );
           })}
@@ -151,24 +199,86 @@ export function DesignToolsSidebar({
         )}
       </div>
 
-      <div className="min-h-0 flex-1">
-        {tab === "preview" && canDesignPreview && taskId && (
-          <DesignHtmlPreview
-            path={previewPath}
-            taskId={taskId}
-            workspaceSlug={workspaceSlug}
-            commentMode={commentMode}
-            onComment={onComment}
-          />
+      <div className="flex min-h-0 flex-1 flex-col">
+        {tab === "questions" && pendingQuestionForm && onFormSubmit && (
+          <DesignQuestionsPanel form={pendingQuestionForm} onSubmit={onFormSubmit} />
+        )}
+        {tab === "preview" && canDesignPreview && taskId && session && (
+          <>
+            <DesignPreviewSourceBar
+              sessionId={session.id}
+              artifactEntry={artifactEntry}
+              htmlEntries={htmlEntries}
+              htmlLoading={rootListingLoading}
+              runtimeId={runtimeId}
+              workspaceSlug={workspaceSlug}
+              commentMode={commentMode}
+              mode={previewSource.mode}
+              onModeChange={previewSource.setMode}
+              selectedHtmlPath={previewSource.selectedHtmlPath}
+              onHtmlPathChange={previewSource.setSelectedHtmlPath}
+              selectedPort={previewSource.selectedPort}
+              onPortChange={previewSource.setSelectedPort}
+            />
+            {previewSource.mode === "file" && previewSource.effectiveHtmlPath ? (
+              <div className="min-h-0 flex-1">
+                <DesignHtmlPreview
+                  path={previewSource.effectiveHtmlPath}
+                  taskId={taskId}
+                  workspaceSlug={workspaceSlug}
+                  commentMode={commentMode}
+                  onComment={onComment}
+                />
+              </div>
+            ) : previewSource.mode === "tunnel" &&
+              runtimeId &&
+              previewSource.selectedPort != null ? (
+              <div className="flex min-h-0 flex-1 flex-col bg-muted/20">
+                <div className="flex shrink-0 items-center justify-end border-b px-2 py-1">
+                  <a
+                    href={buildTunnelPreviewURL(
+                      runtimeId,
+                      previewSource.selectedPort,
+                      workspaceSlug,
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title={t(($) => $.preview.open_external)}
+                  >
+                    <ExternalLink className="size-3.5" />
+                    {t(($) => $.preview.open_external)}
+                  </a>
+                </div>
+                <iframe
+                  key={buildTunnelPreviewURL(
+                    runtimeId,
+                    previewSource.selectedPort,
+                    workspaceSlug,
+                  )}
+                  title={t(($) => $.preview.frame_title)}
+                  src={buildTunnelPreviewURL(
+                    runtimeId,
+                    previewSource.selectedPort,
+                    workspaceSlug,
+                  )}
+                  className="min-h-0 flex-1 bg-background"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                />
+              </div>
+            ) : (
+              <p className="p-4 text-xs text-muted-foreground">
+                {previewSource.mode === "tunnel"
+                  ? t(($) => $.preview.no_ports)
+                  : t(($) => $.preview.no_html)}
+              </p>
+            )}
+          </>
         )}
         {tab === "preview" && !canDesignPreview && (
-          <div className="p-4">
-            <ChatWebPanel
-              runtimeId={runtimeId}
-              taskId={taskId}
-              hasWorkDir={!!workDir || !!taskId}
-            />
-          </div>
+          <p className="p-4 text-xs text-muted-foreground">
+            {t(($) => $.tools.unavailable)}
+          </p>
         )}
         {tab === "files" && (
           <ChatArtifactPanel
@@ -188,25 +298,40 @@ export function DesignToolsSidebar({
         {tab === "export" && (
           <div className="space-y-3 p-4">
             <p className="text-xs text-muted-foreground">{t(($) => $.tools.export_hint)}</p>
-            {taskId && workspaceSlug && (
-              <a
-                href={buildArtifactRawURL(taskId, previewPath, workspaceSlug)}
-                download={previewPath.split("/").pop() ?? "index.html"}
-                className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs hover:bg-accent"
-              >
-                <Download className="size-3.5" />
-                {t(($) => $.tools.download_html)}
-              </a>
+            {taskId && workspaceSlug && projectId && session && (
+              <div className="grid gap-2">
+                {(["html", "zip", "pdf", "pptx"] as const).map((format) => (
+                  <a
+                    key={format}
+                    href={api.designExportDownloadPath(projectId, session.id, format, workspaceSlug)}
+                    className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs hover:bg-accent"
+                  >
+                    <Download className="size-3.5" />
+                    {t(($) => $.tools[`download_${format}` as keyof typeof $.tools] as string)}
+                  </a>
+                ))}
+              </div>
             )}
             {onExport && (
               <button
                 type="button"
                 disabled={exportPending}
-                onClick={onExport}
+                onClick={() => onExport("zip")}
                 className="flex w-full items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-xs text-brand-foreground disabled:opacity-50"
               >
                 <Download className="size-3.5" />
                 {t(($) => $.session.export)}
+              </button>
+            )}
+            {juryEnabled && onJury && (
+              <button
+                type="button"
+                disabled={juryPending}
+                onClick={onJury}
+                className="flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs hover:bg-accent disabled:opacity-50"
+              >
+                <Gavel className="size-3.5" />
+                {juryPending ? t(($) => $.tools.jury_pending) : t(($) => $.tools.start_jury)}
               </button>
             )}
           </div>

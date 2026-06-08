@@ -15,7 +15,8 @@ import {
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
 import { buildArtifactRawURL, isHtmlArtifact } from "./chat-artifact-url";
-import { ChatHtmlFilePreview } from "./chat-html-file-preview";
+import { ArtifactHtmlPreview } from "../../shared/artifact-preview";
+import { api } from "@aicortex/core/api";
 
 const MAX_TEXT_BYTES = 512 * 1024;
 
@@ -64,31 +65,71 @@ function isTextArtifact(path: string): boolean {
   return TEXT_EXTENSIONS.has(base.slice(dot));
 }
 
-function TextPreview({
+function EditableTextPreview({
   path,
   content,
+  taskId,
+  onSaved,
 }: {
   path: string;
   content: string;
+  taskId: string;
+  onSaved: (next: string) => void;
 }) {
-  const lines = useMemo(() => content.split("\n"), [content]);
+  const { t: tChat } = useT("chat");
+  const [draft, setDraft] = useState(content);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const lines = useMemo(() => draft.split("\n"), [draft]);
   const fileName = path.split("/").pop() ?? path;
+
+  useEffect(() => {
+    setDraft(content);
+    setError(null);
+  }, [content, path]);
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await api.writeTaskArtifact(taskId, path, draft);
+      onSaved(draft);
+    } catch {
+      setError(tChat(($) => $.tools_sidebar.files.save_error));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b px-3 py-2">
-        <p className="truncate font-mono text-xs text-foreground">{fileName}</p>
-        <p className="truncate font-mono text-[10px] text-muted-foreground">{path}</p>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="min-w-0">
+          <p className="truncate font-mono text-xs text-foreground">{fileName}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">{path}</p>
+        </div>
+        <button
+          type="button"
+          disabled={saving || draft === content}
+          onClick={() => void save()}
+          className="rounded-md border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50"
+        >
+          {saving ? tChat(($) => $.tools_sidebar.files.saving) : tChat(($) => $.tools_sidebar.files.save)}
+        </button>
       </div>
+      {error && <p className="px-3 py-1 text-xs text-destructive">{error}</p>}
       <div className="flex min-h-0 flex-1 overflow-auto bg-muted/20">
         <div className="shrink-0 select-none border-r bg-muted/30 px-2 py-2 text-right font-mono text-[11px] leading-relaxed text-muted-foreground">
           {lines.map((_, index) => (
             <div key={index}>{index + 1}</div>
           ))}
         </div>
-        <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words p-2 font-mono text-[11px] leading-relaxed text-foreground">
-          {content}
-        </pre>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="min-w-0 flex-1 resize-none border-0 bg-transparent p-2 font-mono text-[11px] leading-relaxed text-foreground outline-none"
+          spellCheck={false}
+        />
       </div>
     </div>
   );
@@ -264,15 +305,22 @@ export function ChatArtifactPanel({
       isHtmlArtifact(selectedPath)
     ) {
       return (
-        <ChatHtmlFilePreview
+        <ArtifactHtmlPreview
           path={selectedPath}
           taskId={taskId}
           workspaceSlug={workspaceSlug}
         />
       );
     }
-    if (selectedPath && textContent !== null) {
-      return <TextPreview path={selectedPath} content={textContent} />;
+    if (selectedPath && textContent !== null && taskId) {
+      return (
+        <EditableTextPreview
+          path={selectedPath}
+          content={textContent}
+          taskId={taskId}
+          onSaved={setTextContent}
+        />
+      );
     }
     return (
       <p className="p-4 text-xs text-muted-foreground">

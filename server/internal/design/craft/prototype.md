@@ -6,3 +6,4 @@
 - Tag interactive regions with `data-aicortex-id="unique-id"` for comment mode.
 - Keep JS minimal; prototype interactivity via CSS `:hover` / `:focus` when possible.
 - One primary entry file (`index.html`) unless the brief requires multi-page.
+- **Mock data only** — kanban cards, dashboard metrics, backlog rows, and sprint items live in HTML. Never create real AICortex issues to populate the UI.

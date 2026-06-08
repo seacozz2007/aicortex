@@ -1,0 +1,16 @@
+{
+  "html-ppt-presenter-mode-reveal": {
+    "bundles": [
+      {
+        "src": "examples/html-ppt-presenter-mode-reveal",
+        "dest": "skills/html-ppt-presenter-mode"
+      },
+      {
+        "src": "design-templates/html-ppt",
+        "dest": "skills/html-ppt"
+      }
+    ],
+    "bootstrap_deck": "skills/html-ppt/templates/full-decks/presenter-mode-reveal",
+    "work_dir_hint": "A working starter deck is already at **index.html** (html-ppt presenter-mode-reveal + local assets/). **Edit this file in place** — keep `<div class=\"deck\">`, each `<section class=\"slide\">`, `<aside class=\"notes\">`, `body.tpl-presenter-mode-reveal`, and the `assets/` + `runtime.js` links. Do **not** rewrite as a scrolling document or drop runtime.js. Reference skill: skills/html-ppt-presenter-mode/SKILL.md."
+  }
+}

@@ -70,6 +70,25 @@ func (b *Browser) handle(payload protocol.ArtifactRequestPayload) {
 		if len(body) > 0 {
 			resp.Body = base64.StdEncoding.EncodeToString(body)
 		}
+	case "write":
+		if strings.TrimSpace(payload.Body) == "" {
+			resp.Error = "body required for write"
+			return
+		}
+		raw, decErr := base64.StdEncoding.DecodeString(payload.Body)
+		if decErr != nil {
+			resp.Error = "invalid body encoding"
+			return
+		}
+		if len(raw) > art.MaxReadBytes {
+			resp.Error = "file too large"
+			return
+		}
+		if writeErr := writeFile(abs, raw); writeErr != nil {
+			resp.Error = writeErr.Error()
+			return
+		}
+		resp.ContentType = "text/plain"
 	default:
 		resp.Error = "unsupported artifact operation: " + op
 	}
@@ -142,6 +161,25 @@ func readFile(abs string) ([]byte, string, error) {
 		contentType = "application/octet-stream"
 	}
 	return body, contentType, nil
+}
+
+func writeFile(abs string, body []byte) error {
+	info, err := os.Lstat(abs)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return os.ErrPermission
+		}
+		if info.IsDir() {
+			return os.ErrInvalid
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(abs, body, 0o644)
 }
 
 func (b *Browser) send(resp protocol.ArtifactResponsePayload) {

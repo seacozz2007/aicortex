@@ -22,6 +22,7 @@ import (
 	"github.com/aicortex/aicortex/server/internal/util"
 	"github.com/aicortex/aicortex/server/pkg/agent"
 	db "github.com/aicortex/aicortex/server/pkg/db/generated"
+	"github.com/aicortex/aicortex/server/pkg/issueutil"
 	"github.com/aicortex/aicortex/server/pkg/protocol"
 )
 
@@ -1755,6 +1756,12 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 	if priority == "" {
 		priority = "none"
 	}
+	normalizedPriority, err := issueutil.NormalizeIssuePriority(priority)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	priority = normalizedPriority
 
 	var assigneeType pgtype.Text
 	var assigneeID pgtype.UUID
@@ -2100,7 +2107,12 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 		params.Status = pgtype.Text{String: *req.Status, Valid: true}
 	}
 	if req.Priority != nil {
-		params.Priority = pgtype.Text{String: *req.Priority, Valid: true}
+		normalizedPriority, err := issueutil.NormalizeIssuePriority(*req.Priority)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		params.Priority = pgtype.Text{String: normalizedPriority, Valid: true}
 	}
 	if req.Position != nil {
 		params.Position = pgtype.Float8{Float64: *req.Position, Valid: true}
@@ -2604,7 +2616,11 @@ func (h *Handler) BatchUpdateIssues(w http.ResponseWriter, r *http.Request) {
 			params.Status = pgtype.Text{String: *req.Updates.Status, Valid: true}
 		}
 		if req.Updates.Priority != nil {
-			params.Priority = pgtype.Text{String: *req.Updates.Priority, Valid: true}
+			normalizedPriority, normErr := issueutil.NormalizeIssuePriority(*req.Updates.Priority)
+			if normErr != nil {
+				continue
+			}
+			params.Priority = pgtype.Text{String: normalizedPriority, Valid: true}
 		}
 		if req.Updates.Position != nil {
 			params.Position = pgtype.Float8{Float64: *req.Updates.Position, Valid: true}

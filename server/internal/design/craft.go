@@ -29,3 +29,26 @@ func CraftForMode(mode string) string {
 	}
 	return content
 }
+
+// CraftForRequires merges craft files referenced by skill metadata od.craft.requires.
+func CraftForRequires(requires []string, fallbackMode string) string {
+	seen := map[string]struct{}{}
+	var parts []string
+	for _, req := range requires {
+		req = strings.TrimSpace(req)
+		if req == "" {
+			continue
+		}
+		if _, ok := seen[req]; ok {
+			continue
+		}
+		seen[req] = struct{}{}
+		if craft := loadPromptFile(fmt.Sprintf("craft/%s.md", req)); craft != "" {
+			parts = append(parts, craft)
+		}
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, "\n\n")
+	}
+	return CraftForMode(fallbackMode)
+}

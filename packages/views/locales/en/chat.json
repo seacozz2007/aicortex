@@ -97,7 +97,12 @@
       "loading_content": "Loading file…",
       "load_error": "Could not load this file.",
       "too_large": "File is too large to preview (max 512 KB).",
-      "binary_unsupported": "Only text files can be previewed."
+      "binary_unsupported": "Only text files can be previewed.",
+      "save": "Save",
+      "saving": "Saving…",
+      "save_error": "Could not save file.",
+      "view_render": "Preview",
+      "view_source": "Source"
     }
   },
   "window": {
@@ -159,7 +164,10 @@
     "submit_title": "Send your answers",
     "submit_disabled_title": "Answer all required questions first",
     "locked_submitted": "You already answered these questions.",
-    "locked_prev": "This form is from a previous turn and is no longer active."
+    "locked_prev": "This form is from a previous turn and is no longer active.",
+    "studio_card_title": "A few quick questions first",
+    "studio_redirect": "Fill them out in the Questions panel on the right.",
+    "answered_summary_fallback": "Answers submitted — expand to view details"
   },
   "no_agent_banner": "You need an agent to start chatting.",
   "offline_banner": {

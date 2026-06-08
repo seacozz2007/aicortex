@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -137,7 +138,7 @@ func (h *Handler) ListTaskArtifacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	relPath := strings.TrimSpace(r.URL.Query().Get("path"))
-	resp, err := h.relayArtifactRequest(r.Context(), task, "list", relPath)
+	resp, err := h.relayArtifactRequest(r.Context(), task, "list", relPath, nil)
 	if err != nil {
 		writeError(w, http.StatusGatewayTimeout, err.Error())
 		return
@@ -163,7 +164,7 @@ func (h *Handler) ServeTaskArtifactRaw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	relPath := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
-	resp, err := h.relayArtifactRequest(r.Context(), task, "read", relPath)
+	resp, err := h.relayArtifactRequest(r.Context(), task, "read", relPath, nil)
 	if err != nil {
 		writeArtifactError(w, http.StatusGatewayTimeout, err.Error())
 		return
@@ -191,10 +192,50 @@ func writeArtifactError(w http.ResponseWriter, status int, msg string) {
 	writeError(w, status, msg)
 }
 
+func (h *Handler) WriteTaskArtifact(w http.ResponseWriter, r *http.Request) {
+	if !h.artifactBrowseEnabled(w) {
+		return
+	}
+	if r.Method != http.MethodPut {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	taskID := chi.URLParam(r, "taskId")
+	task, ok := h.authorizeTaskArtifactUse(w, r, taskID)
+	if !ok {
+		return
+	}
+	relPath := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
+	if strings.TrimSpace(relPath) == "" {
+		writeError(w, http.StatusBadRequest, "path required")
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, art.MaxReadBytes+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if len(body) > art.MaxReadBytes {
+		writeError(w, http.StatusRequestEntityTooLarge, "file too large")
+		return
+	}
+	resp, err := h.relayArtifactRequest(r.Context(), task, "write", relPath, body)
+	if err != nil {
+		writeError(w, http.StatusGatewayTimeout, err.Error())
+		return
+	}
+	if resp.Error != "" {
+		writeError(w, http.StatusBadGateway, resp.Error)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"path": relPath, "size": len(body)})
+}
+
 func (h *Handler) relayArtifactRequest(
 	ctx context.Context,
 	task db.AgentTaskQueue,
 	op, relPath string,
+	body []byte,
 ) (art.Response, error) {
 	if h.DaemonHub == nil || h.ArtifactPending == nil {
 		return art.Response{}, fmt.Errorf("daemon relay unavailable")
@@ -214,6 +255,9 @@ func (h *Handler) relayArtifactRequest(
 		Op:        op,
 		RootPath:  task.WorkDir.String,
 		RelPath:   relPath,
+	}
+	if len(body) > 0 {
+		payload.Body = base64.StdEncoding.EncodeToString(body)
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

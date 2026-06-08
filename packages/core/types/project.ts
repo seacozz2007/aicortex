@@ -18,6 +18,8 @@ export interface Project {
   done_count: number;
   resource_count: number;
   prompt: string | null;
+  /** Reuse a fixed workdir per agent with auto git sync. Default false. */
+  pinned_workdir?: boolean;
 }
 
 export interface CreateProjectRequest {
@@ -43,6 +45,7 @@ export interface UpdateProjectRequest {
   lead_type?: "member" | "agent" | null;
   lead_id?: string | null;
   prompt?: string | null;
+  pinned_workdir?: boolean;
 }
 
 export interface ListProjectsResponse {

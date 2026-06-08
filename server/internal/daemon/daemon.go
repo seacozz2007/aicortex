@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aicortex/aicortex/server/internal/cli"
+	"github.com/aicortex/aicortex/server/internal/design"
 	"github.com/aicortex/aicortex/server/internal/daemon/execenv"
 	daemonartifact "github.com/aicortex/aicortex/server/internal/daemon/artifact"
 	daemontunnel "github.com/aicortex/aicortex/server/internal/daemon/tunnel"
@@ -850,24 +851,6 @@ func (d *Daemon) workspaceCoAuthoredByEnabled(workspaceID string) bool {
 		return true // default: enabled
 	}
 	return *s.CoAuthoredByEnabled
-}
-
-// workspacePinnedProjectWorkdir returns whether the pinned project workdir
-// feature is enabled for the given workspace. Defaults to false.
-func (d *Daemon) workspacePinnedProjectWorkdir(workspaceID string) bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	ws, ok := d.workspaces[workspaceID]
-	if !ok || len(ws.settings) == 0 {
-		return false
-	}
-	var s struct {
-		PinnedProjectWorkdir *bool `json:"pinned_project_workdir"`
-	}
-	if err := json.Unmarshal(ws.settings, &s); err != nil || s.PinnedProjectWorkdir == nil {
-		return false
-	}
-	return *s.PinnedProjectWorkdir
 }
 
 // registerTaskRepos merges task-scoped repos (e.g. project github_repo
@@ -2049,8 +2032,8 @@ func (d *Daemon) handleTask(ctx context.Context, task Task, slot int) {
 	// Best-effort: failures are logged but never block task completion.
 	// Enabled when pinned project workdir is active for this workspace.
 	// Skipped when using local_path (user manages their own directory).
-	pinnedEnabled := d.workspacePinnedProjectWorkdir(task.WorkspaceID) || d.cfg.PinnedProjectWorkdir
-	if result.Status == "completed" && result.WorkDir != "" && pinnedEnabled && task.ProjectID != "" && extractLocalPath(task.ProjectResources) == "" {
+	pinnedEnabled := projectUsesPinnedWorkdir(task)
+	if result.Status == "completed" && result.WorkDir != "" && pinnedEnabled && extractLocalPath(task.ProjectResources) == "" {
 		agentName := "agent"
 		if task.Agent != nil {
 			agentName = task.Agent.Name
@@ -2226,6 +2209,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		DesignSystemContent:     task.DesignSystemContent,
 		DesignSystemName:        task.DesignSystemName,
 		ArtifactEntry:           task.ArtifactEntry,
+		DesignExampleHint:       task.DesignExampleHint,
 	}
 
 	// Mark candidate env roots as active before any env work so the GC loop
@@ -2273,8 +2257,8 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	}
 
 	// Priority 2: Pinned project workdir — fixed directory per (project, agent).
-	pinnedWorkdirEnabled := d.workspacePinnedProjectWorkdir(task.WorkspaceID) || d.cfg.PinnedProjectWorkdir
-	if env == nil && pinnedWorkdirEnabled && task.ProjectID != "" {
+	// Enabled per project; Design Studio sessions stay isolated.
+	if env == nil && projectUsesPinnedWorkdir(task) {
 		pinnedDir, err := preparePinnedWorkdir(d.cfg.WorkspacesRoot, task.WorkspaceID, task.ProjectID, agentName, taskLog)
 		if err != nil {
 			return TaskResult{}, fmt.Errorf("prepare pinned workdir: %w", err)
@@ -2340,6 +2324,24 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	if env.RootDir != predictedRoot && env.RootDir != "" {
 		d.markActiveEnvRoot(env.RootDir)
 		defer d.unmarkActiveEnvRoot(env.RootDir)
+	}
+
+	if task.DesignExampleID != "" {
+		var seedErr error
+		if len(task.DesignExampleBundles) > 0 {
+			bundles := make([]design.ResolvedExampleBundle, len(task.DesignExampleBundles))
+			for i, b := range task.DesignExampleBundles {
+				bundles[i] = design.ResolvedExampleBundle{Src: b.Src, Dest: b.Dest}
+			}
+			seedErr = design.SeedExampleBundles(env.WorkDir, task.DesignExampleID, bundles)
+		} else {
+			seedErr = design.SeedExampleWorkDir(env.WorkDir, task.DesignExampleID)
+		}
+		if seedErr != nil {
+			taskLog.Warn("design example template seed failed", "example_id", task.DesignExampleID, "error", seedErr)
+		} else {
+			taskLog.Info("design example templates seeded", "example_id", task.DesignExampleID, "work_dir", env.WorkDir)
+		}
 	}
 
 	// Inject runtime-specific config (meta skill) so the agent discovers .agent_context/.

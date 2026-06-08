@@ -1288,6 +1288,53 @@ func TestInjectRuntimeConfigAutopilotRunOnlyNoIssueWorkflow(t *testing.T) {
 	}
 }
 
+func TestInjectRuntimeConfigDesignStudioNoIssueCommands(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	ctx := TaskContextForEnv{
+		DesignMode:    "prototype",
+		ChatSessionID: "chat-session-1",
+		ArtifactEntry: "index.html",
+		AgentSkills: []SkillContextForEnv{
+			{Name: "Kanban Board", Content: "Build HTML kanban."},
+		},
+	}
+
+	if _, err := InjectRuntimeConfig(dir, "claude", ctx); err != nil {
+		t.Fatalf("InjectRuntimeConfig failed: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("read CLAUDE.md: %v", err)
+	}
+	s := string(data)
+
+	for _, want := range []string{
+		"Design Studio mode",
+		"workspace mutation is forbidden",
+		"Do **NOT** run `aicortex issue create`",
+		"fictional sample cards",
+		"Primary preview entry: `index.html`",
+		"Do not post issue comments",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("design studio runtime config missing %q\n---\n%s", want, s)
+		}
+	}
+
+	for _, absent := range []string{
+		"### Write",
+		"aicortex issue create --title",
+		"Final results MUST be delivered via `aicortex issue comment add`",
+		"You are in chat mode",
+	} {
+		if strings.Contains(s, absent) {
+			t.Errorf("design studio runtime config should not contain %q\n---\n%s", absent, s)
+		}
+	}
+}
+
 func TestInjectRuntimeConfigUnknownProvider(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
