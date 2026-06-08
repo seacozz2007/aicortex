@@ -34,6 +34,12 @@
 
     "design_system": "设计系统",
 
+    "design_system_hint": "在此直接选择内置预设即可，无需先去项目 → 资源里添加。",
+
+    "project_design_systems": "或使用项目内已有设计系统",
+
+    "select_design_system_optional": "可选 — 使用项目资源…",
+
     "select_design_system": "选择设计系统…",
 
     "skill": "Skill",

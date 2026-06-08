@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Palette } from "lucide-react";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useWorkspacePaths } from "@aicortex/core/paths";
@@ -11,11 +11,12 @@ import {
   designSessionsOptions,
   designSystemResourcesOptions,
   designSettingsOptions,
+  designKeys,
 } from "@aicortex/core/design/queries";
-import { DESIGN_TEMPLATES, type DesignTemplate } from "@aicortex/core/design";
+import { DESIGN_TEMPLATES, DESIGN_SYSTEM_PRESETS, type DesignTemplate } from "@aicortex/core/design";
 import { api } from "@aicortex/core/api";
 import { useCreateDesignSession } from "@aicortex/core/design/mutations";
-import type { DesignMode, ProjectResource } from "@aicortex/core/types";
+import type { DesignMode, DesignSystemResourceRef, ProjectResource } from "@aicortex/core/types";
 import { cn } from "@aicortex/ui/lib/utils";
 import { AppLink } from "../../navigation";
 import { useT } from "../../i18n";
@@ -26,6 +27,7 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
   const { t } = useT("design");
   const wsId = useWorkspaceId();
   const p = useWorkspacePaths();
+  const qc = useQueryClient();
   const { data: project } = useQuery(projectDetailOptions(wsId, projectId));
   const { data: sessions = [] } = useQuery(designSessionsOptions(wsId, projectId));
   const { data: designSystems = [] as ProjectResource[] } = useQuery(
@@ -36,33 +38,68 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
   const createSession = useCreateDesignSession(wsId, projectId);
 
   const [mode, setMode] = useState<DesignMode>("prototype");
+  const [selectedPresetId, setSelectedPresetId] = useState("");
   const [designSystemId, setDesignSystemId] = useState("");
   const [designSkillId, setDesignSkillId] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [brief, setBrief] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  const hasDesignSystem = designSystems.length > 0;
   const designAgent = agents.find((a) => a.id === designSettings?.default_design_agent_id);
   const designSkills = designAgent?.skills ?? [];
   const visibleTemplates = useMemo(
     () => DESIGN_TEMPLATES.filter((tpl) => tpl.mode === mode || mode === "template"),
     [mode],
   );
-  async function handleCreate() {
-    const trimmedBrief = brief.trim();
-    const selectedTemplate = DESIGN_TEMPLATES.find((tpl: DesignTemplate) => tpl.id === selectedTemplateId);
-    const session = await createSession.mutateAsync({
-      design_mode: selectedTemplate?.mode ?? mode,
-      design_skill_id: designSkillId || undefined,
-      design_system_resource_id: designSystemId || undefined,
-      artifact_entry: selectedTemplate?.artifact_entry,
-      title: trimmedBrief.slice(0, 80) || selectedTemplate?.title || t(($) => $.hub.default_title),
+
+  async function resolveDesignSystemResourceId(): Promise<string | undefined> {
+    if (designSystemId) return designSystemId;
+    if (!selectedPresetId) return undefined;
+
+    const preset = DESIGN_SYSTEM_PRESETS.find((item) => item.id === selectedPresetId);
+    if (!preset) return undefined;
+
+    const existing = designSystems.find((ds) => {
+      const ref = ds.resource_ref as DesignSystemResourceRef;
+      return ref.name === preset.ref.name;
     });
-    const message = trimmedBrief || selectedTemplate?.brief;
-    if (message) {
-      await api.sendChatMessage(session.id, message);
+    if (existing) return existing.id;
+
+    const created = await api.createProjectResource(projectId, {
+      resource_type: "design_system",
+      resource_ref: preset.ref,
+      label: preset.label,
+    });
+    qc.invalidateQueries({ queryKey: designKeys.designSystems(wsId, projectId) });
+    return created.id;
+  }
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      const trimmedBrief = brief.trim();
+      const selectedTemplate = DESIGN_TEMPLATES.find(
+        (tpl: DesignTemplate) => tpl.id === selectedTemplateId,
+      );
+      const designSystemResourceId = await resolveDesignSystemResourceId();
+      const session = await createSession.mutateAsync({
+        design_mode: selectedTemplate?.mode ?? mode,
+        design_skill_id: designSkillId || undefined,
+        design_system_resource_id: designSystemResourceId,
+        artifact_entry: selectedTemplate?.artifact_entry,
+        title:
+          trimmedBrief.slice(0, 80) ||
+          selectedTemplate?.title ||
+          t(($) => $.hub.default_title),
+      });
+      const message = trimmedBrief || selectedTemplate?.brief;
+      if (message) {
+        await api.sendChatMessage(session.id, message);
+      }
+      window.location.href = p.projectDesignSession(projectId, session.id);
+    } finally {
+      setCreating(false);
     }
-    window.location.href = p.projectDesignSession(projectId, session.id);
   }
 
   function applyTemplate(templateId: string) {
@@ -101,17 +138,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
       <div className="grid min-h-0 flex-1 gap-6 overflow-auto p-6 lg:grid-cols-2">
         <section className="rounded-lg border bg-card p-4">
           <h2 className="mb-3 text-sm font-medium">{t(($) => $.hub.new_design)}</h2>
-          {!hasDesignSystem && (
-            <p className="mb-3 text-sm text-amber-600 dark:text-amber-400">
-              {t(($) => $.hub.no_design_system_hint)}{" "}
-              <AppLink
-                href={p.projectDetail(projectId)}
-                className="underline hover:text-foreground"
-              >
-                {t(($) => $.hub.add_design_system_link)}
-              </AppLink>
-            </p>
-          )}
           {designAgent && (
             <p className="mb-3 text-xs text-muted-foreground">
               {t(($) => $.hub.design_agent, { name: designAgent.name })}
@@ -134,25 +160,56 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
               </button>
             ))}
           </div>
-          {hasDesignSystem && (
-            <label className="mb-3 block text-sm">
-              <span className="mb-1 block text-muted-foreground">
-                {t(($) => $.hub.design_system)}
-              </span>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={designSystemId}
-                onChange={(e) => setDesignSystemId(e.target.value)}
-              >
-                <option value="">{t(($) => $.hub.select_design_system)}</option>
-                {designSystems.map((ds) => (
-                  <option key={ds.id} value={ds.id}>
-                    {ds.label ?? (ds.resource_ref as { name?: string })?.name ?? ds.id}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <div className="mb-3">
+            <span className="mb-1 block text-sm text-muted-foreground">
+              {t(($) => $.hub.design_system)}
+            </span>
+            <p className="mb-2 text-xs text-muted-foreground">
+              {t(($) => $.hub.design_system_hint)}
+            </p>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {DESIGN_SYSTEM_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPresetId(preset.id);
+                    setDesignSystemId("");
+                  }}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-sm transition-colors",
+                    selectedPresetId === preset.id && !designSystemId
+                      ? "border-brand bg-brand/10 text-brand"
+                      : "hover:bg-accent",
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            {designSystems.length > 0 && (
+              <label className="block text-sm">
+                <span className="mb-1 block text-xs text-muted-foreground">
+                  {t(($) => $.hub.project_design_systems)}
+                </span>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={designSystemId}
+                  onChange={(e) => {
+                    setDesignSystemId(e.target.value);
+                    if (e.target.value) setSelectedPresetId("");
+                  }}
+                >
+                  <option value="">{t(($) => $.hub.select_design_system_optional)}</option>
+                  {designSystems.map((ds) => (
+                    <option key={ds.id} value={ds.id}>
+                      {ds.label ?? (ds.resource_ref as { name?: string })?.name ?? ds.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
           {designSkills.length > 0 && (
             <label className="mb-3 block text-sm">
               <span className="mb-1 block text-muted-foreground">
@@ -211,7 +268,7 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
           <button
             type="button"
             disabled={
-              (!brief.trim() && !selectedTemplateId) || createSession.isPending
+              (!brief.trim() && !selectedTemplateId) || createSession.isPending || creating
             }
             onClick={() => void handleCreate()}
             className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground disabled:opacity-50"

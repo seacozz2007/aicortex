@@ -34,6 +34,12 @@
 
     "design_system": "Design system",
 
+    "design_system_hint": "Pick a built-in preset here — no need to add it under Project → Resources first.",
+
+    "project_design_systems": "Or use one already on this project",
+
+    "select_design_system_optional": "Optional — use project resource…",
+
     "select_design_system": "Select design system…",
 
     "skill": "Skill",
