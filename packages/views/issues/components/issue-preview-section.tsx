@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, ExternalLink, FileText, Loader2 } from "lucide-react";
-import { useIssuePreviewFeature } from "@aicortex/core/config/features";
+import { ChevronRight, ExternalLink, FileText, Loader2, Palette } from "lucide-react";
+import { useIssuePreviewFeature, useDesignStudioFeature } from "@aicortex/core/config/features";
 import { issueKeys } from "@aicortex/core/issues/queries";
 import { api } from "@aicortex/core/api";
 import type { IssueArtifact } from "@aicortex/core/types";
-import { useWorkspaceSlug } from "@aicortex/core/paths";
+import { useWorkspacePaths, useWorkspaceSlug } from "@aicortex/core/paths";
+import { AppLink } from "../../navigation";
 import { useT } from "../../i18n";
 
 function buildArtifactRawURL(
@@ -22,11 +23,14 @@ function buildArtifactRawURL(
 
 interface IssuePreviewSectionProps {
   issueId: string;
+  projectId?: string | null;
 }
 
-export function IssuePreviewSection({ issueId }: IssuePreviewSectionProps) {
+export function IssuePreviewSection({ issueId, projectId }: IssuePreviewSectionProps) {
   const { t } = useT("issues");
   const enabled = useIssuePreviewFeature();
+  const designStudioEnabled = useDesignStudioFeature();
+  const p = useWorkspacePaths();
   const workspaceSlug = useWorkspaceSlug();
   const [open, setOpen] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -92,6 +96,15 @@ export function IssuePreviewSection({ issueId }: IssuePreviewSectionProps) {
               {previewURL && (
                 <div className="overflow-hidden rounded-md border bg-muted/20">
                   <div className="flex items-center justify-end gap-2 border-b px-2 py-1">
+                    {designStudioEnabled && projectId && (
+                      <AppLink
+                        href={p.projectDesign(projectId)}
+                        className="inline-flex items-center gap-1 text-[10px] text-brand hover:underline"
+                      >
+                        <Palette className="h-3 w-3" />
+                        {t(($) => $.issue_preview.continue_in_design_studio)}
+                      </AppLink>
+                    )}
                     <a
                       href={previewURL}
                       target="_blank"
@@ -103,7 +116,7 @@ export function IssuePreviewSection({ issueId }: IssuePreviewSectionProps) {
                     </a>
                   </div>
                   <iframe
-                    key={active.id}
+                    key={active?.id ?? "preview"}
                     title={t(($) => $.issue_preview.frame_title)}
                     src={previewURL}
                     className="h-56 w-full bg-background"

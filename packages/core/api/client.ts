@@ -62,6 +62,9 @@ import type {
   TaskMessagePayload,
   Attachment,
   ChatSession,
+  CreateDesignSessionRequest,
+  DesignExportResponse,
+  DesignSession,
   ChatMessage,
   ChatPendingTask,
   PendingChatTasksResponse,
@@ -1383,6 +1386,67 @@ export class ApiClient {
 
   async markChatSessionRead(sessionId: string): Promise<void> {
     await this.fetch(`/api/chat/sessions/${sessionId}/read`, { method: "POST" });
+  }
+
+  // ── Design Studio ───────────────────────────────────────────────
+
+  async listDesignSessions(projectId: string): Promise<DesignSession[]> {
+    return this.fetch(`/api/projects/${projectId}/design/sessions`);
+  }
+
+  async getDesignSession(projectId: string, sessionId: string): Promise<DesignSession> {
+    return this.fetch(`/api/projects/${projectId}/design/sessions/${sessionId}`);
+  }
+
+  async createDesignSession(
+    projectId: string,
+    data: CreateDesignSessionRequest,
+  ): Promise<DesignSession> {
+    return this.fetch(`/api/projects/${projectId}/design/sessions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listDesignSystemResources(projectId: string): Promise<ProjectResource[]> {
+    return this.fetch(`/api/projects/${projectId}/design/design-systems`);
+  }
+
+  async exportDesignSession(
+    projectId: string,
+    sessionId: string,
+    format?: string,
+  ): Promise<DesignExportResponse> {
+    return this.fetch(`/api/projects/${projectId}/design/sessions/${sessionId}/export`, {
+      method: "POST",
+      body: JSON.stringify({ format: format ?? "html" }),
+    });
+  }
+
+  async getDesignSettings(): Promise<{ default_design_agent_id?: string }> {
+    return this.fetch("/api/design/settings");
+  }
+
+  async updateDesignSettings(data: {
+    default_design_agent_id: string;
+  }): Promise<{ default_design_agent_id?: string }> {
+    return this.fetch("/api/design/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listDesignTemplates(): Promise<
+    Array<{
+      id: string;
+      title: string;
+      description: string;
+      mode: string;
+      brief: string;
+      artifact_entry?: string;
+    }>
+  > {
+    return this.fetch("/api/design/templates");
   }
 
   // ── Chat Share Links ────────────────────────────────────────────

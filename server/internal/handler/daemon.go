@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/aicortex/aicortex/server/internal/analytics"
+	"github.com/aicortex/aicortex/server/internal/design"
 	"github.com/aicortex/aicortex/server/internal/daemonws"
 	"github.com/aicortex/aicortex/server/internal/middleware"
 	"github.com/aicortex/aicortex/server/internal/service"
@@ -1285,6 +1286,38 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 					resp.ProjectResources = out
+				}
+			}
+			if cs.SessionKind == "design" || task.DesignMode.Valid {
+				resp.SessionKind = cs.SessionKind
+				if cs.DesignMode.Valid {
+					resp.DesignMode = cs.DesignMode.String
+				} else if task.DesignMode.Valid {
+					resp.DesignMode = task.DesignMode.String
+				}
+				if cs.DesignSkillID.Valid {
+					resp.DesignSkillID = uuidToString(cs.DesignSkillID)
+				} else if task.DesignSkillID.Valid {
+					resp.DesignSkillID = uuidToString(task.DesignSkillID)
+				}
+				dsResourceID := ""
+				if cs.DesignSystemResourceID.Valid {
+					dsResourceID = uuidToString(cs.DesignSystemResourceID)
+					resp.DesignSystemResourceID = dsResourceID
+				} else if task.DesignSystemResourceID.Valid {
+					dsResourceID = uuidToString(task.DesignSystemResourceID)
+					resp.DesignSystemResourceID = dsResourceID
+				}
+				resp.ArtifactEntry = cs.ArtifactEntry
+				if dsResourceID != "" {
+					for _, pr := range resp.ProjectResources {
+						if pr.ID == dsResourceID && pr.ResourceType == "design_system" {
+							name, content := design.ParseDesignSystemResource(pr.ResourceRef)
+							resp.DesignSystemName = name
+							resp.DesignSystemContent = content
+							break
+						}
+					}
 				}
 			}
 			// Resume chat sessions only when the stored pointer was produced

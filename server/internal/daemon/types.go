@@ -52,6 +52,14 @@ type Task struct {
 	ChatSessionID           string          `json:"chat_session_id,omitempty"`           // non-empty for chat tasks
 	ChatMessage             string          `json:"chat_message,omitempty"`              // user message content for chat tasks
 	ChatMessageAttachments  []ChatAttachmentMeta `json:"chat_message_attachments,omitempty"` // attachments linked to the chat message; agent uses these to `aicortex attachment download <id>`
+	// Design Studio fields — populated when design_mode is set on the task.
+	DesignMode             string `json:"design_mode,omitempty"`
+	DesignSkillID          string `json:"design_skill_id,omitempty"`
+	DesignSystemResourceID string `json:"design_system_resource_id,omitempty"`
+	DesignSystemContent    string `json:"design_system_content,omitempty"`
+	DesignSystemName       string `json:"design_system_name,omitempty"`
+	ArtifactEntry          string `json:"artifact_entry,omitempty"`
+	SessionKind            string `json:"session_kind,omitempty"`
 	AutopilotRunID          string          `json:"autopilot_run_id,omitempty"`          // non-empty for autopilot run_only tasks
 	AutopilotID             string          `json:"autopilot_id,omitempty"`              // autopilot that spawned this run
 	AutopilotTitle          string          `json:"autopilot_title,omitempty"`           // autopilot title used as task context

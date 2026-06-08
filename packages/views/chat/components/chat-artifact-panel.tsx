@@ -14,7 +14,7 @@ import {
 } from "@aicortex/ui/components/ui/resizable";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
-import { isHtmlArtifact } from "./chat-artifact-url";
+import { buildArtifactRawURL, isHtmlArtifact } from "./chat-artifact-url";
 import { ChatHtmlFilePreview } from "./chat-html-file-preview";
 
 const MAX_TEXT_BYTES = 512 * 1024;

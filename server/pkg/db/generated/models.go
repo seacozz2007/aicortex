@@ -70,31 +70,34 @@ type AgentSkill struct {
 }
 
 type AgentTaskQueue struct {
-	ID                pgtype.UUID        `json:"id"`
-	AgentID           pgtype.UUID        `json:"agent_id"`
-	IssueID           pgtype.UUID        `json:"issue_id"`
-	Status            string             `json:"status"`
-	Priority          int32              `json:"priority"`
-	DispatchedAt      pgtype.Timestamptz `json:"dispatched_at"`
-	StartedAt         pgtype.Timestamptz `json:"started_at"`
-	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
-	Result            []byte             `json:"result"`
-	Error             pgtype.Text        `json:"error"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	Context           []byte             `json:"context"`
-	RuntimeID         pgtype.UUID        `json:"runtime_id"`
-	SessionID         pgtype.Text        `json:"session_id"`
-	WorkDir           pgtype.Text        `json:"work_dir"`
-	TriggerCommentID  pgtype.UUID        `json:"trigger_comment_id"`
-	ChatSessionID     pgtype.UUID        `json:"chat_session_id"`
-	AutopilotRunID    pgtype.UUID        `json:"autopilot_run_id"`
-	Attempt           int32              `json:"attempt"`
-	MaxAttempts       int32              `json:"max_attempts"`
-	ParentTaskID      pgtype.UUID        `json:"parent_task_id"`
-	FailureReason     pgtype.Text        `json:"failure_reason"`
-	TriggerSummary    pgtype.Text        `json:"trigger_summary"`
-	ForceFreshSession bool               `json:"force_fresh_session"`
-	IsLeaderTask      bool               `json:"is_leader_task"`
+	ID                     pgtype.UUID        `json:"id"`
+	AgentID                pgtype.UUID        `json:"agent_id"`
+	IssueID                pgtype.UUID        `json:"issue_id"`
+	Status                 string             `json:"status"`
+	Priority               int32              `json:"priority"`
+	DispatchedAt           pgtype.Timestamptz `json:"dispatched_at"`
+	StartedAt              pgtype.Timestamptz `json:"started_at"`
+	CompletedAt            pgtype.Timestamptz `json:"completed_at"`
+	Result                 []byte             `json:"result"`
+	Error                  pgtype.Text        `json:"error"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	Context                []byte             `json:"context"`
+	RuntimeID              pgtype.UUID        `json:"runtime_id"`
+	SessionID              pgtype.Text        `json:"session_id"`
+	WorkDir                pgtype.Text        `json:"work_dir"`
+	TriggerCommentID       pgtype.UUID        `json:"trigger_comment_id"`
+	ChatSessionID          pgtype.UUID        `json:"chat_session_id"`
+	AutopilotRunID         pgtype.UUID        `json:"autopilot_run_id"`
+	Attempt                int32              `json:"attempt"`
+	MaxAttempts            int32              `json:"max_attempts"`
+	ParentTaskID           pgtype.UUID        `json:"parent_task_id"`
+	FailureReason          pgtype.Text        `json:"failure_reason"`
+	TriggerSummary         pgtype.Text        `json:"trigger_summary"`
+	ForceFreshSession      bool               `json:"force_fresh_session"`
+	IsLeaderTask           bool               `json:"is_leader_task"`
+	DesignMode             pgtype.Text        `json:"design_mode"`
+	DesignSkillID          pgtype.UUID        `json:"design_skill_id"`
+	DesignSystemResourceID pgtype.UUID        `json:"design_system_resource_id"`
 }
 
 type Attachment struct {
@@ -172,19 +175,24 @@ type ChatMessage struct {
 }
 
 type ChatSession struct {
-	ID          pgtype.UUID        `json:"id"`
-	WorkspaceID pgtype.UUID        `json:"workspace_id"`
-	AgentID     pgtype.UUID        `json:"agent_id"`
-	CreatorID   pgtype.UUID        `json:"creator_id"`
-	Title       string             `json:"title"`
-	SessionID   pgtype.Text        `json:"session_id"`
-	WorkDir     pgtype.Text        `json:"work_dir"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	UnreadSince pgtype.Timestamptz `json:"unread_since"`
-	RuntimeID   pgtype.UUID        `json:"runtime_id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
+	ID                     pgtype.UUID        `json:"id"`
+	WorkspaceID            pgtype.UUID        `json:"workspace_id"`
+	AgentID                pgtype.UUID        `json:"agent_id"`
+	CreatorID              pgtype.UUID        `json:"creator_id"`
+	Title                  string             `json:"title"`
+	SessionID              pgtype.Text        `json:"session_id"`
+	WorkDir                pgtype.Text        `json:"work_dir"`
+	Status                 string             `json:"status"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	UnreadSince            pgtype.Timestamptz `json:"unread_since"`
+	RuntimeID              pgtype.UUID        `json:"runtime_id"`
+	ProjectID              pgtype.UUID        `json:"project_id"`
+	SessionKind            string             `json:"session_kind"`
+	DesignMode             pgtype.Text        `json:"design_mode"`
+	DesignSkillID          pgtype.UUID        `json:"design_skill_id"`
+	DesignSystemResourceID pgtype.UUID        `json:"design_system_resource_id"`
+	ArtifactEntry          string             `json:"artifact_entry"`
 }
 
 type ChatShareLink struct {
@@ -362,6 +370,18 @@ type Issue struct {
 	BlockedByIds       []pgtype.UUID      `json:"blocked_by_ids"`
 }
 
+type IssueArtifact struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	TaskID      pgtype.UUID        `json:"task_id"`
+	RuntimeID   pgtype.UUID        `json:"runtime_id"`
+	RelPath     string             `json:"rel_path"`
+	Kind        string             `json:"kind"`
+	Title       string             `json:"title"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type IssueDependency struct {
 	ID               pgtype.UUID `json:"id"`
 	IssueID          pgtype.UUID `json:"issue_id"`
@@ -497,6 +517,18 @@ type ProjectResource struct {
 	Position     int32              `json:"position"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	CreatedBy    pgtype.UUID        `json:"created_by"`
+}
+
+type RuntimeTunnel struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	RuntimeID   pgtype.UUID        `json:"runtime_id"`
+	Port        int32              `json:"port"`
+	Title       string             `json:"title"`
+	Status      string             `json:"status"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Skill struct {
@@ -675,17 +707,18 @@ type VerificationCode struct {
 }
 
 type Workspace struct {
-	ID           pgtype.UUID        `json:"id"`
-	Name         string             `json:"name"`
-	Slug         string             `json:"slug"`
-	Description  pgtype.Text        `json:"description"`
-	Settings     []byte             `json:"settings"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	Context      pgtype.Text        `json:"context"`
-	Repos        []byte             `json:"repos"`
-	IssuePrefix  string             `json:"issue_prefix"`
-	IssueCounter int32              `json:"issue_counter"`
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	Slug                 string             `json:"slug"`
+	Description          pgtype.Text        `json:"description"`
+	Settings             []byte             `json:"settings"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	Context              pgtype.Text        `json:"context"`
+	Repos                []byte             `json:"repos"`
+	IssuePrefix          string             `json:"issue_prefix"`
+	IssueCounter         int32              `json:"issue_counter"`
+	DefaultDesignAgentID pgtype.UUID        `json:"default_design_agent_id"`
 }
 
 type WorkspaceInvitation struct {

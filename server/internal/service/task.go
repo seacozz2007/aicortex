@@ -605,10 +605,13 @@ func (s *TaskService) EnqueueChatTask(ctx context.Context, chatSession db.ChatSe
 	}
 
 	task, err := s.Queries.CreateChatTask(ctx, db.CreateChatTaskParams{
-		AgentID:       chatSession.AgentID,
-		RuntimeID:     agent.RuntimeID,
-		Priority:      2, // medium priority for chat
-		ChatSessionID: chatSession.ID,
+		AgentID:                chatSession.AgentID,
+		RuntimeID:              agent.RuntimeID,
+		Priority:               2, // medium priority for chat
+		ChatSessionID:          chatSession.ID,
+		DesignMode:             chatSession.DesignMode,
+		DesignSkillID:          chatSession.DesignSkillID,
+		DesignSystemResourceID: chatSession.DesignSystemResourceID,
 	})
 	if err != nil {
 		slog.Error("chat task enqueue failed", "chat_session_id", util.UUIDToString(chatSession.ID), "error", err)

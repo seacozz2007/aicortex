@@ -68,6 +68,12 @@ export type * from "./api";
 export type { Attachment } from "./attachment";
 export type { ChatSession, ChatMessage, ChatPendingTask, PendingChatTaskItem, PendingChatTasksResponse, SendChatMessageResponse } from "./chat";
 export type {
+  DesignMode,
+  DesignSession,
+  CreateDesignSessionRequest,
+  DesignExportResponse,
+} from "./design";
+export type {
   ChatShareLink,
   ChatSharePublicInfo,
   CreateChatShareLinkParams,
@@ -84,6 +90,8 @@ export type {
   ProjectResource,
   ProjectResourceType,
   GithubRepoResourceRef,
+  LocalPathResourceRef,
+  DesignSystemResourceRef,
   CreateProjectResourceRequest,
   ListProjectResourcesResponse,
 } from "./project";

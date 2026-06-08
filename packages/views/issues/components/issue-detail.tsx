@@ -1367,7 +1367,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
           when there are no runs to show. */}
       <ExecutionLogSection issueId={id} />
 
-      <IssuePreviewSection issueId={id} />
+      <IssuePreviewSection issueId={id} projectId={issue.project_id} />
 
       {/* Token usage */}
       {usage && usage.task_count > 0 && (

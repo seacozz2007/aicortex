@@ -19,6 +19,7 @@ SELECT cs.*,
        (cs.unread_since IS NOT NULL)::bool AS has_unread
 FROM chat_session cs
 WHERE cs.workspace_id = $1 AND cs.creator_id = $2 AND cs.status = 'active'
+  AND cs.session_kind = 'chat'
 ORDER BY cs.updated_at DESC;
 
 -- name: ListAllChatSessionsByCreator :many
@@ -26,6 +27,7 @@ SELECT cs.*,
        (cs.unread_since IS NOT NULL)::bool AS has_unread
 FROM chat_session cs
 WHERE cs.workspace_id = $1 AND cs.creator_id = $2
+  AND cs.session_kind = 'chat'
 ORDER BY cs.updated_at DESC;
 
 -- name: UpdateChatSessionTitle :one
@@ -87,8 +89,28 @@ SELECT * FROM chat_message
 WHERE id = $1;
 
 -- name: CreateChatTask :one
-INSERT INTO agent_task_queue (agent_id, runtime_id, issue_id, status, priority, chat_session_id)
-VALUES ($1, $2, NULL, 'queued', $3, $4)
+INSERT INTO agent_task_queue (
+    agent_id,
+    runtime_id,
+    issue_id,
+    status,
+    priority,
+    chat_session_id,
+    design_mode,
+    design_skill_id,
+    design_system_resource_id
+)
+VALUES (
+    $1,
+    $2,
+    NULL,
+    'queued',
+    $3,
+    $4,
+    sqlc.narg('design_mode'),
+    sqlc.narg('design_skill_id'),
+    sqlc.narg('design_system_resource_id')
+)
 RETURNING *;
 
 -- name: GetLastChatTaskWithWorkDir :one

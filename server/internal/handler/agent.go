@@ -176,6 +176,13 @@ type AgentTaskResponse struct {
 	QuickCreatePrompt       string                `json:"quick_create_prompt,omitempty"`       // user's natural-language input for quick-create tasks
 	SquadID                 string                `json:"squad_id,omitempty"`                  // for quick-create tasks where the picker was a squad; Agent is still the resolved leader
 	SquadName               string                `json:"squad_name,omitempty"`                // display name for the picker squad
+	DesignMode              string                `json:"design_mode,omitempty"`               // design studio mode when set
+	DesignSkillID           string                `json:"design_skill_id,omitempty"`
+	DesignSystemResourceID  string                `json:"design_system_resource_id,omitempty"`
+	DesignSystemContent     string                `json:"design_system_content,omitempty"`
+	DesignSystemName        string                `json:"design_system_name,omitempty"`
+	ArtifactEntry           string                `json:"artifact_entry,omitempty"`
+	SessionKind             string                `json:"session_kind,omitempty"`
 	Kind                    string                `json:"kind"`                                // discriminator: "comment" | "autopilot" | "chat" | "quick_create" | "direct" — used by the activity row to label tasks that have no linked issue
 }
 

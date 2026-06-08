@@ -67,6 +67,8 @@ func validateAndNormalizeResourceRef(resourceType string, ref json.RawMessage) (
 		return validateGithubRepoRef(ref)
 	case "local_path":
 		return validateLocalPathRef(ref)
+	case "design_system":
+		return validateDesignSystemRef(ref)
 	default:
 		return nil, fmt.Errorf("unknown resource_type %q", resourceType)
 	}
@@ -79,6 +81,33 @@ type githubRepoRef struct {
 
 type localPathRef struct {
 	Path string `json:"path"`
+}
+
+type designSystemRef struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+	Source  string `json:"source,omitempty"`
+}
+
+func validateDesignSystemRef(ref json.RawMessage) (json.RawMessage, error) {
+	var payload designSystemRef
+	if err := json.Unmarshal(ref, &payload); err != nil {
+		return nil, fmt.Errorf("invalid design_system payload: %w", err)
+	}
+	payload.Name = strings.TrimSpace(payload.Name)
+	payload.Content = strings.TrimSpace(payload.Content)
+	payload.Source = strings.TrimSpace(payload.Source)
+	if payload.Name == "" {
+		return nil, errors.New("design_system: name is required")
+	}
+	if payload.Content == "" {
+		return nil, errors.New("design_system: content is required")
+	}
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func validateLocalPathRef(ref json.RawMessage) (json.RawMessage, error) {

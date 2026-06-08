@@ -40,6 +40,7 @@ import {
   Terminal,
   Video,
   Clock,
+  Palette,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
@@ -72,6 +73,7 @@ import {
 } from "@aicortex/ui/components/ui/dropdown-menu";
 import { useAuthStore } from "@aicortex/core/auth";
 import { useCurrentWorkspace, useWorkspacePaths, paths } from "@aicortex/core/paths";
+import { useDesignStudioFeature } from "@aicortex/core/config/features";
 import { workspaceListOptions, myInvitationListOptions, workspaceKeys } from "@aicortex/core/workspace/queries";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inboxKeys, deduplicateInboxItems } from "@aicortex/core/inbox/queries";
@@ -95,7 +97,12 @@ function isNavActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-// Stable empty arrays for query defaults. Using an inline `= []` default on
+function resolveSidebarHref(p: ReturnType<typeof useWorkspacePaths>, key: NavKey): string {
+  if (key === "designStudio") return p.projects();
+  return p[key]();
+}
+
+// Stable empty arrays for query defaults.
 // `useQuery` creates a new array reference on every render when `data` is
 // undefined (e.g. query disabled or loading) — which in turn breaks any
 // `useEffect`/`useMemo` that depends on the value, and can trigger infinite
@@ -125,7 +132,9 @@ type NavKey =
   | "skills"
   | "settings"
   | "meetings"
-  | "recent";
+  | "recent"
+  | "chat"
+  | "designStudio";
 
 // Static schema (key + icon) — labels resolved at render via useT("layout").
 type NavLabelKey =
@@ -145,13 +154,20 @@ type NavLabelKey =
   | "skills"
   | "settings"
   | "meetings"
-  | "recent";
+  | "recent"
+  | "chat"
+  | "design_studio";
 
 const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "home", labelKey: "home", icon: Home },
   { key: "inbox", labelKey: "inbox", icon: Inbox },
   { key: "myIssues", labelKey: "my_issues", icon: CircleUser },
   { key: "recent", labelKey: "recent", icon: Clock },
+];
+
+const createNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox; requiresDesignStudio?: boolean }[] = [
+  { key: "chat", labelKey: "chat", icon: MessageSquare },
+  { key: "designStudio", labelKey: "design_studio", icon: Palette, requiresDesignStudio: true },
 ];
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
@@ -370,6 +386,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const userId = useAuthStore((s) => s.user?.id);
   const logout = useLogout();
   const workspace = useCurrentWorkspace();
+  const designStudioEnabled = useDesignStudioFeature();
   const p = useWorkspacePaths();
   const { data: workspaces = EMPTY_WORKSPACES } = useQuery(workspaceListOptions());
   const { data: myInvitations = EMPTY_INVITATIONS } = useQuery(myInvitationListOptions());
@@ -634,7 +651,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {personalNav.map((item) => {
-                  const href = p[item.key]();
+                  const href = resolveSidebarHref(p, item.key);
                   const isActive = isNavActive(pathname, href);
                   return (
                     <SidebarMenuItem key={item.key}>
@@ -650,6 +667,34 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                             {unreadCount > 99 ? "99+" : unreadCount}
                           </span>
                         )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>{t(($) => $.nav.group.create)}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-0.5">
+                {createNav.map((item) => {
+                  if (item.requiresDesignStudio && !designStudioEnabled) return null;
+                  const href = item.key === "designStudio" ? p.projects() : p[item.key]();
+                  const isActive =
+                    item.key === "designStudio"
+                      ? pathname.includes("/design")
+                      : isNavActive(pathname, href);
+                  return (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        render={<AppLink href={href} />}
+                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                      >
+                        <item.icon />
+                        <span>{t(($) => $.nav[item.labelKey])}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -702,7 +747,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                     const s = (workspace?.settings as Record<string, unknown>) ?? {};
                     if (s.forum_enabled !== true) return null;
                   }
-                  const href = p[item.key]();
+                  const href = resolveSidebarHref(p, item.key);
                   const isActive = isNavActive(pathname, href);
                   return (
                     <SidebarMenuItem key={item.key}>
@@ -726,7 +771,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {configureNav.map((item) => {
-                  const href = p[item.key]();
+                  const href = resolveSidebarHref(p, item.key);
                   const isActive = isNavActive(pathname, href);
                   return (
                     <SidebarMenuItem key={item.key}>

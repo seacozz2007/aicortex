@@ -52,7 +52,7 @@ func (q *Queries) CreateChatMessage(ctx context.Context, arg CreateChatMessagePa
 const createChatSession = `-- name: CreateChatSession :one
 INSERT INTO chat_session (workspace_id, agent_id, creator_id, title, runtime_id, project_id)
 VALUES ($1, $2, $3, $4, (SELECT runtime_id FROM agent WHERE id = $2), $5)
-RETURNING id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id
+RETURNING id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id, session_kind, design_mode, design_skill_id, design_system_resource_id, artifact_entry
 `
 
 type CreateChatSessionParams struct {
@@ -86,21 +86,49 @@ func (q *Queries) CreateChatSession(ctx context.Context, arg CreateChatSessionPa
 		&i.UnreadSince,
 		&i.RuntimeID,
 		&i.ProjectID,
+		&i.SessionKind,
+		&i.DesignMode,
+		&i.DesignSkillID,
+		&i.DesignSystemResourceID,
+		&i.ArtifactEntry,
 	)
 	return i, err
 }
 
 const createChatTask = `-- name: CreateChatTask :one
-INSERT INTO agent_task_queue (agent_id, runtime_id, issue_id, status, priority, chat_session_id)
-VALUES ($1, $2, NULL, 'queued', $3, $4)
-RETURNING id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task
+INSERT INTO agent_task_queue (
+    agent_id,
+    runtime_id,
+    issue_id,
+    status,
+    priority,
+    chat_session_id,
+    design_mode,
+    design_skill_id,
+    design_system_resource_id
+)
+VALUES (
+    $1,
+    $2,
+    NULL,
+    'queued',
+    $3,
+    $4,
+    $5,
+    $6,
+    $7
+)
+RETURNING id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, design_mode, design_skill_id, design_system_resource_id
 `
 
 type CreateChatTaskParams struct {
-	AgentID       pgtype.UUID `json:"agent_id"`
-	RuntimeID     pgtype.UUID `json:"runtime_id"`
-	Priority      int32       `json:"priority"`
-	ChatSessionID pgtype.UUID `json:"chat_session_id"`
+	AgentID                pgtype.UUID `json:"agent_id"`
+	RuntimeID              pgtype.UUID `json:"runtime_id"`
+	Priority               int32       `json:"priority"`
+	ChatSessionID          pgtype.UUID `json:"chat_session_id"`
+	DesignMode             pgtype.Text `json:"design_mode"`
+	DesignSkillID          pgtype.UUID `json:"design_skill_id"`
+	DesignSystemResourceID pgtype.UUID `json:"design_system_resource_id"`
 }
 
 func (q *Queries) CreateChatTask(ctx context.Context, arg CreateChatTaskParams) (AgentTaskQueue, error) {
@@ -109,6 +137,9 @@ func (q *Queries) CreateChatTask(ctx context.Context, arg CreateChatTaskParams) 
 		arg.RuntimeID,
 		arg.Priority,
 		arg.ChatSessionID,
+		arg.DesignMode,
+		arg.DesignSkillID,
+		arg.DesignSystemResourceID,
 	)
 	var i AgentTaskQueue
 	err := row.Scan(
@@ -137,6 +168,9 @@ func (q *Queries) CreateChatTask(ctx context.Context, arg CreateChatTaskParams) 
 		&i.TriggerSummary,
 		&i.ForceFreshSession,
 		&i.IsLeaderTask,
+		&i.DesignMode,
+		&i.DesignSkillID,
+		&i.DesignSystemResourceID,
 	)
 	return i, err
 }
@@ -179,7 +213,7 @@ func (q *Queries) GetChatMessage(ctx context.Context, id pgtype.UUID) (ChatMessa
 }
 
 const getChatSession = `-- name: GetChatSession :one
-SELECT id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id FROM chat_session
+SELECT id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id, session_kind, design_mode, design_skill_id, design_system_resource_id, artifact_entry FROM chat_session
 WHERE id = $1
 `
 
@@ -200,12 +234,17 @@ func (q *Queries) GetChatSession(ctx context.Context, id pgtype.UUID) (ChatSessi
 		&i.UnreadSince,
 		&i.RuntimeID,
 		&i.ProjectID,
+		&i.SessionKind,
+		&i.DesignMode,
+		&i.DesignSkillID,
+		&i.DesignSystemResourceID,
+		&i.ArtifactEntry,
 	)
 	return i, err
 }
 
 const getChatSessionInWorkspace = `-- name: GetChatSessionInWorkspace :one
-SELECT id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id FROM chat_session
+SELECT id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id, session_kind, design_mode, design_skill_id, design_system_resource_id, artifact_entry FROM chat_session
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -231,6 +270,11 @@ func (q *Queries) GetChatSessionInWorkspace(ctx context.Context, arg GetChatSess
 		&i.UnreadSince,
 		&i.RuntimeID,
 		&i.ProjectID,
+		&i.SessionKind,
+		&i.DesignMode,
+		&i.DesignSkillID,
+		&i.DesignSystemResourceID,
+		&i.ArtifactEntry,
 	)
 	return i, err
 }
@@ -262,6 +306,24 @@ func (q *Queries) GetLastChatTaskSession(ctx context.Context, chatSessionID pgty
 	return i, err
 }
 
+const getLastChatTaskWithWorkDir = `-- name: GetLastChatTaskWithWorkDir :one
+SELECT id FROM agent_task_queue
+WHERE chat_session_id = $1
+  AND work_dir IS NOT NULL
+  AND btrim(work_dir) <> ''
+ORDER BY COALESCE(completed_at, started_at, dispatched_at, created_at) DESC, created_at DESC
+LIMIT 1
+`
+
+// Most recent task in this chat session that recorded a work_dir. Used to
+// expose last_task_id for artifact browse without a new chat-scoped API.
+func (q *Queries) GetLastChatTaskWithWorkDir(ctx context.Context, chatSessionID pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, getLastChatTaskWithWorkDir, chatSessionID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getPendingChatTask = `-- name: GetPendingChatTask :one
 SELECT id, status, created_at FROM agent_task_queue
 WHERE chat_session_id = $1 AND status IN ('queued', 'dispatched', 'running')
@@ -288,10 +350,11 @@ func (q *Queries) GetPendingChatTask(ctx context.Context, chatSessionID pgtype.U
 }
 
 const listAllChatSessionsByCreator = `-- name: ListAllChatSessionsByCreator :many
-SELECT cs.id, cs.workspace_id, cs.agent_id, cs.creator_id, cs.title, cs.session_id, cs.work_dir, cs.status, cs.created_at, cs.updated_at, cs.unread_since, cs.runtime_id, cs.project_id,
+SELECT cs.id, cs.workspace_id, cs.agent_id, cs.creator_id, cs.title, cs.session_id, cs.work_dir, cs.status, cs.created_at, cs.updated_at, cs.unread_since, cs.runtime_id, cs.project_id, cs.session_kind, cs.design_mode, cs.design_skill_id, cs.design_system_resource_id, cs.artifact_entry,
        (cs.unread_since IS NOT NULL)::bool AS has_unread
 FROM chat_session cs
 WHERE cs.workspace_id = $1 AND cs.creator_id = $2
+  AND cs.session_kind = 'chat'
 ORDER BY cs.updated_at DESC
 `
 
@@ -301,20 +364,25 @@ type ListAllChatSessionsByCreatorParams struct {
 }
 
 type ListAllChatSessionsByCreatorRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	WorkspaceID pgtype.UUID        `json:"workspace_id"`
-	AgentID     pgtype.UUID        `json:"agent_id"`
-	CreatorID   pgtype.UUID        `json:"creator_id"`
-	Title       string             `json:"title"`
-	SessionID   pgtype.Text        `json:"session_id"`
-	WorkDir     pgtype.Text        `json:"work_dir"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	UnreadSince pgtype.Timestamptz `json:"unread_since"`
-	RuntimeID   pgtype.UUID        `json:"runtime_id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
-	HasUnread   bool               `json:"has_unread"`
+	ID                     pgtype.UUID        `json:"id"`
+	WorkspaceID            pgtype.UUID        `json:"workspace_id"`
+	AgentID                pgtype.UUID        `json:"agent_id"`
+	CreatorID              pgtype.UUID        `json:"creator_id"`
+	Title                  string             `json:"title"`
+	SessionID              pgtype.Text        `json:"session_id"`
+	WorkDir                pgtype.Text        `json:"work_dir"`
+	Status                 string             `json:"status"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	UnreadSince            pgtype.Timestamptz `json:"unread_since"`
+	RuntimeID              pgtype.UUID        `json:"runtime_id"`
+	ProjectID              pgtype.UUID        `json:"project_id"`
+	SessionKind            string             `json:"session_kind"`
+	DesignMode             pgtype.Text        `json:"design_mode"`
+	DesignSkillID          pgtype.UUID        `json:"design_skill_id"`
+	DesignSystemResourceID pgtype.UUID        `json:"design_system_resource_id"`
+	ArtifactEntry          string             `json:"artifact_entry"`
+	HasUnread              bool               `json:"has_unread"`
 }
 
 func (q *Queries) ListAllChatSessionsByCreator(ctx context.Context, arg ListAllChatSessionsByCreatorParams) ([]ListAllChatSessionsByCreatorRow, error) {
@@ -340,6 +408,11 @@ func (q *Queries) ListAllChatSessionsByCreator(ctx context.Context, arg ListAllC
 			&i.UnreadSince,
 			&i.RuntimeID,
 			&i.ProjectID,
+			&i.SessionKind,
+			&i.DesignMode,
+			&i.DesignSkillID,
+			&i.DesignSystemResourceID,
+			&i.ArtifactEntry,
 			&i.HasUnread,
 		); err != nil {
 			return nil, err
@@ -388,10 +461,11 @@ func (q *Queries) ListChatMessages(ctx context.Context, chatSessionID pgtype.UUI
 }
 
 const listChatSessionsByCreator = `-- name: ListChatSessionsByCreator :many
-SELECT cs.id, cs.workspace_id, cs.agent_id, cs.creator_id, cs.title, cs.session_id, cs.work_dir, cs.status, cs.created_at, cs.updated_at, cs.unread_since, cs.runtime_id, cs.project_id,
+SELECT cs.id, cs.workspace_id, cs.agent_id, cs.creator_id, cs.title, cs.session_id, cs.work_dir, cs.status, cs.created_at, cs.updated_at, cs.unread_since, cs.runtime_id, cs.project_id, cs.session_kind, cs.design_mode, cs.design_skill_id, cs.design_system_resource_id, cs.artifact_entry,
        (cs.unread_since IS NOT NULL)::bool AS has_unread
 FROM chat_session cs
 WHERE cs.workspace_id = $1 AND cs.creator_id = $2 AND cs.status = 'active'
+  AND cs.session_kind = 'chat'
 ORDER BY cs.updated_at DESC
 `
 
@@ -401,20 +475,25 @@ type ListChatSessionsByCreatorParams struct {
 }
 
 type ListChatSessionsByCreatorRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	WorkspaceID pgtype.UUID        `json:"workspace_id"`
-	AgentID     pgtype.UUID        `json:"agent_id"`
-	CreatorID   pgtype.UUID        `json:"creator_id"`
-	Title       string             `json:"title"`
-	SessionID   pgtype.Text        `json:"session_id"`
-	WorkDir     pgtype.Text        `json:"work_dir"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	UnreadSince pgtype.Timestamptz `json:"unread_since"`
-	RuntimeID   pgtype.UUID        `json:"runtime_id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
-	HasUnread   bool               `json:"has_unread"`
+	ID                     pgtype.UUID        `json:"id"`
+	WorkspaceID            pgtype.UUID        `json:"workspace_id"`
+	AgentID                pgtype.UUID        `json:"agent_id"`
+	CreatorID              pgtype.UUID        `json:"creator_id"`
+	Title                  string             `json:"title"`
+	SessionID              pgtype.Text        `json:"session_id"`
+	WorkDir                pgtype.Text        `json:"work_dir"`
+	Status                 string             `json:"status"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	UnreadSince            pgtype.Timestamptz `json:"unread_since"`
+	RuntimeID              pgtype.UUID        `json:"runtime_id"`
+	ProjectID              pgtype.UUID        `json:"project_id"`
+	SessionKind            string             `json:"session_kind"`
+	DesignMode             pgtype.Text        `json:"design_mode"`
+	DesignSkillID          pgtype.UUID        `json:"design_skill_id"`
+	DesignSystemResourceID pgtype.UUID        `json:"design_system_resource_id"`
+	ArtifactEntry          string             `json:"artifact_entry"`
+	HasUnread              bool               `json:"has_unread"`
 }
 
 // Returns active sessions with a boolean unread flag. Unread is strictly
@@ -443,6 +522,11 @@ func (q *Queries) ListChatSessionsByCreator(ctx context.Context, arg ListChatSes
 			&i.UnreadSince,
 			&i.RuntimeID,
 			&i.ProjectID,
+			&i.SessionKind,
+			&i.DesignMode,
+			&i.DesignSkillID,
+			&i.DesignSystemResourceID,
+			&i.ArtifactEntry,
 			&i.HasUnread,
 		); err != nil {
 			return nil, err
@@ -587,7 +671,7 @@ func (q *Queries) UpdateChatSessionSession(ctx context.Context, arg UpdateChatSe
 const updateChatSessionTitle = `-- name: UpdateChatSessionTitle :one
 UPDATE chat_session SET title = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id
+RETURNING id, workspace_id, agent_id, creator_id, title, session_id, work_dir, status, created_at, updated_at, unread_since, runtime_id, project_id, session_kind, design_mode, design_skill_id, design_system_resource_id, artifact_entry
 `
 
 type UpdateChatSessionTitleParams struct {
@@ -612,6 +696,11 @@ func (q *Queries) UpdateChatSessionTitle(ctx context.Context, arg UpdateChatSess
 		&i.UnreadSince,
 		&i.RuntimeID,
 		&i.ProjectID,
+		&i.SessionKind,
+		&i.DesignMode,
+		&i.DesignSkillID,
+		&i.DesignSystemResourceID,
+		&i.ArtifactEntry,
 	)
 	return i, err
 }

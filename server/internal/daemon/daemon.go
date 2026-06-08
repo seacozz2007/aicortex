@@ -2222,6 +2222,10 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		AutopilotTriggerPayload: strings.TrimSpace(string(task.AutopilotTriggerPayload)),
 		QuickCreatePrompt:       task.QuickCreatePrompt,
 		IsSquadLeader:           strings.Contains(instructions, "## Squad Operating Protocol"),
+		DesignMode:              task.DesignMode,
+		DesignSystemContent:     task.DesignSystemContent,
+		DesignSystemName:        task.DesignSystemName,
+		ArtifactEntry:           task.ArtifactEntry,
 	}
 
 	// Mark candidate env roots as active before any env work so the GC loop

@@ -12,6 +12,7 @@ import {
   type TerminalSession,
 } from "@aicortex/core/terminal";
 import { TerminalPanel } from "../../explore/components/terminal-panel";
+import { useWS } from "@aicortex/core/realtime";
 import { useT } from "../../i18n";
 
 const TERMINAL_STORAGE_KEY = "aicortex:chat:terminal-session";
@@ -53,17 +54,21 @@ export function ChatTerminalPanel({
   runtimeId,
   workDir,
   sessionTitle,
+  bootstrapCommand,
 }: {
   chatSessionId: string;
   runtimeId: string;
   workDir?: string;
   sessionTitle?: string;
+  /** Shell command sent once after the terminal attaches (e.g. cd to work_dir). */
+  bootstrapCommand?: string;
 }) {
   const { t } = useT("chat");
   const wsId = useWorkspaceId();
   const { data: sessions = [], isLoading } = useQuery(terminalSessionListOptions(wsId));
   const createSession = useCreateTerminalSession();
   const closeSession = useCloseTerminalSession();
+  const { send } = useWS();
   const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [booting, setBooting] = useState(false);
@@ -145,6 +150,20 @@ export function ChatTerminalPanel({
   const handleRetry = useCallback(() => {
     void connectTerminal(true);
   }, [connectTerminal]);
+
+  useEffect(() => {
+    if (!terminalSessionId || !bootstrapCommand?.trim()) return;
+    const payload = `${bootstrapCommand.trim()}\n`;
+    const bytes = new TextEncoder().encode(payload);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]!);
+    }
+    send({
+      type: "terminal:data",
+      payload: { session_id: terminalSessionId, data: btoa(binary) },
+    });
+  }, [terminalSessionId, bootstrapCommand, send]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">

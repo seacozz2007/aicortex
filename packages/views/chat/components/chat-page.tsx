@@ -480,7 +480,7 @@ export function ChatPage() {
               maxSize="80%"
               groupResizeBehavior="preserve-pixel-size"
             >
-              <ChatToolsSidebar session={currentSession} />
+              <ChatToolsSidebar session={currentSession ?? null} />
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (

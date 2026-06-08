@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, PanelRight, Pin, PinOff, Plus, Trash2, UserMinus } from "lucide-react";
+import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, Palette, PanelRight, Pin, PinOff, Plus, Trash2, UserMinus } from "lucide-react";
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { cn } from "@aicortex/ui/lib/utils";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { useUpdateIssue } from "@aicortex/core/issues/mutations";
 import { useModalStore } from "@aicortex/core/modals";
 import { memberListOptions, agentListOptions } from "@aicortex/core/workspace/queries";
 import { useWorkspaceId } from "@aicortex/core/hooks";
+import { useDesignStudioFeature } from "@aicortex/core/config/features";
 import { useCurrentWorkspace, useWorkspacePaths } from "@aicortex/core/paths";
 import { useActorName } from "@aicortex/core/workspace/hooks";
 import { PROJECT_STATUS_ORDER, PROJECT_STATUS_CONFIG, PROJECT_PRIORITY_ORDER } from "@aicortex/core/projects/config";
@@ -281,6 +282,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const priorityLabels = useProjectPriorityLabels();
   const wsId = useWorkspaceId();
   const wsPaths = useWorkspacePaths();
+  const designStudioEnabled = useDesignStudioFeature();
   const router = useNavigation();
   const userId = useAuthStore((s) => s.user?.id);
   const workspace = useCurrentWorkspace();
@@ -606,6 +608,17 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               <span className="truncate">{project.title}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
+              {designStudioEnabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  render={<AppLink href={wsPaths.projectDesign(projectId)} />}
+                >
+                  <Palette className="size-3.5" />
+                  {t(($) => $.detail.design_studio_action)}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon-sm"

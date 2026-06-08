@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	designpkg "github.com/aicortex/aicortex/server/internal/design"
 	"github.com/aicortex/aicortex/server/internal/daemon/execenv"
 )
 
@@ -15,6 +16,16 @@ import (
 // lightweight inline template (or Windows file for any provider on
 // Windows).
 func BuildPrompt(task Task, provider string) string {
+	if task.DesignMode != "" {
+		return designpkg.BuildPrompt(designpkg.PromptInput{
+			DesignMode:          task.DesignMode,
+			ChatMessage:         task.ChatMessage,
+			DesignSystemContent: task.DesignSystemContent,
+			DesignSystemName:    task.DesignSystemName,
+			ArtifactEntry:       task.ArtifactEntry,
+			ProjectTitle:        task.ProjectTitle,
+		})
+	}
 	if task.ChatSessionID != "" {
 		return buildChatPrompt(task)
 	}

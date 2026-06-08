@@ -234,7 +234,23 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 
 	b.WriteString("### Workflow\n\n")
 
-	if ctx.ChatSessionID != "" {
+	if ctx.DesignMode != "" {
+		b.WriteString("**You are in Design Studio mode.** Build real HTML/CSS files in the work directory.\n\n")
+		fmt.Fprintf(&b, "- Design mode: `%s`\n", ctx.DesignMode)
+		if ctx.ArtifactEntry != "" {
+			fmt.Fprintf(&b, "- Primary preview entry: `%s`\n", ctx.ArtifactEntry)
+		}
+		b.WriteString("- Use `<question-form>` when requirements are unclear\n")
+		b.WriteString("- Tag interactive regions with `data-aicortex-id` for comment mode\n")
+		b.WriteString("- Prefer file writes over inline-only responses\n\n")
+		if strings.TrimSpace(ctx.DesignSystemContent) != "" {
+			name := strings.TrimSpace(ctx.DesignSystemName)
+			if name == "" {
+				name = "Design System"
+			}
+			fmt.Fprintf(&b, "Active design system (**%s**) is injected in the per-turn prompt.\n\n", name)
+		}
+	} else if ctx.ChatSessionID != "" {
 		// Chat task: interactive assistant mode
 		b.WriteString("**You are in chat mode.** A user is messaging you directly in a chat window.\n\n")
 		b.WriteString("- Respond conversationally and helpfully to the user's message\n")

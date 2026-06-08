@@ -465,7 +465,24 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/resources", h.ListProjectResources)
 					r.Post("/resources", h.CreateProjectResource)
 					r.Delete("/resources/{resourceId}", h.DeleteProjectResource)
+					r.Route("/design", func(r chi.Router) {
+						r.Get("/design-systems", h.ListDesignSystemResources)
+						r.Get("/sessions", h.ListDesignSessions)
+						r.Post("/sessions", h.CreateDesignSession)
+						r.Route("/sessions/{sessionId}", func(r chi.Router) {
+							r.Get("/", h.GetDesignSession)
+							r.Post("/export", h.ExportDesignSession)
+							r.Post("/jury", h.StartDesignJury)
+						})
+					})
 				})
+			})
+
+			// Design Studio (workspace-level)
+			r.Route("/api/design", func(r chi.Router) {
+				r.Get("/settings", h.GetDesignSettings)
+				r.Put("/settings", h.UpdateDesignSettings)
+				r.Get("/templates", h.ListDesignTemplates)
 			})
 
 			// Squads

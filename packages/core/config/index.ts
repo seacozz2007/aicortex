@@ -5,6 +5,9 @@ export interface AppFeatureFlags {
   runtime_tunnel: boolean;
   artifact_browse: boolean;
   issue_preview: boolean;
+  design_studio: boolean;
+  design_export: boolean;
+  design_jury: boolean;
 }
 
 interface ConfigState {
@@ -19,8 +22,11 @@ interface ConfigState {
 
 const defaultFeatures: AppFeatureFlags = {
   runtime_tunnel: false,
-  artifact_browse: false,
+  artifact_browse: true,
   issue_preview: false,
+  design_studio: true,
+  design_export: true,
+  design_jury: true,
 };
 
 export const configStore = createStore<ConfigState>((set) => ({

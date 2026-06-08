@@ -11,15 +11,6 @@ import {
 } from "@aicortex/ui/components/ui/sheet";
 import { cn } from "@aicortex/ui/lib/utils";
 import {
-  Home,
-  Inbox,
-  CircleUser,
-  ListTodo,
-  FolderKanban,
-  Zap,
-  Bot,
-  Users,
-  BarChart3,
   Search,
   SquarePen,
   ChevronDown,
@@ -36,11 +27,8 @@ import {
   LogOut,
   Menu,
   Check,
-  MessageSquare,
   Plus,
-  Building2,
-  Terminal,
-  Video,
+  Users,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -64,6 +52,9 @@ import { useSearchStore } from "../search/search-store";
 import { useLogout } from "../auth";
 import { useT } from "../i18n";
 import { useModalStore } from "@aicortex/core/modals";
+import { useDesignStudioFeature } from "@aicortex/core/config/features";
+import { WORKSPACE_NAV_GROUPS, filterNavItem, resolveNavHref } from "@aicortex/core/nav/workspace-nav";
+import { WorkspaceNavMenu } from "./workspace-nav-menu";
 
 interface TopNavProps {
   className?: string;
@@ -79,27 +70,25 @@ export function TopNav({ className }: TopNavProps) {
   const logout = useLogout();
 
   const settings = (workspace?.settings as Record<string, unknown>) ?? {};
+  const designStudioEnabled = useDesignStudioFeature();
+  const forumEnabled = settings.forum_enabled === true;
 
   const isMobile = useIsMobile();
   const [navSheetOpen, setNavSheetOpen] = useState(false);
 
-  const navItems = [
-    { key: "home", label: t(($) => $.nav.home), href: p.home(), icon: Home },
-    { key: "inbox", label: t(($) => $.nav.inbox), href: p.inbox(), icon: Inbox },
-    { key: "my-issues", label: t(($) => $.nav.my_issues), href: p.myIssues(), icon: CircleUser },
-    { key: "issues", label: t(($) => $.nav.issues), href: p.issues(), icon: ListTodo },
-    { key: "projects", label: t(($) => $.nav.projects), href: p.projects(), icon: FolderKanban },
-    { key: "autopilots", label: t(($) => $.nav.autopilots), href: p.autopilots(), icon: Zap },
-    { key: "agents", label: t(($) => $.nav.agents), href: p.agents(), icon: Bot },
-    { key: "meetings", label: t(($) => $.nav.meetings), href: p.meetings(), icon: Video },
-    { key: "explore", label: t(($) => $.nav.explore), href: p.explore(), icon: Terminal },
-    { key: "office", label: t(($) => $.nav.office), href: p.office(), icon: Building2 },
-    ...(settings.forum_enabled === true
-      ? [{ key: "forum", label: t(($) => $.nav.forum), href: p.forum(), icon: MessageSquare }]
-      : []),
-    { key: "squads", label: t(($) => $.nav.squads), href: p.squads(), icon: Users },
-    { key: "usage", label: t(($) => $.nav.usage), href: p.usage(), icon: BarChart3 },
-  ];
+  const mobileNavItems = WORKSPACE_NAV_GROUPS.flatMap((group) =>
+    group.items
+      .filter((item) => filterNavItem(item, { designStudio: designStudioEnabled, forumEnabled }))
+      .map((item) => ({
+        key: item.key,
+        label: t(($) => $.nav[item.labelKey as keyof typeof $.nav] as string),
+        href: resolveNavHref(item, p),
+        icon: item.icon,
+        group: group.groupLabelKey
+          ? t(($) => $.nav.group[group.groupLabelKey as keyof typeof $.nav.group])
+          : undefined,
+      })),
+  );
 
   return (
     <header className={cn("flex h-12 shrink-0 items-center border-b bg-card px-4", className)}>
@@ -124,11 +113,8 @@ export function TopNav({ className }: TopNavProps) {
                 <SheetTitle>Navigation</SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-1 pt-6">
-                {[
-                  ...navItems,
-                  { key: "chat", label: t(($) => $.nav.chat), href: p.chat(), icon: MessageSquare },
-                ].map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                {mobileNavItems.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/") || (item.key === "designStudio" && pathname.includes("/design"));
                   return (
                     <AppLink
                       key={item.key}
@@ -197,41 +183,10 @@ export function TopNav({ className }: TopNavProps) {
         </DropdownMenu>
 
         {!isMobile && (
-          <>
-            {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <AppLink key={item.key} href={item.href}>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
-                      isActive
-                        ? "bg-accent text-foreground font-medium"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    <item.icon className="size-3.5" />
-                    <span className="hidden lg:inline">{item.label}</span>
-                  </span>
-                </AppLink>
-              );
-            })}
-
-            {/* Chat entry */}
-            <AppLink href={p.chat()}>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent hover:text-foreground",
-                  pathname.startsWith(p.chat())
-                    ? "bg-accent text-foreground font-medium"
-                    : "text-muted-foreground"
-                )}
-              >
-                <MessageSquare className="size-3.5" />
-                <span className="hidden lg:inline">{t(($) => $.nav.chat)}</span>
-              </span>
-            </AppLink>
-          </>
+          <WorkspaceNavMenu
+            designStudio={designStudioEnabled}
+            forumEnabled={forumEnabled}
+          />
         )}
       </div>
 

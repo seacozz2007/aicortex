@@ -17,7 +17,14 @@
     "settings": "Settings",
     "chat": "Chat",
     "meetings": "Meetings",
-    "recent": "Recent"
+    "recent": "Recent",
+    "design_studio": "Design Studio",
+    "group": {
+      "work": "Work",
+      "agents": "Agents",
+      "create": "Create",
+      "more": "More"
+    }
   },
   "topnav": {
     "search": "Search",

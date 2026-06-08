@@ -628,6 +628,19 @@ export function useRealtimeSync(
       const id = getCurrentWsId();
       if (id) qc.invalidateQueries({ queryKey: chatKeys.sessions(id) });
     };
+    const invalidateDesignSessions = (chatSessionId?: string) => {
+      const id = getCurrentWsId();
+      if (!id) return;
+      qc.invalidateQueries({ queryKey: ["design", id] });
+      if (chatSessionId) {
+        qc.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === "design" &&
+            query.queryKey.includes(chatSessionId),
+        });
+      }
+    };
 
     const unsubChatMessage = ws.on("chat:message", (p) => {
       const payload = p as { chat_session_id: string };
@@ -660,6 +673,7 @@ export function useRealtimeSync(
       invalidatePendingAggregate();
       // Assistant message just landed → has_unread may have flipped to true.
       invalidateSessionLists();
+      invalidateDesignSessions(payload.chat_session_id);
     });
 
     // Chat task lifecycle writethrough: keep `chatKeys.pendingTask(sessionId)`
@@ -755,6 +769,7 @@ export function useRealtimeSync(
       invalidatePendingAggregate();
       // FailTask may still persist work_dir — refresh last_task_id for the tools sidebar.
       invalidateSessionLists();
+      invalidateDesignSessions(payload.chat_session_id);
     });
 
     const unsubChatSessionRead = ws.on("chat:session_read", (p) => {

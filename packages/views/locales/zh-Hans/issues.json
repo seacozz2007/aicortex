@@ -265,6 +265,7 @@
     "loading": "加载预览…",
     "empty": "暂无可用预览页面。任务完成后会自动扫描 index.html 等 HTML 文件。",
     "open_new_tab": "新标签页打开",
+    "continue_in_design_studio": "在设计工作室中继续",
     "frame_title": "Issue 预览"
   },
   "execution_log": {

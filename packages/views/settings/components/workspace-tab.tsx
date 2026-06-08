@@ -22,10 +22,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@aicortex/core/auth";
 import { useLeaveWorkspace, useDeleteWorkspace } from "@aicortex/core/workspace/mutations";
 import { useWorkspaceId } from "@aicortex/core/hooks";
+import { useDesignStudioFeature } from "@aicortex/core/config/features";
+import { designSettingsOptions, useUpdateDesignSettings } from "@aicortex/core/design";
 import {
   memberListOptions,
   workspaceKeys,
   workspaceListOptions,
+  agentListOptions,
 } from "@aicortex/core/workspace/queries";
 import { api } from "@aicortex/core/api";
 import {
@@ -45,6 +48,16 @@ export function WorkspaceTab() {
   const workspace = useCurrentWorkspace();
   const wsId = useWorkspaceId();
   const { data: members = [], isFetched: membersFetched } = useQuery(memberListOptions(wsId));
+  const designStudioEnabled = useDesignStudioFeature();
+  const { data: designSettings } = useQuery({
+    ...designSettingsOptions(wsId),
+    enabled: designStudioEnabled,
+  });
+  const { data: agents = [] } = useQuery({
+    ...agentListOptions(wsId),
+    enabled: designStudioEnabled,
+  });
+  const updateDesignSettings = useUpdateDesignSettings(wsId);
   const qc = useQueryClient();
   const leaveWorkspace = useLeaveWorkspace();
   const deleteWorkspace = useDeleteWorkspace();
@@ -98,6 +111,7 @@ export function WorkspaceTab() {
   const [name, setName] = useState(workspace?.name ?? "");
   const [description, setDescription] = useState(workspace?.description ?? "");
   const [context, setContext] = useState(workspace?.context ?? "");
+  const [designAgentId, setDesignAgentId] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -124,6 +138,10 @@ export function WorkspaceTab() {
     setDescription(workspace?.description ?? "");
     setContext(workspace?.context ?? "");
   }, [workspace]);
+
+  useEffect(() => {
+    setDesignAgentId(designSettings?.default_design_agent_id ?? "");
+  }, [designSettings?.default_design_agent_id]);
 
   const handleSave = async () => {
     if (!workspace) return;
@@ -249,6 +267,59 @@ export function WorkspaceTab() {
           </CardContent>
         </Card>
       </section>
+
+      {designStudioEnabled && (
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold">{t(($) => $.workspace.design_studio_section)}</h2>
+          <Card>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  {t(($) => $.workspace.design_agent_label)}
+                </Label>
+                <select
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={designAgentId}
+                  disabled={!canManageWorkspace || updateDesignSettings.isPending}
+                  onChange={(e) => setDesignAgentId(e.target.value)}
+                >
+                  <option value="">{t(($) => $.workspace.design_agent_default)}</option>
+                  {agents
+                    .filter((a) => !a.archived_at)
+                    .map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(($) => $.workspace.design_agent_hint)}
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={!canManageWorkspace || updateDesignSettings.isPending}
+                  onClick={() => {
+                    updateDesignSettings.mutate(
+                      { default_design_agent_id: designAgentId },
+                      {
+                        onSuccess: () => toast.success(t(($) => $.workspace.design_agent_saved)),
+                        onError: (e) =>
+                          toast.error(
+                            e instanceof Error ? e.message : t(($) => $.workspace.toast_save_failed),
+                          ),
+                      },
+                    );
+                  }}
+                >
+                  {t(($) => $.workspace.design_agent_save)}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Danger Zone — gated on the member query settling so the owner-only
           Delete button and the sole-owner Leave guidance don't flash in

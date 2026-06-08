@@ -1,0 +1,140 @@
+{
+
+  "picker": {
+
+    "title": "设计工作室",
+
+    "subtitle": "选择一个项目开始设计",
+
+    "search_placeholder": "搜索项目…",
+
+    "new_project": "新建项目",
+
+    "empty": "请先创建项目，再返回此处打开设计工作室。",
+
+    "no_results": "没有匹配的项目。",
+
+    "create_first": "创建项目",
+
+    "open_studio": "进入设计工作室"
+
+  },
+
+  "hub": {
+
+    "title": "设计工作室",
+
+    "back_to_project": "返回项目",
+
+    "new_design": "新建设计",
+
+    "no_design_system_hint": "建议先在项目 → 资源中添加 design_system（DESIGN.md），效果更好。",
+
+    "add_design_system_link": "前往项目资源",
+
+    "design_system": "设计系统",
+
+    "select_design_system": "选择设计系统…",
+
+    "skill": "Skill",
+
+    "select_skill": "默认 Skill…",
+
+    "templates": "模板",
+
+    "design_agent": "设计 Agent：{{name}}",
+
+    "brief": "需求简述",
+
+    "brief_placeholder": "描述你想设计的内容…",
+
+    "start": "开始设计",
+
+    "default_title": "新设计",
+
+    "sessions": "设计会话",
+
+    "no_sessions": "暂无设计会话。"
+
+  },
+
+  "modes": {
+
+    "prototype": "原型",
+
+    "deck": "演示文稿",
+
+    "template": "模板",
+
+    "design_system": "设计系统"
+
+  },
+
+  "session": {
+
+    "back": "全部会话",
+
+    "export": "导出",
+
+    "studio_panel": "工作室",
+
+    "sessions": "会话列表",
+
+    "comment_mode": "评论",
+
+    "comment_prefix": "评论：",
+
+    "clear_comment": "清除"
+
+  },
+
+  "preview": {
+
+    "viewport": {
+
+      "desktop": "桌面",
+
+      "tablet": "平板",
+
+      "mobile": "手机"
+
+    },
+
+    "comment_mode_hint": "在预览中点击元素",
+
+    "loading": "加载预览…",
+
+    "frame_title": "设计预览",
+
+    "comment_on": "评论元素 {{id}}",
+
+    "comment_placeholder": "希望如何修改？",
+
+    "add_comment": "添加到输入框"
+
+  },
+
+  "tools": {
+
+    "unavailable": "当前会话无法使用工作室工具。",
+
+    "export_hint": "下载主 HTML 产物或运行导出。",
+
+    "download_html": "下载 HTML",
+
+    "tabs": {
+
+      "preview": "预览",
+
+      "files": "文件",
+
+      "terminal": "终端",
+
+      "export": "导出"
+
+    }
+
+  }
+
+}
+

@@ -1,0 +1,140 @@
+{
+
+  "picker": {
+
+    "title": "Design Studio",
+
+    "subtitle": "Choose a project to start designing",
+
+    "search_placeholder": "Search projects…",
+
+    "new_project": "New project",
+
+    "empty": "Create a project first, then return here to open Design Studio.",
+
+    "no_results": "No projects match your search.",
+
+    "create_first": "Create project",
+
+    "open_studio": "Open Design Studio"
+
+  },
+
+  "hub": {
+
+    "title": "Design Studio",
+
+    "back_to_project": "Back to project",
+
+    "new_design": "New design",
+
+    "no_design_system_hint": "Adding a design_system (DESIGN.md) in Project → Resources is recommended for best results.",
+
+    "add_design_system_link": "Go to project resources",
+
+    "design_system": "Design system",
+
+    "select_design_system": "Select design system…",
+
+    "skill": "Skill",
+
+    "select_skill": "Default skill…",
+
+    "templates": "Templates",
+
+    "design_agent": "Design agent: {{name}}",
+
+    "brief": "Brief",
+
+    "brief_placeholder": "Describe what you want to design…",
+
+    "start": "Start design",
+
+    "default_title": "New design",
+
+    "sessions": "Sessions",
+
+    "no_sessions": "No design sessions yet."
+
+  },
+
+  "modes": {
+
+    "prototype": "Prototype",
+
+    "deck": "Deck",
+
+    "template": "Template",
+
+    "design_system": "Design system"
+
+  },
+
+  "session": {
+
+    "back": "All sessions",
+
+    "export": "Export",
+
+    "studio_panel": "Studio",
+
+    "sessions": "Sessions",
+
+    "comment_mode": "Comment",
+
+    "comment_prefix": "Comment:",
+
+    "clear_comment": "Clear"
+
+  },
+
+  "preview": {
+
+    "viewport": {
+
+      "desktop": "Desktop",
+
+      "tablet": "Tablet",
+
+      "mobile": "Mobile"
+
+    },
+
+    "comment_mode_hint": "Click an element in the preview",
+
+    "loading": "Loading preview…",
+
+    "frame_title": "Design preview",
+
+    "comment_on": "Comment on {{id}}",
+
+    "comment_placeholder": "What should change?",
+
+    "add_comment": "Add to composer"
+
+  },
+
+  "tools": {
+
+    "unavailable": "Studio tools unavailable for this session.",
+
+    "export_hint": "Download the primary HTML artifact or run export metadata.",
+
+    "download_html": "Download HTML",
+
+    "tabs": {
+
+      "preview": "Preview",
+
+      "files": "Files",
+
+      "terminal": "Terminal",
+
+      "export": "Export"
+
+    }
+
+  }
+
+}
+

@@ -270,6 +270,7 @@
     "loading": "Loading previews…",
     "empty": "No previewable pages from recent runs yet. HTML files such as index.html are detected automatically after a task completes.",
     "open_new_tab": "Open in new tab",
+    "continue_in_design_studio": "Continue in Design Studio",
     "frame_title": "Issue preview"
   },
   "execution_log": {

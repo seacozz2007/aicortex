@@ -6,6 +6,7 @@ import (
 
 	"github.com/aicortex/aicortex/server/internal/analytics"
 	"github.com/aicortex/aicortex/server/internal/artifact"
+	"github.com/aicortex/aicortex/server/internal/design"
 	"github.com/aicortex/aicortex/server/internal/tunnel"
 )
 
@@ -38,6 +39,9 @@ type AppFeatureFlags struct {
 	RuntimeTunnel  bool `json:"runtime_tunnel"`
 	ArtifactBrowse bool `json:"artifact_browse"`
 	IssuePreview   bool `json:"issue_preview"`
+	DesignStudio   bool `json:"design_studio"`
+	DesignExport   bool `json:"design_export"`
+	DesignJury     bool `json:"design_jury"`
 }
 
 // GetConfig is mounted on the public (unauthenticated) route group because
@@ -72,6 +76,9 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		RuntimeTunnel:  tunnel.FeatureRuntimeTunnel(),
 		ArtifactBrowse: artifact.FeatureArtifactBrowse(),
 		IssuePreview:   artifact.FeatureIssuePreview(),
+		DesignStudio:   design.FeatureDesignStudio(),
+		DesignExport:   design.FeatureDesignExport(),
+		DesignJury:     design.FeatureDesignJury(),
 	}
 
 	writeJSON(w, http.StatusOK, config)

@@ -62,6 +62,10 @@ type TaskContextForEnv struct {
 	AutopilotTriggerPayload string
 	QuickCreatePrompt       string // non-empty for quick-create tasks
 	IsSquadLeader           bool   // true when the agent is acting as a squad leader (may exit silently on no_action)
+	DesignMode              string // non-empty for design studio tasks
+	DesignSystemContent     string // active DESIGN.md body
+	DesignSystemName        string // design system resource name
+	ArtifactEntry           string // primary HTML entry for preview
 }
 
 // SkillContextForEnv represents a skill to be written into the execution environment.

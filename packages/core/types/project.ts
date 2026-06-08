@@ -55,11 +55,21 @@ export interface ListProjectsResponse {
 // { url, default_branch_hint? }). New types add a case in
 // validateAndNormalizeResourceRef on the server and a renderer in the UI;
 // no schema or type changes required.
-export type ProjectResourceType = "github_repo" | "local_path";
+export type ProjectResourceType = "github_repo" | "local_path" | "design_system";
 
 export interface GithubRepoResourceRef {
   url: string;
   default_branch_hint?: string;
+}
+
+export interface LocalPathResourceRef {
+  path: string;
+}
+
+export interface DesignSystemResourceRef {
+  name: string;
+  content: string;
+  source?: string;
 }
 
 export interface ProjectResource {
@@ -67,7 +77,7 @@ export interface ProjectResource {
   project_id: string;
   workspace_id: string;
   resource_type: ProjectResourceType;
-  resource_ref: GithubRepoResourceRef | Record<string, unknown>;
+  resource_ref: GithubRepoResourceRef | LocalPathResourceRef | DesignSystemResourceRef | Record<string, unknown>;
   label: string | null;
   position: number;
   created_at: string;
@@ -76,7 +86,7 @@ export interface ProjectResource {
 
 export interface CreateProjectResourceRequest {
   resource_type: ProjectResourceType;
-  resource_ref: GithubRepoResourceRef | Record<string, unknown>;
+  resource_ref: GithubRepoResourceRef | LocalPathResourceRef | DesignSystemResourceRef | Record<string, unknown>;
   label?: string;
   position?: number;
 }
