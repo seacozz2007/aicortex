@@ -287,9 +287,10 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 build: ## Build the server, CLI, and migrate binaries into server/bin
-	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o bin/server ./cmd/server
-	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/aicortex ./cmd/aicortex
-	cd server && go build -o bin/migrate ./cmd/migrate
+	# GOEXE is ".exe" on Windows and empty on Linux/macOS — same pattern as release-cli below.
+	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o bin/server$(shell go env GOEXE) ./cmd/server
+	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/aicortex$(shell go env GOEXE) ./cmd/aicortex
+	cd server && go build -o bin/migrate$(shell go env GOEXE) ./cmd/migrate
 
 release-cli: ## Build CLI binary for the current platform
 	mkdir -p "release/$(shell go env GOOS)/$(VERSION)"
@@ -384,3 +385,4 @@ sqlc: ## Regenerate sqlc code
 
 clean: ## Remove generated server binaries and temp files
 	rm -rf server/bin server/tmp
+	@-rm -f server/bin/aicortex server/bin/server server/bin/migrate 2>/dev/null
