@@ -28,10 +28,6 @@
 
     "new_design": "新建设计",
 
-    "no_design_system_hint": "建议先在项目 → 资源中添加 design_system（DESIGN.md），效果更好。",
-
-    "add_design_system_link": "前往项目资源",
-
     "design_system": "设计系统",
 
     "design_system_hint": "在此直接选择内置预设即可，无需先去项目 → 资源里添加。",

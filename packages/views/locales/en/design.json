@@ -28,10 +28,6 @@
 
     "new_design": "New design",
 
-    "no_design_system_hint": "Adding a design_system (DESIGN.md) in Project → Resources is recommended for best results.",
-
-    "add_design_system_link": "Go to project resources",
-
     "design_system": "Design system",
 
     "design_system_hint": "Pick a built-in preset here — no need to add it under Project → Resources first.",

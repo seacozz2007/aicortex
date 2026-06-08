@@ -11,7 +11,6 @@ import {
 } from "@aicortex/core/projects";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useCurrentWorkspace } from "@aicortex/core/paths";
-import { DESIGN_SYSTEM_PRESETS, type DesignSystemPreset } from "@aicortex/core/design";
 import type {
   DesignSystemResourceRef,
   GithubRepoResourceRef,
@@ -171,22 +170,6 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
                       resource_ref: { path },
                     });
                     toast.success(t(($) => $.resources.toast_attached));
-                    setAddOpen(false);
-                  } catch (err) {
-                    const msg = err instanceof Error ? err.message : t(($) => $.resources.toast_attach_failed);
-                    toast.error(msg);
-                  }
-                }}
-              />
-              <DesignSystemForm
-                onSubmit={async (ref) => {
-                  try {
-                    await createResource.mutateAsync({
-                      resource_type: "design_system",
-                      resource_ref: ref,
-                      label: ref.name,
-                    });
-                    toast.success(t(($) => $.resources.toast_design_system_added));
                     setAddOpen(false);
                   } catch (err) {
                     const msg = err instanceof Error ? err.message : t(($) => $.resources.toast_attach_failed);
@@ -390,83 +373,5 @@ function LocalPathForm({
         {t(($) => $.resources.url_submit)}
       </Button>
     </form>
-  );
-}
-
-function DesignSystemForm({
-  onSubmit,
-}: {
-  onSubmit: (ref: DesignSystemResourceRef) => Promise<void> | void;
-}) {
-  const { t } = useT("projects");
-  const [name, setName] = useState("");
-  const [content, setContent] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const applyPreset = (presetId: string) => {
-    const preset = DESIGN_SYSTEM_PRESETS.find((p: DesignSystemPreset) => p.id === presetId);
-    if (!preset) return;
-    setName(preset.ref.name);
-    setContent(preset.ref.content);
-  };
-
-  const handle = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmedName = name.trim();
-    const trimmedContent = content.trim();
-    if (!trimmedName || !trimmedContent) return;
-    setSubmitting(true);
-    try {
-      await onSubmit({ name: trimmedName, content: trimmedContent });
-      setName("");
-      setContent("");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-2 border-t pt-2">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Palette className="size-3.5" />
-        {t(($) => $.resources.design_system_title)}
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {DESIGN_SYSTEM_PRESETS.map((preset: DesignSystemPreset) => (
-          <button
-            key={preset.id}
-            type="button"
-            onClick={() => applyPreset(preset.id)}
-            className="rounded-md border px-2 py-0.5 text-[10px] hover:bg-accent"
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
-      <form onSubmit={handle} className="space-y-1.5">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t(($) => $.resources.design_system_name_placeholder)}
-          className="w-full rounded-md border bg-background px-2 py-1 text-xs outline-none"
-        />
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={t(($) => $.resources.design_system_content_placeholder)}
-          className="min-h-[80px] w-full rounded-md border bg-background px-2 py-1 font-mono text-[10px] outline-none"
-        />
-        <Button
-          type="submit"
-          size="sm"
-          variant="ghost"
-          className="h-6 px-2 text-xs"
-          disabled={!name.trim() || !content.trim() || submitting}
-        >
-          {t(($) => $.resources.design_system_submit)}
-        </Button>
-      </form>
-    </div>
   );
 }
