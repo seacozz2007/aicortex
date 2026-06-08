@@ -286,8 +286,8 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 
+# GOEXE is ".exe" on Windows and empty on Linux/macOS (same pattern as release-cli).
 build: ## Build the server, CLI, and migrate binaries into server/bin
-	# GOEXE is ".exe" on Windows and empty on Linux/macOS — same pattern as release-cli below.
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o bin/server$(shell go env GOEXE) ./cmd/server
 	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/aicortex$(shell go env GOEXE) ./cmd/aicortex
 	cd server && go build -o bin/migrate$(shell go env GOEXE) ./cmd/migrate
