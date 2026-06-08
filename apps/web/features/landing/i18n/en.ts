@@ -1241,7 +1241,6 @@ export function createEnDict(allowSignup: boolean): LandingDict {
       sub: "For servers, remote dev boxes, and headless setups. Same daemon as Desktop, installed via terminal.",
       macosLinuxLabel: "macOS / Linux",
       windowsLabel: "Windows (PowerShell)",
-      installLabel: "Install",
       startLabel: "Start daemon",
       sshNote: "Already on a server? Same commands work over SSH.",
       copyLabel: "Copy",
