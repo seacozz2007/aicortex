@@ -15,7 +15,9 @@ import { api } from "@aicortex/core/api";
 import { useT } from "../../i18n";
 import { ChatArtifactPanel } from "../../chat/components/chat-artifact-panel";
 import { ChatTerminalPanel } from "../../chat/components/chat-terminal-panel";
-import { DesignHtmlPreview } from "./design-html-preview";
+import type { SelectedPreviewElement } from "../lib/preview-element";
+import type { QueuedPreviewComment } from "./design-comment-queue-panel";
+import { DesignHtmlPreview, type PreviewCommentHandler } from "./design-html-preview";
 import { isHtmlArtifact } from "../../chat/components/chat-artifact-url";
 import { DesignQuestionsPanel } from "./design-questions-panel";
 import type { QuestionForm } from "../../chat/lib/question-form-parser";
@@ -32,6 +34,13 @@ export function DesignToolsSidebar({
   projectId,
   commentMode = false,
   onComment,
+  onQueueComment,
+  onPropertySave,
+  queuedComments = [],
+  onRemoveQueuedComment,
+  onClearQueuedComments,
+  onSendQueue,
+  queueSending = false,
   onExport,
   exportPending = false,
   onJury,
@@ -44,7 +53,14 @@ export function DesignToolsSidebar({
   session: ChatSession | null;
   projectId?: string;
   commentMode?: boolean;
-  onComment?: (elementId: string, note: string) => void;
+  onComment?: PreviewCommentHandler;
+  onQueueComment?: PreviewCommentHandler;
+  onPropertySave?: (element: SelectedPreviewElement, patch: string) => void;
+  queuedComments?: QueuedPreviewComment[];
+  onRemoveQueuedComment?: (id: string) => void;
+  onClearQueuedComments?: () => void;
+  onSendQueue?: () => void;
+  queueSending?: boolean;
   onExport?: (format: string) => void;
   exportPending?: boolean;
   onJury?: () => void;
@@ -228,6 +244,13 @@ export function DesignToolsSidebar({
                   workspaceSlug={workspaceSlug}
                   commentMode={commentMode}
                   onComment={onComment}
+                  onQueueComment={onQueueComment}
+                  onPropertySave={onPropertySave}
+                  queuedComments={queuedComments}
+                  onRemoveQueuedComment={onRemoveQueuedComment}
+                  onClearQueuedComments={onClearQueuedComments}
+                  onSendQueue={onSendQueue}
+                  queueSending={queueSending}
                 />
               </div>
             ) : previewSource.mode === "tunnel" &&

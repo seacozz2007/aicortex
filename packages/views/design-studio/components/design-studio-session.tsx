@@ -42,6 +42,7 @@ import { useT } from "../../i18n";
 import { ChatMessageList, ChatMessageSkeleton } from "../../chat/components/chat-message-list";
 import { ChatInput } from "../../chat/components/chat-input";
 import { DesignToolsSidebar, type DesignToolsTab } from "./design-tools-sidebar";
+import type { QueuedPreviewComment } from "./design-comment-queue-panel";
 import { findLatestPendingQuestionForm } from "../lib/pending-question-form";
 
 const TOOLS_SIDEBAR_STORAGE_KEY = "aicortex:design:tools-sidebar-open";
@@ -123,6 +124,9 @@ export function DesignStudioSession({
   const [preferredToolsTab, setPreferredToolsTab] = useState<DesignToolsTab | null>(null);
   const [commentMode, setCommentMode] = useState(false);
   const [commentNote, setCommentNote] = useState<string | null>(null);
+  const [previewAttachmentIds, setPreviewAttachmentIds] = useState<string[]>([]);
+  const [queuedComments, setQueuedComments] = useState<QueuedPreviewComment[]>([]);
+  const [queueSending, setQueueSending] = useState(false);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "aicortex_design_studio_layout",
     storage: typeof window === "undefined" ? undefined : localStorage,
@@ -171,6 +175,13 @@ export function DesignStudioSession({
     setPreferredToolsTab("questions");
   }, [pendingQuestionForm?.form.id]);
 
+  useEffect(() => {
+    if (!commentMode) return;
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("preview");
+  }, [commentMode]);
+
   const openQuestionsPanel = useCallback(() => {
     setToolsOpen(true);
     localStorage.setItem(toolsSidebarStorageKey(), "true");
@@ -179,18 +190,35 @@ export function DesignStudioSession({
 
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
-      const finalContent = commentNote
-        ? `${content}\n\n[Comment on element]\n${commentNote}`
-        : content;
+      const commentBlocks = [
+        commentNote ? `[Comment on element]\n${commentNote}` : null,
+        queuedComments.length
+          ? `[Comment queue]\n${queuedComments.map((item) => `[${item.elementId}] ${item.note}`).join("\n\n")}`
+          : null,
+      ].filter(Boolean);
+      const finalContent =
+        commentBlocks.length > 0
+          ? `${content}\n\n${commentBlocks.join("\n\n")}`
+          : content;
+      const mergedAttachmentIds = [
+        ...(attachmentIds ?? []),
+        ...previewAttachmentIds,
+      ];
       setCommentNote(null);
-      const result = await api.sendChatMessage(sessionId, finalContent, attachmentIds);
+      setPreviewAttachmentIds([]);
+      setQueuedComments([]);
+      const result = await api.sendChatMessage(
+        sessionId,
+        finalContent,
+        mergedAttachmentIds.length > 0 ? mergedAttachmentIds : undefined,
+      );
       qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
       qc.invalidateQueries({ queryKey: chatKeys.pendingTask(sessionId) });
       qc.invalidateQueries({ queryKey: designSessionsOptions(wsId, projectId).queryKey });
       qc.invalidateQueries({ queryKey: designKeys.session(wsId, projectId, sessionId) });
       return result;
     },
-    [commentNote, projectId, qc, sessionId, wsId],
+    [commentNote, previewAttachmentIds, projectId, qc, queuedComments, sessionId, wsId],
   );
 
   const handleExport = useCallback(
@@ -211,9 +239,61 @@ export function DesignStudioSession({
     qc.invalidateQueries({ queryKey: chatKeys.pendingTask(sessionId) });
   }, [qc, sessionId, startJury]);
 
-  const handlePreviewComment = useCallback((elementId: string, note: string) => {
-    setCommentNote(`[${elementId}] ${note}`);
-    setCommentMode(false);
+  const formatPreviewComment = useCallback(
+    (element: { id: string }, note: string) => `[${element.id}] ${note}`,
+    [],
+  );
+
+  const handlePreviewComment = useCallback(
+    async (element: { id: string }, note: string, images?: File[]) => {
+      setCommentNote(formatPreviewComment(element, note));
+      if (images?.length) {
+        const uploaded = await Promise.all(
+          images.map((file) =>
+            api.uploadFile(file, { chatSessionId: sessionId }).catch(() => null),
+          ),
+        );
+        const ids = uploaded.flatMap((item) => (item ? [item.id] : []));
+        if (ids.length > 0) {
+          setPreviewAttachmentIds((prev) => [...prev, ...ids]);
+        }
+      }
+    },
+    [formatPreviewComment, sessionId],
+  );
+
+  const handleQueuePreviewComment = useCallback(
+    (element: { id: string }, note: string) => {
+      setQueuedComments((prev) => [
+        ...prev,
+        {
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          elementId: element.id,
+          note: note.trim(),
+        },
+      ]);
+    },
+    [],
+  );
+
+  const handlePropertySave = useCallback((_element: { id: string }, patch: string) => {
+    setCommentNote(patch);
+  }, []);
+
+  const handleSendQueue = useCallback(async () => {
+    if (queuedComments.length === 0 || queueSending) return;
+    setQueueSending(true);
+    try {
+      await handleSend(t(($) => $.session.queue_send_message));
+    } finally {
+      setQueueSending(false);
+    }
+  }, [handleSend, queueSending, queuedComments.length, t]);
+
+  const openStudioPreview = useCallback(() => {
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("preview");
   }, []);
 
   return (
@@ -262,6 +342,19 @@ export function DesignStudioSession({
           )}
         </div>
       </header>
+
+      {commentMode && !showToolsSidebar ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-brand/10 px-4 py-2 text-xs">
+          <span>{t(($) => $.session.comment_preview_hint)}</span>
+          <button
+            type="button"
+            onClick={openStudioPreview}
+            className="shrink-0 rounded-md border border-brand/40 bg-background px-2 py-1 text-xs hover:bg-accent"
+          >
+            {t(($) => $.session.open_preview_panel)}
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 flex-col border-r md:flex">
@@ -316,7 +409,22 @@ export function DesignStudioSession({
                   <button
                     type="button"
                     className="ml-2 underline"
-                    onClick={() => setCommentNote(null)}
+                    onClick={() => {
+                      setCommentNote(null);
+                      setPreviewAttachmentIds([]);
+                    }}
+                  >
+                    {t(($) => $.session.clear_comment)}
+                  </button>
+                </div>
+              )}
+              {queuedComments.length > 0 && (
+                <div className="border-t bg-muted/40 px-4 py-2 text-xs">
+                  {t(($) => $.session.queue_prefix, { count: queuedComments.length })}
+                  <button
+                    type="button"
+                    className="ml-2 underline"
+                    onClick={() => setQueuedComments([])}
                   >
                     {t(($) => $.session.clear_comment)}
                   </button>
@@ -334,6 +442,15 @@ export function DesignStudioSession({
                   projectId={projectId}
                   commentMode={commentMode}
                   onComment={handlePreviewComment}
+                  onQueueComment={handleQueuePreviewComment}
+                  onPropertySave={handlePropertySave}
+                  queuedComments={queuedComments}
+                  onRemoveQueuedComment={(id) =>
+                    setQueuedComments((prev) => prev.filter((item) => item.id !== id))
+                  }
+                  onClearQueuedComments={() => setQueuedComments([])}
+                  onSendQueue={() => void handleSendQueue()}
+                  queueSending={queueSending}
                   onExport={exportEnabled ? (format) => void handleExport(format) : undefined}
                   exportPending={exportSession.isPending}
                   onJury={juryEnabled ? () => void handleJury() : undefined}

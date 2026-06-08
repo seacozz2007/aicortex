@@ -45,8 +45,8 @@ function storageKey(sessionId: string, suffix: string) {
 }
 
 export function DesignPreviewSourceBar({
-  sessionId,
-  artifactEntry,
+  sessionId: _sessionId,
+  artifactEntry: _artifactEntry,
   htmlEntries,
   htmlLoading,
   runtimeId,

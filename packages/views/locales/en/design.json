@@ -180,7 +180,15 @@
 
     "comment_prefix": "Comment:",
 
-    "clear_comment": "Clear"
+    "queue_prefix": "Queue ({{count}}):",
+
+    "clear_comment": "Clear",
+
+    "queue_send_message": "Please apply the following preview comments to the design.",
+
+    "comment_preview_hint": "Comment mode is on. Use Studio → Preview on the right to click elements.",
+
+    "open_preview_panel": "Open preview panel"
 
   },
 
@@ -222,7 +230,70 @@
 
     "no_ports": "Add or select a port to preview.",
 
-    "open_external": "Open in new window"
+    "open_external": "Open in new window",
+
+    "inspector": {
+      "size": "Size",
+      "color": "Color",
+      "bg": "Bg",
+      "font": "Font",
+      "line": "Line",
+      "comment_placeholder": "Comment on this element…",
+      "attach": "Attach",
+      "close": "Close",
+      "add_to_queue": "Add to queue",
+      "submit_comment": "Comment",
+      "edit_properties": "Edit properties"
+    },
+
+    "toolbar": {
+      "camera": "Screenshot",
+      "crop": "Select",
+      "pencil": "Pencil",
+      "pen": "Pen",
+      "comment": "Comment",
+      "zoom_in": "Zoom in",
+      "zoom_out": "Zoom out"
+    },
+
+    "property_editor": {
+      "size": "Size",
+      "box": "Box",
+      "width": "Width",
+      "height": "Height",
+      "fill": "Fill",
+      "opacity": "Opacity",
+      "padding": "Padding",
+      "margin": "Margin",
+      "typography": "Typography",
+      "font_weight": "Weight",
+      "text_align": "Align",
+      "radius": "Radius",
+      "cancel": "Cancel",
+      "save": "Save",
+      "delete": "Delete",
+      "close": "Close"
+    },
+
+    "queue": {
+      "title": "Queue ({{count}})",
+      "clear_all": "Clear all",
+      "remove": "Remove",
+      "send_to_chat": "Send to Chat",
+      "sending": "Sending…"
+    },
+
+    "hint": {
+      "no_targets": "This HTML has no annotatable elements (missing data-aicortex-id). Describe changes in Chat instead.",
+      "pick_target": "Click an element in the preview to inspect it and add a comment.",
+      "dismiss": "Got it"
+    },
+
+    "screenshot_copied": "Screenshot copied to clipboard",
+    "screenshot_failed": "Screenshot failed — open in a new window instead",
+    "draw_saved": "Annotation saved on preview",
+    "draw_mode_hint": "Pencil/pen: drag on the preview to draw — does not select elements",
+    "comment_added": "Comment added to composer"
 
   },
 

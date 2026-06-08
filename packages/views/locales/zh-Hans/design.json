@@ -178,7 +178,15 @@
 
     "comment_prefix": "评论：",
 
-    "clear_comment": "清除"
+    "queue_prefix": "队列 {{count}} 条：",
+
+    "clear_comment": "清除",
+
+    "queue_send_message": "请根据以下预览评论修改设计。",
+
+    "comment_preview_hint": "评论模式已开启。请在右侧「工作室 → 预览」中点击元素。",
+
+    "open_preview_panel": "打开预览面板"
 
   },
 
@@ -220,7 +228,70 @@
 
     "no_ports": "添加或选择一个端口进行预览。",
 
-    "open_external": "在新窗口打开"
+    "open_external": "在新窗口打开",
+
+    "inspector": {
+      "size": "Size",
+      "color": "Color",
+      "bg": "Bg",
+      "font": "Font",
+      "line": "Line",
+      "comment_placeholder": "评论此元素…",
+      "attach": "附件",
+      "close": "关闭",
+      "add_to_queue": "加入队列",
+      "submit_comment": "评论",
+      "edit_properties": "编辑属性"
+    },
+
+    "toolbar": {
+      "camera": "截图",
+      "crop": "选择",
+      "pencil": "铅笔",
+      "pen": "钢笔",
+      "comment": "评论",
+      "zoom_in": "放大",
+      "zoom_out": "缩小"
+    },
+
+    "property_editor": {
+      "size": "Size",
+      "box": "Box",
+      "width": "Width",
+      "height": "Height",
+      "fill": "Fill",
+      "opacity": "Opacity",
+      "padding": "Padding",
+      "margin": "Margin",
+      "typography": "Typography",
+      "font_weight": "Weight",
+      "text_align": "Align",
+      "radius": "Radius",
+      "cancel": "取消",
+      "save": "保存",
+      "delete": "删除",
+      "close": "关闭"
+    },
+
+    "queue": {
+      "title": "队列 {{count}} 条",
+      "clear_all": "清空",
+      "remove": "移除",
+      "send_to_chat": "发送到 Chat",
+      "sending": "发送中…"
+    },
+
+    "hint": {
+      "no_targets": "当前 HTML 没有可标注元素（缺少 data-aicortex-id）。可直接在 Chat 中描述修改。",
+      "pick_target": "点击预览中的元素，查看属性并添加评论。",
+      "dismiss": "知道了"
+    },
+
+    "screenshot_copied": "截图已复制到剪贴板",
+    "screenshot_failed": "截图失败，请在新窗口打开后手动截图",
+    "draw_saved": "标注已保存到预览",
+    "draw_mode_hint": "铅笔/钢笔：在预览上按住拖动绘制，不会选中元素",
+    "comment_added": "评论已添加到输入框"
 
   },
 

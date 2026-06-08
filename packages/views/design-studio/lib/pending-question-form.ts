@@ -24,7 +24,7 @@ export function findLatestPendingQuestionForm(
 ): { form: QuestionForm; sourceMessageId?: string } | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
-    if (msg.role !== "assistant") continue;
+    if (!msg || msg.role !== "assistant") continue;
     const next = messages[i + 1];
     if (isFormAnswer(next?.content)) continue;
     const found = findFirstQuestionForm(msg.content);
