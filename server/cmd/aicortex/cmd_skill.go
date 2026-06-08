@@ -12,11 +12,25 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aicortex/aicortex/server/internal/cli"
+	"github.com/aicortex/aicortex/server/pkg/skills"
 )
 
 var skillCmd = &cobra.Command{
 	Use:   "skill",
 	Short: "Work with skills",
+	Long: `Manage workspace skills via the API, or generate a local AICortex usage SKILL.md.
+
+Generate for an AI assistant (same style as aicorkit skill):
+
+  aicortex skill -p cursor
+  aicortex skill -p kiro
+  aicortex skill -p claude
+
+Writes to:
+  Claude  →  ~/.claude/skills/aicortex/SKILL.md
+  Kiro    →  ~/.kiro/skills/aicortex/SKILL.md
+  Cursor  →  ~/.cursor/skills/aicortex/SKILL.md`,
+	RunE: runSkillGenerate,
 }
 
 var skillListCmd = &cobra.Command{
@@ -94,6 +108,9 @@ func init() {
 	skillCmd.AddCommand(skillDeleteCmd)
 	skillCmd.AddCommand(skillImportCmd)
 	skillCmd.AddCommand(skillFilesCmd)
+
+	// skill generate (aicorkit-style: aicortex skill -p cursor)
+	skillCmd.Flags().StringP("platform", "p", "claude", "Target platform: claude, cursor, or kiro")
 
 	skillFilesCmd.AddCommand(skillFilesListCmd)
 	skillFilesCmd.AddCommand(skillFilesUpsertCmd)
@@ -323,6 +340,17 @@ func runSkillDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Skill deleted: %s\n", args[0])
+	return nil
+}
+
+func runSkillGenerate(cmd *cobra.Command, _ []string) error {
+	platform, _ := cmd.Flags().GetString("platform")
+	path, err := skills.GenerateUsageSkill(platform)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Generated %s\n", path)
 	return nil
 }
 

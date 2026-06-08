@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/aicortex/aicortex/server/pkg/skills"
 )
 
 const (
@@ -58,8 +60,8 @@ func localSkillRootForProvider(provider string) (string, bool, error) {
 	}
 
 	switch provider {
-	case "claude":
-		return filepath.Join(home, ".claude", "skills"), true, nil
+	case "claude", "cursor", "kiro":
+		return skills.LocalSkillRoot(provider)
 	case "codex":
 		codexHome := strings.TrimSpace(os.Getenv("CODEX_HOME"))
 		if codexHome == "" {
@@ -74,10 +76,6 @@ func localSkillRootForProvider(provider string) (string, bool, error) {
 		return filepath.Join(home, ".openclaw", "skills"), true, nil
 	case "pi":
 		return filepath.Join(home, ".pi", "agent", "skills"), true, nil
-	case "cursor":
-		return filepath.Join(home, ".cursor", "skills"), true, nil
-	case "kiro":
-		return filepath.Join(home, ".kiro", "skills"), true, nil
 	default:
 		return "", false, nil
 	}
