@@ -65,18 +65,17 @@ export function DesignPreviewDrawLayer({
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!interactive || !drawingRef.current) return;
+      const current = drawingRef.current;
+      if (!interactive || !current) return;
       event.preventDefault();
-      const point = toLocalPoint(event);
-      drawingRef.current = {
-        ...drawingRef.current,
-        points: [...drawingRef.current.points, point],
+      const updated: Stroke = {
+        ...current,
+        points: [...current.points, toLocalPoint(event)],
       };
-      setStrokes((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = drawingRef.current!;
-        return next;
-      });
+      drawingRef.current = updated;
+      setStrokes((prev) =>
+        prev.map((stroke) => (stroke.id === updated.id ? updated : stroke)),
+      );
     },
     [interactive, toLocalPoint],
   );
@@ -88,12 +87,21 @@ export function DesignPreviewDrawLayer({
       }
       const finished = drawingRef.current;
       drawingRef.current = null;
-      if (finished && finished.points.length > 1) onStrokeComplete?.(finished);
+      if (!finished) return;
+
+      setStrokes((prev) => {
+        const next = prev.map((stroke) => (stroke.id === finished.id ? finished : stroke));
+        return next.filter((stroke) => stroke.points.length > 1);
+      });
+
+      if (finished.points.length > 1) onStrokeComplete?.(finished);
     },
     [onStrokeComplete],
   );
 
-  if (!interactive && strokes.length === 0) return null;
+  const visibleStrokes = strokes.filter((stroke) => stroke.points.length > 0);
+
+  if (!interactive && visibleStrokes.length === 0) return null;
 
   return (
     <div
@@ -110,7 +118,7 @@ export function DesignPreviewDrawLayer({
         className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
         aria-hidden={!interactive}
       >
-        {strokes.map((stroke) => (
+        {visibleStrokes.map((stroke) => (
           <path
             key={stroke.id}
             d={pointsToPath(stroke.points)}

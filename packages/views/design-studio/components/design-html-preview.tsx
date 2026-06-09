@@ -37,7 +37,6 @@ const VIEWPORT_WIDTH: Record<DesignViewport, string> = {
   mobile: "390px",
 };
 
-const SELECTED_CLASS = "aicortex-preview-selected";
 const DECK_FIX_STYLE_ID = "aicortex-preview-deck-fix";
 const COMMENT_STYLE_ID = "aicortex-preview-comment-style";
 
@@ -154,7 +153,7 @@ export function DesignHtmlPreview({
 
   const [viewport, setViewport] = useState<DesignViewport>("desktop");
   const [loading, setLoading] = useState(true);
-  const [tool, setTool] = useState<PreviewTool>("comment");
+  const [tool, setTool] = useState<PreviewTool | null>("comment");
   const [zoom, setZoom] = useState(100);
   const [selectedElement, setSelectedElement] = useState<SelectedPreviewElement | null>(null);
   const [hoveredElement, setHoveredElement] = useState<SelectedPreviewElement | null>(null);
@@ -170,7 +169,23 @@ export function DesignHtmlPreview({
 
   const previewURL = buildArtifactRawURL(taskId, path, workspaceSlug);
   const scale = zoom / 100;
-  const drawActive = isDrawTool(tool);
+  const drawActive = tool === "pencil" || tool === "pen";
+  const toolRef = useRef<PreviewTool | null>(tool);
+  const drawActiveRef = useRef(drawActive);
+  const propertyEditorOpenRef = useRef(propertyEditorOpen);
+
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
+
+  useEffect(() => {
+    drawActiveRef.current = drawActive;
+  }, [drawActive]);
+
+  useEffect(() => {
+    propertyEditorOpenRef.current = propertyEditorOpen;
+  }, [propertyEditorOpen]);
+
   const stageBounds = useStageOverlayBounds(
     stageRef,
     overlayRef,
@@ -179,8 +194,6 @@ export function DesignHtmlPreview({
   );
 
   const clearSelection = useCallback(() => {
-    const node = selectedNodeRef.current;
-    if (node) node.classList.remove(SELECTED_CLASS);
     selectedNodeRef.current = null;
     setSelectedElement(null);
     setInspectorNote("");
@@ -216,21 +229,22 @@ export function DesignHtmlPreview({
 
   const selectElement = useCallback(
     (el: HTMLElement, openPropertyEditor: boolean) => {
-      selectedNodeRef.current?.classList.remove(SELECTED_CLASS);
       selectedNodeRef.current = el;
-      el.classList.add(SELECTED_CLASS);
       const snapshot = buildSnapshot(el);
       if (!snapshot) return;
       setSelectedElement(snapshot);
+      setHoveredElement(null);
+      setHoverCardPos(null);
       setInspectorNote("");
       setPendingImages([]);
       if (openPropertyEditor) {
         propertyBaselineRef.current = propertyDraftFromElement(snapshot);
         setPropertyEditorOpen(true);
+        setInspectorPos(null);
       } else {
         setPropertyEditorOpen(false);
+        requestAnimationFrame(updateInspectorPosition);
       }
-      requestAnimationFrame(updateInspectorPosition);
     },
     [buildSnapshot, updateInspectorPosition],
   );
@@ -259,28 +273,23 @@ export function DesignHtmlPreview({
     }
     style.textContent = `
       * { cursor: crosshair !important; }
-      .${SELECTED_CLASS} {
-        outline: 2px solid #1677ff !important;
-        outline-offset: 2px;
-      }
-      [data-aicortex-id]:hover,
-      *:hover {
-        outline: 2px solid rgba(22, 119, 255, 0.35) !important;
-        outline-offset: 2px;
-      }
     `;
 
     const onClick = (event: MouseEvent) => {
-      if (drawActive) return;
+      if (drawActiveRef.current) return;
       if (!isPreviewTarget(event.target, doc)) return;
       event.preventDefault();
       event.stopPropagation();
       const el = resolveTarget(event.target as HTMLElement);
-      selectElement(el, tool === "crop");
+      selectElement(el, toolRef.current === "crop");
     };
 
     const onMove = (event: MouseEvent) => {
-      if (drawActive || propertyEditorOpen) {
+      if (
+        drawActiveRef.current ||
+        propertyEditorOpenRef.current ||
+        selectedNodeRef.current
+      ) {
         setHoveredElement(null);
         setHoverCardPos(null);
         return;
@@ -318,7 +327,7 @@ export function DesignHtmlPreview({
       doc.removeEventListener("mouseleave", onLeave as EventListener, true);
       doc.getElementById(COMMENT_STYLE_ID)?.remove();
     };
-  }, [buildSnapshot, commentMode, drawActive, propertyEditorOpen, selectElement, tool]);
+  }, [buildSnapshot, commentMode, selectElement]);
 
   useEffect(() => {
     setLoading(true);
@@ -434,7 +443,7 @@ export function DesignHtmlPreview({
 
   const handlePropertyCancel = () => {
     closePropertyEditor(true);
-    setTool("comment");
+    setTool(null);
   };
 
   const handlePropertySave = (draft: ElementPropertyDraft) => {
@@ -442,7 +451,7 @@ export function DesignHtmlPreview({
     onPropertySave?.(selectedElement, formatPropertyPatch(selectedElement, draft));
     propertyBaselineRef.current = null;
     setPropertyEditorOpen(false);
-    setTool("comment");
+    setTool(null);
     clearSelection();
   };
 
@@ -453,7 +462,7 @@ export function DesignHtmlPreview({
       `[Delete element · ${selectedElement.id}]\nRemove this element from the design.`,
     );
     selectedNodeRef.current?.remove();
-    setTool("comment");
+    setTool(null);
     clearSelection();
   };
 
@@ -463,26 +472,25 @@ export function DesignHtmlPreview({
 
       if (next === tool) {
         if (propertyEditorOpen) closePropertyEditor(true);
-        setTool("comment");
+        setTool(null);
         return;
       }
 
       setTool(next);
       if (isDrawTool(next)) {
         setToast(t(($) => $.preview.draw_mode_hint));
-      }
-      if (next === "crop" && selectedElement) {
-        propertyBaselineRef.current = propertyDraftFromElement(selectedElement);
-        setPropertyEditorOpen(true);
-        setInspectorPos(null);
+        setHoveredElement(null);
+        setHoverCardPos(null);
+        if (propertyEditorOpen) closePropertyEditor(true);
         return;
       }
 
-      if (next === "comment" || isDrawTool(next)) {
+      if (next === "comment") {
         if (propertyEditorOpen) closePropertyEditor(true);
+        requestAnimationFrame(updateInspectorPosition);
       }
     },
-    [closePropertyEditor, propertyEditorOpen, selectedElement, t, tool],
+    [closePropertyEditor, propertyEditorOpen, t, tool, updateInspectorPosition],
   );
 
   const handleScreenshot = async () => {
@@ -503,7 +511,7 @@ export function DesignHtmlPreview({
     selectedElement &&
     !propertyEditorOpen &&
     !drawActive &&
-    tool === "comment" &&
+    (tool === null || tool === "comment") &&
     inspectorPos;
 
   const overlayTarget =
@@ -511,6 +519,8 @@ export function DesignHtmlPreview({
     !propertyEditorOpen &&
     (selectedElement ??
       (hoveredElement ? hoveredElement : null));
+
+  const selectionOverlayVariant = selectedElement ? "selected" : "hover";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -587,7 +597,7 @@ export function DesignHtmlPreview({
               element={overlayTarget}
               scale={1}
               offset={{ x: 0, y: 0 }}
-              variant={selectedElement ? "selected" : "hover"}
+              variant={selectionOverlayVariant}
             />
           ) : null}
         </div>

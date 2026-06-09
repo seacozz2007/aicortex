@@ -35,7 +35,7 @@ export function DesignCommentToolbar({
   onScreenshot,
   screenshotPending = false,
 }: {
-  tool: PreviewTool;
+  tool: PreviewTool | null;
   onToolChange: (tool: PreviewTool) => void;
   queueCount: number;
   zoom: number;
