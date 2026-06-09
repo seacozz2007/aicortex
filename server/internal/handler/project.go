@@ -36,6 +36,7 @@ type ProjectResponse struct {
 	// that need the list call ListProjectResources directly.
 	ResourceCount int64 `json:"resource_count"`
 	Prompt        string `json:"prompt"`
+	PinnedWorkdir bool   `json:"pinned_workdir"`
 }
 
 func projectToResponse(p db.Project) ProjectResponse {
@@ -52,6 +53,7 @@ func projectToResponse(p db.Project) ProjectResponse {
 		CreatedAt:   timestampToString(p.CreatedAt),
 		UpdatedAt:   timestampToString(p.UpdatedAt),
 		Prompt:      p.Prompt,
+		PinnedWorkdir: p.PinnedWorkdir,
 	}
 }
 
@@ -102,6 +104,7 @@ type UpdateProjectRequest struct {
 	LeadType    *string `json:"lead_type"`
 	LeadID      *string `json:"lead_id"`
 	Prompt      *string `json:"prompt"`
+	PinnedWorkdir *bool `json:"pinned_workdir"`
 }
 
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
@@ -433,6 +436,10 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		} else {
 			params.LeadID = pgtype.UUID{Valid: false}
 		}
+	}
+	if _, ok := rawFields["pinned_workdir"]; ok {
+		enabled := req.PinnedWorkdir != nil && *req.PinnedWorkdir
+		params.PinnedWorkdir = pgtype.Bool{Bool: enabled, Valid: true}
 	}
 	project, err := h.Queries.UpdateProject(r.Context(), params)
 	if err != nil {

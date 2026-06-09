@@ -1,5 +1,20 @@
 import type { DesignMode } from "../types/design";
+import {
+  DESIGN_EXAMPLES,
+  type DesignExample,
+  type DesignIntentId,
+} from "./home-catalog";
 
+/** @deprecated Use DesignExample from home-catalog */
+export type DesignTemplateCategory =
+  | "landing"
+  | "dashboards"
+  | "apps"
+  | "devtools"
+  | "docs"
+  | "brand";
+
+/** @deprecated Use DesignExample */
 export interface DesignTemplate {
   id: string;
   title: string;
@@ -7,41 +22,32 @@ export interface DesignTemplate {
   mode: DesignMode;
   brief: string;
   artifact_entry?: string;
+  category: DesignTemplateCategory;
+  previewClass: string;
 }
 
-/** Built-in template catalog (Phase B) — mirrors OD template gallery subset. */
-export const DESIGN_TEMPLATES: DesignTemplate[] = [
-  {
-    id: "landing-saas",
-    title: "SaaS Landing",
-    description: "Hero, features, pricing, and CTA sections",
-    mode: "template",
-    brief:
-      "Build a SaaS landing page with hero, three feature cards, pricing table, and footer CTA. Use semantic HTML sections.",
-    artifact_entry: "index.html",
-  },
-  {
-    id: "dashboard-analytics",
-    title: "Analytics Dashboard",
-    description: "Sidebar nav + KPI cards + chart placeholders",
-    mode: "prototype",
-    brief:
-      "Create an analytics dashboard with sidebar navigation, four KPI stat cards, and two chart placeholder panels.",
-  },
-  {
-    id: "pitch-deck-startup",
-    title: "Startup Pitch Deck",
-    description: "Fullscreen HTML slide deck for investors",
-    mode: "deck",
-    brief:
-      "Create a 8-slide HTML pitch deck: title, problem, solution, product, traction, business model, team, ask. One section per slide.",
-  },
-  {
-    id: "design-system-showcase",
-    title: "Design System Showcase",
-    description: "Token gallery + component examples",
-    mode: "design_system",
-    brief:
-      "Extend the active DESIGN.md with a showcase page demonstrating colors, typography, buttons, inputs, and cards.",
-  },
-];
+/** Back-compat alias for hub code importing DESIGN_TEMPLATES */
+export const DESIGN_TEMPLATES: DesignTemplate[] = DESIGN_EXAMPLES.map(mapExampleToLegacy);
+
+function mapExampleToLegacy(ex: DesignExample): DesignTemplate {
+  const categoryMap: Record<string, DesignTemplateCategory> = {
+    "landing-marketing": "landing",
+    "business-dashboards": "dashboards",
+    "app-prototypes": "apps",
+    "developer-tools": "devtools",
+    "docs-reports": "docs",
+    "brand-design": "brand",
+  };
+  return {
+    id: ex.id,
+    title: ex.title,
+    description: ex.description,
+    mode: ex.designMode,
+    brief: ex.brief,
+    artifact_entry: ex.artifact_entry,
+    category: categoryMap[ex.subcategory ?? ""] ?? "landing",
+    previewClass: ex.previewClass,
+  };
+}
+
+export type { DesignExample, DesignIntentId };

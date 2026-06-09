@@ -1070,6 +1070,13 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 	resp := taskToResponse(*task)
 	if agent, err := h.Queries.GetAgent(r.Context(), task.AgentID); err == nil {
 		skills := h.TaskService.LoadAgentSkills(r.Context(), task.AgentID)
+		if task.DesignMode.Valid && strings.TrimSpace(task.DesignMode.String) != "" {
+			skills = design.EnsureQuestionFormSkill(skills)
+		} else if task.ChatSessionID.Valid {
+			if cs, csErr := h.Queries.GetChatSession(r.Context(), task.ChatSessionID); csErr == nil && cs.SessionKind == "design" {
+				skills = design.EnsureQuestionFormSkill(skills)
+			}
+		}
 		var customEnv map[string]string
 		if agent.CustomEnv != nil {
 			if err := json.Unmarshal(agent.CustomEnv, &customEnv); err != nil {
@@ -1140,6 +1147,7 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 				resp.ProjectID = uuidToString(issue.ProjectID)
 				if proj, err := h.Queries.GetProject(r.Context(), issue.ProjectID); err == nil {
 					resp.ProjectTitle = proj.Title
+					resp.ProjectPinnedWorkdir = proj.PinnedWorkdir
 				}
 				if rows := h.listProjectResourcesForProject(r.Context(), issue.ProjectID); len(rows) > 0 {
 					out := make([]ProjectResourceData, 0, len(rows))
@@ -1258,6 +1266,7 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 				resp.ProjectID = uuidToString(cs.ProjectID)
 				if proj, err := h.Queries.GetProject(r.Context(), cs.ProjectID); err == nil {
 					resp.ProjectTitle = proj.Title
+					resp.ProjectPinnedWorkdir = proj.PinnedWorkdir
 				}
 				if rows := h.listProjectResourcesForProject(r.Context(), cs.ProjectID); len(rows) > 0 {
 					out := make([]ProjectResourceData, 0, len(rows))
@@ -1316,6 +1325,32 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 							resp.DesignSystemName = name
 							resp.DesignSystemContent = content
 							break
+						}
+					}
+				}
+				skillID := cs.DesignSkillID
+				if !skillID.Valid {
+					skillID = task.DesignSkillID
+				}
+				if skillID.Valid {
+					if skill, err := h.Queries.GetSkill(r.Context(), skillID); err == nil {
+						requires, _ := design.ParseOpenDesignMetadata(skill.Config, skill.Content)
+						if len(requires) > 0 {
+							resp.DesignCraftRequires = requires
+						}
+						if exampleID := design.ParseExampleIDFromSkillConfig(skill.Config); exampleID != "" {
+							resp.DesignExampleID = exampleID
+							if hint, hintErr := design.ExampleWorkDirHint(exampleID); hintErr == nil {
+								resp.DesignExampleHint = hint
+							}
+							if bundles, bundleErr := design.ResolveExampleBundleSources(exampleID); bundleErr == nil {
+								resp.DesignExampleBundles = make([]DesignExampleBundle, len(bundles))
+								for i, b := range bundles {
+									resp.DesignExampleBundles[i] = DesignExampleBundle{Src: b.Src, Dest: b.Dest}
+								}
+							} else {
+								slog.Warn("resolve design example bundles", "example_id", exampleID, "error", bundleErr)
+							}
 						}
 					}
 				}
@@ -1425,6 +1460,7 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 					resp.ProjectID = qc.ProjectID
 					if proj, err := h.Queries.GetProject(r.Context(), projectUUID); err == nil {
 						resp.ProjectTitle = proj.Title
+						resp.ProjectPinnedWorkdir = proj.PinnedWorkdir
 					}
 					if rows := h.listProjectResourcesForProject(r.Context(), projectUUID); len(rows) > 0 {
 						out := make([]ProjectResourceData, 0, len(rows))

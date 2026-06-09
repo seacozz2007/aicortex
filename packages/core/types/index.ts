@@ -72,6 +72,8 @@ export type {
   DesignSession,
   CreateDesignSessionRequest,
   DesignExportResponse,
+  DesignPluginEntry,
+  DesignParameterDef,
 } from "./design";
 export type {
   ChatShareLink,

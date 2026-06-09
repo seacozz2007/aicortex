@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -38,9 +39,11 @@ type CreateDesignSessionRequest struct {
 	Title                  string `json:"title"`
 	DesignMode             string `json:"design_mode"`
 	DesignSkillID          string `json:"design_skill_id"`
+	DesignExampleID        string `json:"design_example_id"`
 	DesignSystemResourceID string `json:"design_system_resource_id"`
 	ArtifactEntry          string `json:"artifact_entry"`
 	Brief                  string `json:"brief"`
+	ContinueFromTaskID     string `json:"continue_from_task_id"`
 }
 
 var allowedDesignModes = map[string]struct{}{
@@ -48,6 +51,7 @@ var allowedDesignModes = map[string]struct{}{
 	"deck":          {},
 	"template":      {},
 	"design_system": {},
+	"hyperframes":   {},
 }
 
 func (h *Handler) requireDesignStudio(w http.ResponseWriter) bool {
@@ -285,8 +289,20 @@ func (h *Handler) CreateDesignSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := design.EnsureAgentQuestionFormSkill(r.Context(), h.Queries, wsUUID, agentID); err != nil {
+		slog.Warn("ensure interactive forms skill on design agent", "agent_id", uuidToString(agentID), "error", err)
+	}
+
 	var designSkillID pgtype.UUID
-	if req.DesignSkillID != "" {
+	if exampleID := strings.TrimSpace(req.DesignExampleID); exampleID != "" {
+		skillID, _, err := design.EnsureExampleSkill(r.Context(), h.Queries, wsUUID, agentID, parseUUID(userID), exampleID)
+		if err != nil {
+			slog.Warn("ensure example skill for design session", "example_id", exampleID, "error", err)
+			writeError(w, http.StatusBadRequest, "design example not available: "+exampleID)
+			return
+		}
+		designSkillID = skillID
+	} else if req.DesignSkillID != "" {
 		var ok bool
 		designSkillID, ok = parseUUIDOrBadRequest(w, req.DesignSkillID, "design_skill_id")
 		if !ok {
@@ -337,6 +353,21 @@ func (h *Handler) CreateDesignSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.ContinueFromTaskID != "" {
+		if err := h.seedDesignSessionFromTask(r.Context(), session.ID, project.ID, req.ContinueFromTaskID); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		session, err = h.Queries.GetChatSessionInWorkspace(r.Context(), db.GetChatSessionInWorkspaceParams{
+			ID:          session.ID,
+			WorkspaceID: wsUUID,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to reload design session")
+			return
+		}
+	}
+
 	resp := designSessionFromRow(session, false)
 	resp = h.enrichDesignSession(r.Context(), resp, session.ID)
 	writeJSON(w, http.StatusCreated, resp)
@@ -370,4 +401,29 @@ func (h *Handler) ListDesignSystemResources(w http.ResponseWriter, r *http.Reque
 		resp = append(resp, projectResourceToResponse(row))
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) seedDesignSessionFromTask(ctx context.Context, sessionID, projectID pgtype.UUID, taskID string) error {
+	taskUUID, err := parseUUIDLoose(strings.TrimSpace(taskID))
+	if err != nil {
+		return errors.New("invalid continue_from_task_id")
+	}
+	task, err := h.Queries.GetAgentTask(ctx, taskUUID)
+	if err != nil {
+		return errors.New("source task not found")
+	}
+	if !task.WorkDir.Valid || strings.TrimSpace(task.WorkDir.String) == "" {
+		return errors.New("source task has no work directory")
+	}
+	if task.IssueID.Valid {
+		issue, err := h.Queries.GetIssue(ctx, task.IssueID)
+		if err != nil || issue.ProjectID != projectID {
+			return errors.New("source task is not in this project")
+		}
+	}
+	return h.Queries.UpdateChatSessionSession(ctx, db.UpdateChatSessionSessionParams{
+		ID:        sessionID,
+		WorkDir:   task.WorkDir,
+		RuntimeID: task.RuntimeID,
+	})
 }

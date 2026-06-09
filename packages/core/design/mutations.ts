@@ -24,6 +24,13 @@ export function useExportDesignSession(projectId: string) {
   });
 }
 
+export function useStartDesignJury(projectId: string) {
+  return useMutation({
+    mutationFn: ({ sessionId, rounds }: { sessionId: string; rounds?: number }) =>
+      api.startDesignJury(projectId, sessionId, rounds),
+  });
+}
+
 export function useUpdateDesignSettings(wsId: string) {
   const qc = useQueryClient();
   return useMutation({

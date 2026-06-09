@@ -43,6 +43,7 @@ type Task struct {
 	ProjectID               string                `json:"project_id,omitempty"`        // issue's project, when present
 	ProjectTitle            string                `json:"project_title,omitempty"`     // human-readable project title for context injection
 	ProjectResources        []ProjectResourceData `json:"project_resources,omitempty"` // project-scoped resources to expose to the agent
+	ProjectPinnedWorkdir    bool                  `json:"project_pinned_workdir,omitempty"`
 	PriorSessionID          string          `json:"prior_session_id,omitempty"`          // Claude session ID from a previous task on this issue
 	PriorWorkDir            string          `json:"prior_work_dir,omitempty"`            // work_dir from a previous task on this issue
 	TriggerCommentID        string          `json:"trigger_comment_id,omitempty"`        // comment that triggered this task
@@ -56,9 +57,13 @@ type Task struct {
 	DesignMode             string `json:"design_mode,omitempty"`
 	DesignSkillID          string `json:"design_skill_id,omitempty"`
 	DesignSystemResourceID string `json:"design_system_resource_id,omitempty"`
-	DesignSystemContent    string `json:"design_system_content,omitempty"`
-	DesignSystemName       string `json:"design_system_name,omitempty"`
-	ArtifactEntry          string `json:"artifact_entry,omitempty"`
+	DesignSystemContent    string   `json:"design_system_content,omitempty"`
+	DesignSystemName       string   `json:"design_system_name,omitempty"`
+	DesignCraftRequires    []string `json:"design_craft_requires,omitempty"`
+	DesignExampleID        string                  `json:"design_example_id,omitempty"`
+	DesignExampleHint      string                  `json:"design_example_hint,omitempty"`
+	DesignExampleBundles   []DesignExampleBundle   `json:"design_example_bundles,omitempty"`
+	ArtifactEntry          string                  `json:"artifact_entry,omitempty"`
 	SessionKind            string `json:"session_kind,omitempty"`
 	AutopilotRunID          string          `json:"autopilot_run_id,omitempty"`          // non-empty for autopilot run_only tasks
 	AutopilotID             string          `json:"autopilot_id,omitempty"`              // autopilot that spawned this run
@@ -69,6 +74,12 @@ type Task struct {
 	QuickCreatePrompt       string          `json:"quick_create_prompt,omitempty"`       // user's natural-language input for quick-create tasks
 	SquadID                 string          `json:"squad_id,omitempty"`                  // when the picker was a squad, the squad's UUID; Agent is still the resolved leader
 	SquadName               string          `json:"squad_name,omitempty"`                // display name for the picker squad, used in prompt text
+}
+
+// DesignExampleBundle is a server-resolved copy instruction for template seeding.
+type DesignExampleBundle struct {
+	Src  string `json:"src"`
+	Dest string `json:"dest"`
 }
 
 // ChatAttachmentMeta is the structured attachment metadata the daemon

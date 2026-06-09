@@ -337,10 +337,6 @@ func LoadConfig(overrides Overrides) (Config, error) {
 	// Keep env after task: env > default (false)
 	keepEnv := os.Getenv("AICORTEX_KEEP_ENV_AFTER_TASK") == "true" || os.Getenv("AICORTEX_KEEP_ENV_AFTER_TASK") == "1"
 
-	// Pinned project workdir: env > default (false)
-	// When enabled, tasks belonging to a project reuse a fixed workdir per (project, agent).
-	pinnedProjectWorkdir := os.Getenv("AICORTEX_PINNED_PROJECT_WORKDIR") == "true" || os.Getenv("AICORTEX_PINNED_PROJECT_WORKDIR") == "1"
-
 	// GC config: env > defaults
 	gcEnabled := true
 	if v := os.Getenv("AICORTEX_GC_ENABLED"); v == "false" || v == "0" {
@@ -407,7 +403,6 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		Agents:                         agents,
 		WorkspacesRoot:                 workspacesRoot,
 		KeepEnvAfterTask:               keepEnv,
-		PinnedProjectWorkdir:           pinnedProjectWorkdir,
 		GCEnabled:                      gcEnabled,
 		GCInterval:                     gcInterval,
 		GCTTL:                          gcTTL,

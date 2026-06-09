@@ -505,6 +505,8 @@ type Project struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	Priority    string             `json:"priority"`
 	Prompt      string             `json:"prompt"`
+	// When true, agent tasks in this project reuse a fixed workdir per agent with auto git sync.
+	PinnedWorkdir bool `json:"pinned_workdir"`
 }
 
 type ProjectResource struct {

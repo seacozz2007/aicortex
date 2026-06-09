@@ -29,6 +29,8 @@ import {
   Check,
   Plus,
   Users,
+  Palette,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -204,14 +206,45 @@ export function TopNav({ className }: TopNavProps) {
           <kbd className="hidden rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
         </button>
 
-        {/* New Issue */}
+        {/* Create menu (+ ▾) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
+              >
+                <SquarePen className="size-3.5" />
+                <span className="hidden sm:inline">{t(($) => $.topnav.new_issue)}</span>
+                <ChevronDown className="size-3 opacity-80" />
+              </button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => openCreateIssueWithPreference()}>
+              <SquarePen className="size-4" />
+              {t(($) => $.topnav.new_issue)}
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<AppLink href={p.chat()} />}>
+              <MessageSquarePlus className="size-4" />
+              {t(($) => $.topnav.new_chat)}
+            </DropdownMenuItem>
+            {designStudioEnabled && (
+              <DropdownMenuItem render={<AppLink href={p.design()} />}>
+                <Palette className="size-4" />
+                {t(($) => $.nav.design_studio)}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Legacy quick action hidden on mobile duplicate — primary is dropdown above */}
         <button
           type="button"
           onClick={() => openCreateIssueWithPreference()}
-          className="inline-flex items-center gap-1.5 rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
+          className="hidden"
         >
           <SquarePen className="size-3.5" />
-          <span className="hidden sm:inline">{t(($) => $.topnav.new_issue)}</span>
         </button>
 
         {/* User dropdown (我的) */}

@@ -126,6 +126,12 @@ export interface AgentTask {
   created_at: string;
   /** Non-empty when the task was spawned from a chat session. */
   chat_session_id?: string;
+  /** Design Studio session title when kind=design. */
+  chat_session_title?: string;
+  /** Design Studio project id when kind=design. */
+  project_id?: string;
+  /** Design Studio mode when this task runs in a design session. */
+  design_mode?: string;
   /** Non-empty when the task was spawned by an autopilot run. */
   autopilot_run_id?: string;
   /** Set when this task was created as an auto-retry of a parent task. */
@@ -148,7 +154,7 @@ export interface AgentTask {
    * tasks that have no linked issue (so e.g. quick-create tasks render
    * with a meaningful title instead of falling through to "Untracked").
    */
-  kind?: "comment" | "autopilot" | "chat" | "quick_create" | "direct";
+  kind?: "comment" | "autopilot" | "chat" | "design" | "quick_create" | "direct";
   /**
    * Local working directory pinned for this task by the daemon. Empty until
    * the daemon reports a work_dir (typically once execution starts).

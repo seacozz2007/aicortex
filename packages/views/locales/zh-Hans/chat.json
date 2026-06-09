@@ -94,7 +94,12 @@
       "loading_content": "正在加载文件…",
       "load_error": "无法加载此文件。",
       "too_large": "文件过大，无法预览（上限 512 KB）。",
-      "binary_unsupported": "仅支持预览文本文件。"
+      "binary_unsupported": "仅支持预览文本文件。",
+      "save": "保存",
+      "saving": "保存中…",
+      "save_error": "无法保存文件。",
+      "view_render": "预览",
+      "view_source": "源码"
     }
   },
   "window": {
@@ -155,7 +160,10 @@
     "submit_title": "发送你的回答",
     "submit_disabled_title": "请先回答所有必填问题",
     "locked_submitted": "你已经回答了这些问题。",
-    "locked_prev": "此表单来自之前的对话轮次，已不再可用。"
+    "locked_prev": "此表单来自之前的对话轮次，已不再可用。",
+    "studio_card_title": "想先跟你确认几个小问题 ~",
+    "studio_redirect": "请在右侧面板「问题」中填写并提交。",
+    "answered_summary_fallback": "已提交回答，点击展开查看详情"
   },
   "no_agent_banner": "需要先有一个Agent才能开始对话。",
   "offline_banner": {

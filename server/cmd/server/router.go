@@ -388,6 +388,16 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			r.Delete("/{id}", h.RevokePersonalAccessToken)
 		})
 
+		// Task artifact browse/serve — auth only, no workspace_slug query required.
+		// HTML previews load index.html?workspace_slug=… but linked assets/css/js
+		// resolve to sibling paths without that query; membership is enforced inside
+		// authorizeTaskArtifactUse via the task's workspace.
+		r.Get("/api/tasks/{taskId}/messages", h.ListTaskMessagesByUser)
+		r.Get("/api/tasks/{taskId}/artifacts", h.ListTaskArtifacts)
+		r.Handle("/api/tasks/{taskId}/artifacts/raw", http.HandlerFunc(h.ServeTaskArtifactRaw))
+		r.Handle("/api/tasks/{taskId}/artifacts/raw/*", http.HandlerFunc(h.ServeTaskArtifactRaw))
+		r.Put("/api/tasks/{taskId}/artifacts/raw/*", h.WriteTaskArtifact)
+
 		// --- Workspace-scoped routes (all require workspace membership) ---
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireWorkspaceMember(queries))
@@ -436,12 +446,6 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
-			// Task messages (user-facing, not daemon auth)
-			r.Get("/api/tasks/{taskId}/messages", h.ListTaskMessagesByUser)
-			r.Get("/api/tasks/{taskId}/artifacts", h.ListTaskArtifacts)
-			r.Handle("/api/tasks/{taskId}/artifacts/raw", http.HandlerFunc(h.ServeTaskArtifactRaw))
-			r.Handle("/api/tasks/{taskId}/artifacts/raw/*", http.HandlerFunc(h.ServeTaskArtifactRaw))
-
 			// Labels
 			r.Route("/api/labels", func(r chi.Router) {
 				r.Get("/", h.ListLabels)
@@ -472,6 +476,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 						r.Route("/sessions/{sessionId}", func(r chi.Router) {
 							r.Get("/", h.GetDesignSession)
 							r.Post("/export", h.ExportDesignSession)
+							r.Get("/export/{format}", h.DownloadDesignExport)
 							r.Post("/jury", h.StartDesignJury)
 						})
 					})
@@ -483,6 +488,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Get("/settings", h.GetDesignSettings)
 				r.Put("/settings", h.UpdateDesignSettings)
 				r.Get("/templates", h.ListDesignTemplates)
+				r.Get("/plugins", h.ListDesignPlugins)
 			})
 
 			// Squads

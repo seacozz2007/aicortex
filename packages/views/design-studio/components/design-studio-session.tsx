@@ -5,13 +5,14 @@ import { useDefaultLayout } from "react-resizable-panels";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MessageSquare, PanelRight } from "lucide-react";
 import { useWorkspaceId } from "@aicortex/core/hooks";
-import { useWorkspacePaths } from "@aicortex/core/paths";
+import { useWorkspacePaths, useWorkspaceSlug } from "@aicortex/core/paths";
 import { api } from "@aicortex/core/api";
 import {
   chatMessagesOptions,
   pendingChatTaskOptions,
   chatKeys,
   chatSessionsOptions,
+  taskMessagesOptions,
 } from "@aicortex/core/chat/queries";
 import { useMarkChatSessionRead } from "@aicortex/core/chat/mutations";
 import { useAgentPresenceDetail } from "@aicortex/core/agents";
@@ -20,14 +21,16 @@ import {
   designSessionsOptions,
   designKeys,
 } from "@aicortex/core/design/queries";
-import { useExportDesignSession } from "@aicortex/core/design/mutations";
+import { useExportDesignSession, useStartDesignJury } from "@aicortex/core/design/mutations";
 import {
   useArtifactBrowseFeature,
   useDesignExportFeature,
+  useDesignJuryFeature,
   useRuntimeTunnelFeature,
 } from "@aicortex/core/config/features";
 import { getCurrentSlug } from "@aicortex/core/platform";
-import type { ChatMessage, DesignSession } from "@aicortex/core/types";
+import type { ChatMessage, DesignSession, TaskMessagePayload } from "@aicortex/core/types";
+import type { ChatTimelineItem } from "@aicortex/core/chat";
 import { cn } from "@aicortex/ui/lib/utils";
 import {
   ResizableHandle,
@@ -38,7 +41,9 @@ import { AppLink } from "../../navigation";
 import { useT } from "../../i18n";
 import { ChatMessageList, ChatMessageSkeleton } from "../../chat/components/chat-message-list";
 import { ChatInput } from "../../chat/components/chat-input";
-import { DesignToolsSidebar } from "./design-tools-sidebar";
+import { DesignToolsSidebar, type DesignToolsTab } from "./design-tools-sidebar";
+import type { QueuedPreviewComment } from "./design-comment-queue-panel";
+import { findLatestPendingQuestionForm } from "../lib/pending-question-form";
 
 const TOOLS_SIDEBAR_STORAGE_KEY = "aicortex:design:tools-sidebar-open";
 
@@ -62,14 +67,17 @@ export function DesignStudioSession({
 }) {
   const { t } = useT("design");
   const wsId = useWorkspaceId();
+  const workspaceSlug = useWorkspaceSlug() ?? "";
   const p = useWorkspacePaths();
   const qc = useQueryClient();
   const markRead = useMarkChatSessionRead();
   const exportSession = useExportDesignSession(projectId);
+  const startJury = useStartDesignJury(projectId);
 
   const artifactBrowseEnabled = useArtifactBrowseFeature();
   const runtimeTunnelEnabled = useRuntimeTunnelFeature();
   const exportEnabled = useDesignExportFeature();
+  const juryEnabled = useDesignJuryFeature();
 
   const { data: session } = useQuery(designSessionOptions(wsId, projectId, sessionId));
   const { data: chatSessions = [] } = useQuery(chatSessionsOptions(wsId));
@@ -80,9 +88,45 @@ export function DesignStudioSession({
   const messages = rawMessages ?? [];
   const { data: pendingTask } = useQuery(pendingChatTaskOptions(sessionId));
 
+  const pendingTaskId = pendingTask?.task_id;
+  const pendingAlreadyPersisted =
+    !!pendingTaskId &&
+    messages.some((m) => m.role === "assistant" && m.task_id === pendingTaskId);
+  const showLiveTimeline =
+    !!pendingTaskId &&
+    !pendingAlreadyPersisted &&
+    !pendingTaskId.startsWith("optimistic-");
+  const { data: liveTaskMessages } = useQuery({
+    ...taskMessagesOptions(pendingTaskId ?? ""),
+    enabled: showLiveTimeline,
+  });
+  const liveTimeline: ChatTimelineItem[] = useMemo(
+    () =>
+      (liveTaskMessages ?? []).map(
+        (m: TaskMessagePayload): ChatTimelineItem => ({
+          seq: m.seq,
+          type: m.type,
+          tool: m.tool,
+          content: m.content,
+          input: m.input,
+          output: m.output,
+        }),
+      ),
+    [liveTaskMessages],
+  );
+
+  const pendingQuestionForm = useMemo(
+    () => findLatestPendingQuestionForm(messages, liveTimeline),
+    [messages, liveTimeline],
+  );
+
   const [toolsOpen, setToolsOpen] = useState(readToolsSidebarOpen);
+  const [preferredToolsTab, setPreferredToolsTab] = useState<DesignToolsTab | null>(null);
   const [commentMode, setCommentMode] = useState(false);
   const [commentNote, setCommentNote] = useState<string | null>(null);
+  const [previewAttachmentIds, setPreviewAttachmentIds] = useState<string[]>([]);
+  const [queuedComments, setQueuedComments] = useState<QueuedPreviewComment[]>([]);
+  const [queueSending, setQueueSending] = useState(false);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "aicortex_design_studio_layout",
     storage: typeof window === "undefined" ? undefined : localStorage,
@@ -116,35 +160,140 @@ export function DesignStudioSession({
     runtimeTunnelEnabled ||
     !!chatSessionForTools?.runtime_id;
 
+  const showToolsSidebar = toolsOpen && (canUseTools || !!pendingQuestionForm);
+
   useEffect(() => {
     if (sessionId) {
       void markRead.mutateAsync(sessionId).catch(() => {});
     }
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!pendingQuestionForm) return;
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("questions");
+  }, [pendingQuestionForm?.form.id]);
+
+  useEffect(() => {
+    if (!commentMode) return;
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("preview");
+  }, [commentMode]);
+
+  const openQuestionsPanel = useCallback(() => {
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("questions");
+  }, []);
+
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
-      const finalContent = commentNote
-        ? `${content}\n\n[Comment on element]\n${commentNote}`
-        : content;
+      const commentBlocks = [
+        commentNote ? `[Comment on element]\n${commentNote}` : null,
+        queuedComments.length
+          ? `[Comment queue]\n${queuedComments.map((item) => `[${item.elementId}] ${item.note}`).join("\n\n")}`
+          : null,
+      ].filter(Boolean);
+      const finalContent =
+        commentBlocks.length > 0
+          ? `${content}\n\n${commentBlocks.join("\n\n")}`
+          : content;
+      const mergedAttachmentIds = [
+        ...(attachmentIds ?? []),
+        ...previewAttachmentIds,
+      ];
       setCommentNote(null);
-      const result = await api.sendChatMessage(sessionId, finalContent, attachmentIds);
+      setPreviewAttachmentIds([]);
+      setQueuedComments([]);
+      const result = await api.sendChatMessage(
+        sessionId,
+        finalContent,
+        mergedAttachmentIds.length > 0 ? mergedAttachmentIds : undefined,
+      );
       qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
       qc.invalidateQueries({ queryKey: chatKeys.pendingTask(sessionId) });
       qc.invalidateQueries({ queryKey: designSessionsOptions(wsId, projectId).queryKey });
       qc.invalidateQueries({ queryKey: designKeys.session(wsId, projectId, sessionId) });
       return result;
     },
-    [commentNote, projectId, qc, sessionId, wsId],
+    [commentNote, previewAttachmentIds, projectId, qc, queuedComments, sessionId, wsId],
   );
 
-  const handleExport = useCallback(async () => {
-    await exportSession.mutateAsync({ sessionId, format: "html" });
-  }, [exportSession, sessionId]);
+  const handleExport = useCallback(
+    async (format: string) => {
+      const result = await exportSession.mutateAsync({ sessionId, format });
+      const url =
+        result.download_urls?.[format] ??
+        result.download_url ??
+        api.designExportDownloadPath(projectId, sessionId, format, workspaceSlug);
+      window.open(url, "_blank");
+    },
+    [exportSession, projectId, sessionId, workspaceSlug],
+  );
 
-  const handlePreviewComment = useCallback((elementId: string, note: string) => {
-    setCommentNote(`[${elementId}] ${note}`);
-    setCommentMode(false);
+  const handleJury = useCallback(async () => {
+    await startJury.mutateAsync({ sessionId, rounds: 3 });
+    qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
+    qc.invalidateQueries({ queryKey: chatKeys.pendingTask(sessionId) });
+  }, [qc, sessionId, startJury]);
+
+  const formatPreviewComment = useCallback(
+    (element: { id: string }, note: string) => `[${element.id}] ${note}`,
+    [],
+  );
+
+  const handlePreviewComment = useCallback(
+    async (element: { id: string }, note: string, images?: File[]) => {
+      setCommentNote(formatPreviewComment(element, note));
+      if (images?.length) {
+        const uploaded = await Promise.all(
+          images.map((file) =>
+            api.uploadFile(file, { chatSessionId: sessionId }).catch(() => null),
+          ),
+        );
+        const ids = uploaded.flatMap((item) => (item ? [item.id] : []));
+        if (ids.length > 0) {
+          setPreviewAttachmentIds((prev) => [...prev, ...ids]);
+        }
+      }
+    },
+    [formatPreviewComment, sessionId],
+  );
+
+  const handleQueuePreviewComment = useCallback(
+    (element: { id: string }, note: string) => {
+      setQueuedComments((prev) => [
+        ...prev,
+        {
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          elementId: element.id,
+          note: note.trim(),
+        },
+      ]);
+    },
+    [],
+  );
+
+  const handlePropertySave = useCallback((_element: { id: string }, patch: string) => {
+    setCommentNote(patch);
+  }, []);
+
+  const handleSendQueue = useCallback(async () => {
+    if (queuedComments.length === 0 || queueSending) return;
+    setQueueSending(true);
+    try {
+      await handleSend(t(($) => $.session.queue_send_message));
+    } finally {
+      setQueueSending(false);
+    }
+  }, [handleSend, queueSending, queuedComments.length, t]);
+
+  const openStudioPreview = useCallback(() => {
+    setToolsOpen(true);
+    localStorage.setItem(toolsSidebarStorageKey(), "true");
+    setPreferredToolsTab("preview");
   }, []);
 
   return (
@@ -159,7 +308,7 @@ export function DesignStudioSession({
         </AppLink>
         <span className="text-sm font-medium truncate">{currentSession?.title}</span>
         <div className="ml-auto flex items-center gap-2">
-          {canUseTools && (
+          {(canUseTools || pendingQuestionForm) && (
             <>
               <button
                 type="button"
@@ -194,6 +343,19 @@ export function DesignStudioSession({
         </div>
       </header>
 
+      {commentMode && !showToolsSidebar ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-brand/10 px-4 py-2 text-xs">
+          <span>{t(($) => $.session.comment_preview_hint)}</span>
+          <button
+            type="button"
+            onClick={openStudioPreview}
+            className="shrink-0 rounded-md border border-brand/40 bg-background px-2 py-1 text-xs hover:bg-accent"
+          >
+            {t(($) => $.session.open_preview_panel)}
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 flex-col border-r md:flex">
           <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
@@ -222,7 +384,7 @@ export function DesignStudioSession({
           defaultLayout={defaultLayout}
           onLayoutChanged={onLayoutChanged}
         >
-          <ResizablePanel defaultSize={toolsOpen && canUseTools ? 55 : 100} minSize={35}>
+          <ResizablePanel defaultSize={showToolsSidebar ? 55 : 100} minSize={35}>
             <div className="flex h-full min-h-0 flex-col">
               {messagesLoading ? (
                 <ChatMessageSkeleton />
@@ -231,6 +393,8 @@ export function DesignStudioSession({
                   messages={messages as ChatMessage[]}
                   pendingTask={pendingTask}
                   availability={availability}
+                  hideQuestionForms={!!pendingQuestionForm}
+                  onOpenQuestionsPanel={openQuestionsPanel}
                   onFormSubmit={(text) => void handleSend(text)}
                 />
               )}
@@ -245,7 +409,22 @@ export function DesignStudioSession({
                   <button
                     type="button"
                     className="ml-2 underline"
-                    onClick={() => setCommentNote(null)}
+                    onClick={() => {
+                      setCommentNote(null);
+                      setPreviewAttachmentIds([]);
+                    }}
+                  >
+                    {t(($) => $.session.clear_comment)}
+                  </button>
+                </div>
+              )}
+              {queuedComments.length > 0 && (
+                <div className="border-t bg-muted/40 px-4 py-2 text-xs">
+                  {t(($) => $.session.queue_prefix, { count: queuedComments.length })}
+                  <button
+                    type="button"
+                    className="ml-2 underline"
+                    onClick={() => setQueuedComments([])}
                   >
                     {t(($) => $.session.clear_comment)}
                   </button>
@@ -254,16 +433,32 @@ export function DesignStudioSession({
             </div>
           </ResizablePanel>
 
-          {toolsOpen && canUseTools && (
+          {showToolsSidebar && (
             <>
               <ResizableHandle />
               <ResizablePanel defaultSize={45} minSize={25}>
                 <DesignToolsSidebar
                   session={chatSessionForTools}
+                  projectId={projectId}
                   commentMode={commentMode}
                   onComment={handlePreviewComment}
-                  onExport={exportEnabled ? () => void handleExport() : undefined}
+                  onQueueComment={handleQueuePreviewComment}
+                  onPropertySave={handlePropertySave}
+                  queuedComments={queuedComments}
+                  onRemoveQueuedComment={(id) =>
+                    setQueuedComments((prev) => prev.filter((item) => item.id !== id))
+                  }
+                  onClearQueuedComments={() => setQueuedComments([])}
+                  onSendQueue={() => void handleSendQueue()}
+                  queueSending={queueSending}
+                  onExport={exportEnabled ? (format) => void handleExport(format) : undefined}
                   exportPending={exportSession.isPending}
+                  onJury={juryEnabled ? () => void handleJury() : undefined}
+                  juryPending={startJury.isPending}
+                  pendingQuestionForm={pendingQuestionForm?.form}
+                  preferredTab={preferredToolsTab}
+                  onPreferredTabApplied={() => setPreferredToolsTab(null)}
+                  onFormSubmit={(text) => void handleSend(text)}
                 />
               </ResizablePanel>
             </>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, Palette, PanelRight, Pin, PinOff, Plus, Trash2, UserMinus } from "lucide-react";
+import { Check, ChevronRight, FolderSync, Link2, ListTodo, MoreHorizontal, Palette, PanelRight, Pin, PinOff, Plus, Trash2, UserMinus } from "lucide-react";
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { cn } from "@aicortex/ui/lib/utils";
 import { toast } from "sonner";
@@ -37,6 +37,8 @@ import { ListView } from "../../issues/components/list-view";
 import { BatchActionToolbar } from "../../issues/components/batch-action-toolbar";
 import { Skeleton } from "@aicortex/ui/components/ui/skeleton";
 import { Button } from "@aicortex/ui/components/ui/button";
+import { Switch } from "@aicortex/ui/components/ui/switch";
+import { Label } from "@aicortex/ui/components/ui/label";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@aicortex/ui/components/ui/resizable";
 import { Sheet, SheetContent } from "@aicortex/ui/components/ui/sheet";
 import { useIsMobile } from "@aicortex/ui/hooks/use-mobile";
@@ -312,6 +314,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [progressOpen, setProgressOpen] = useState(true);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
+  const [workdirOpen, setWorkdirOpen] = useState(true);
 
   // Sidebar panel
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -587,6 +590,42 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             debounceMs={1500}
           />
         </div>}
+      </div>
+
+      {/* Agent workdir */}
+      <div>
+        <button
+          className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors mb-2 hover:bg-accent/70 ${workdirOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setWorkdirOpen(!workdirOpen)}
+        >
+          {t(($) => $.workdir.section_header)}
+          <ChevronRight className={`!size-3 shrink-0 stroke-[2.5] text-muted-foreground transition-transform ${workdirOpen ? "rotate-90" : ""}`} />
+        </button>
+        {workdirOpen && (
+          <div className="pl-2">
+            <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/20 px-3 py-3">
+              <div className="flex min-w-0 items-start gap-2">
+                <FolderSync className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="space-y-1">
+                  <Label htmlFor={`pinned-workdir-${projectId}`} className="text-xs font-medium">
+                    {t(($) => $.workdir.pinned_label)}
+                  </Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t(($) => $.workdir.pinned_description)}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id={`pinned-workdir-${projectId}`}
+                checked={project.pinned_workdir === true}
+                disabled={updateProject.isPending}
+                onCheckedChange={(checked) => {
+                  handleUpdateField({ pinned_workdir: checked });
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Resources */}

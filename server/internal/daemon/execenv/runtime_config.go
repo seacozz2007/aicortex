@@ -118,8 +118,14 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 		b.WriteString("\n\n")
 	}
 
+	if ctx.DesignMode != "" {
+		appendDesignStudioRuntime(&b, provider, ctx)
+		return b.String()
+	}
+
 	b.WriteString("## Available Commands\n\n")
 	b.WriteString("**Use `--output json` for structured data.** Human table output now prints routable issue keys (for example `MUL-123`) and short UUID prefixes for workspace resources; use `--full-id` on list commands when you need canonical UUIDs.\n\n")
+	b.WriteString("**Do not pipe `aicortex` output through `python3`, `python`, `jq`, or similar shell utilities.** Agent runtimes (especially on Windows) do not guarantee those tools. Prefer the CLI's own flags (`--output json`, list filters, `--full-id`) and multiple direct `aicortex` invocations instead of ad-hoc parsing.\n\n")
 	b.WriteString("### Read\n")
 	b.WriteString("- `aicortex issue get <id> --output json` — Get full issue details (title, description, status, priority, assignee)\n")
 	b.WriteString("- `aicortex issue list [--status X] [--priority X] [--assignee X | --assignee-id <uuid>] [--limit N] [--offset N] [--full-id] [--output json]` — List issues in workspace (default limit: 50; table output uses routable issue keys; JSON output includes `total`, `has_more` — use offset to paginate when `has_more` is true). Prefer `--assignee-id <uuid>` when scripting from `aicortex workspace members --output json` / `aicortex agent list --output json` / `aicortex squad list --output json`.\n")
@@ -146,7 +152,7 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 
 
 	b.WriteString("### Write\n")
-	b.WriteString("- `aicortex issue create --title \"...\" [--description \"...\"] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--project <project-id>] [--due-date <RFC3339>] [--attachment <path>]` — Create a new issue. `--attachment` may be repeated to upload multiple files; labels and subscribers are not accepted here, attach them after create with the commands below.\n")
+	b.WriteString("- `aicortex issue create --title \"...\" [--description \"...\"] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--project <project-id>] [--due-date <RFC3339>] [--attachment <path>]` — Create a new issue. `--priority` accepts `urgent|high|medium|low|none` or Linear-style `P0`–`P4`. `--attachment` may be repeated to upload multiple files; labels and subscribers are not accepted here, attach them after create with the commands below.\n")
 	b.WriteString("- `aicortex issue update <id> [--title X] [--description X] [--priority X] [--status X] [--assignee X | --assignee-id <uuid>] [--parent <issue-id>] [--project <project-id>] [--due-date <RFC3339>]` — Update one or more issue fields in a single call. Use `--parent \"\"` to clear the parent.\n")
 	b.WriteString("- `aicortex issue status <id> <status>` — Shortcut for `issue update --status` when you only need to flip status (todo, in_progress, in_review, done, blocked, backlog, cancelled)\n")
 	b.WriteString("- `aicortex issue assign <id> --to <name>|--to-id <uuid>` — Assign an issue to a member, agent, or squad. `--to <name>` does fuzzy name matching; pass `--to-id <uuid>` (mutually exclusive with `--to`) to assign by canonical UUID, e.g. when names overlap. Use `--unassign` to clear the assignee.\n")
@@ -234,23 +240,7 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 
 	b.WriteString("### Workflow\n\n")
 
-	if ctx.DesignMode != "" {
-		b.WriteString("**You are in Design Studio mode.** Build real HTML/CSS files in the work directory.\n\n")
-		fmt.Fprintf(&b, "- Design mode: `%s`\n", ctx.DesignMode)
-		if ctx.ArtifactEntry != "" {
-			fmt.Fprintf(&b, "- Primary preview entry: `%s`\n", ctx.ArtifactEntry)
-		}
-		b.WriteString("- Use `<question-form>` when requirements are unclear\n")
-		b.WriteString("- Tag interactive regions with `data-aicortex-id` for comment mode\n")
-		b.WriteString("- Prefer file writes over inline-only responses\n\n")
-		if strings.TrimSpace(ctx.DesignSystemContent) != "" {
-			name := strings.TrimSpace(ctx.DesignSystemName)
-			if name == "" {
-				name = "Design System"
-			}
-			fmt.Fprintf(&b, "Active design system (**%s**) is injected in the per-turn prompt.\n\n", name)
-		}
-	} else if ctx.ChatSessionID != "" {
+	if ctx.ChatSessionID != "" {
 		// Chat task: interactive assistant mode
 		b.WriteString("**You are in chat mode.** A user is messaging you directly in a chat window.\n\n")
 		b.WriteString("- Respond conversationally and helpfully to the user's message\n")
@@ -413,4 +403,88 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 	}
 
 	return b.String()
+}
+
+// appendDesignStudioRuntime writes runtime instructions for Design Studio tasks.
+// These tasks deliver HTML/CSS artifacts — they must not mutate workspace issues.
+func appendDesignStudioRuntime(b *strings.Builder, provider string, ctx TaskContextForEnv) {
+	entry := strings.TrimSpace(ctx.ArtifactEntry)
+	if entry == "" {
+		entry = "index.html"
+	}
+
+	b.WriteString("## Design Studio mode\n\n")
+	b.WriteString("You are in **Design Studio**. Deliver a static design artifact in the task work directory. ")
+	b.WriteString("The user previews your files in an iframe — **not** live workspace data.\n\n")
+	fmt.Fprintf(b, "- Design mode: `%s`\n", ctx.DesignMode)
+	fmt.Fprintf(b, "- Primary preview entry: `%s`\n\n", entry)
+
+	b.WriteString("### Hard rules — workspace mutation is forbidden\n\n")
+	b.WriteString("- Do **NOT** run `aicortex issue create`, `issue update`, `issue status`, `issue assign`, `issue label add/remove`, `label create`, `autopilot *`, or `meeting *`.\n")
+	b.WriteString("- Do **NOT** populate real issues or tasks to simulate a kanban board, dashboard, backlog, or sprint. Use **fictional sample cards/rows in HTML** instead.\n")
+	b.WriteString("- Briefs mentioning columns like backlog / doing / review / done describe **UI columns**, not instructions to create platform issues.\n")
+	b.WriteString("- Do **NOT** call `aicortex issue comment add` — there is no issue for this run.\n\n")
+
+	b.WriteString("### Workflow\n\n")
+	b.WriteString("1. Read the per-turn design brief and any active DESIGN.md in the prompt.\n")
+	b.WriteString("2. When the brief is underspecified, emit a single `<question-form>` block (Interactive Forms skill). **Never** ask discovery questions as markdown lists or Q1/Q2 prose.\n")
+	fmt.Fprintf(b, "3. Write `%s` (and supporting assets) under the task work directory using your file-write tools.\n", entry)
+	b.WriteString("4. Tag interactive regions with `data-aicortex-id` for comment mode.\n")
+	b.WriteString("5. Finish when the primary artifact renders correctly. A short assistant summary is enough.\n\n")
+
+	if strings.TrimSpace(ctx.DesignSystemContent) != "" {
+		name := strings.TrimSpace(ctx.DesignSystemName)
+		if name == "" {
+			name = "Design System"
+		}
+		fmt.Fprintf(b, "Active design system (**%s**) is injected in the per-turn prompt.\n\n", name)
+	}
+
+	if ctx.ProjectID != "" || len(ctx.ProjectResources) > 0 {
+		b.WriteString("## Design project context\n\n")
+		if ctx.ProjectTitle != "" {
+			fmt.Fprintf(b, "This design session belongs to **%s**.\n\n", ctx.ProjectTitle)
+		}
+		if len(ctx.ProjectResources) > 0 {
+			b.WriteString("Project resources (also at `.aicortex/project/resources.json`) — use only for tokens/branding, not to seed live data:\n\n")
+			for _, r := range ctx.ProjectResources {
+				fmt.Fprintf(b, "- %s\n", formatProjectResource(r))
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	if hint := strings.TrimSpace(ctx.DesignExampleHint); hint != "" {
+		b.WriteString("### Bundled example templates\n\n")
+		b.WriteString("Template files are already copied into this work directory. Do **not** clone GitHub or fetch upstream — use the local paths below.\n\n")
+		b.WriteString(hint)
+		b.WriteString("\n\n")
+	}
+
+	if len(ctx.AgentSkills) > 0 {
+		b.WriteString("## Skills\n\n")
+		switch provider {
+		case "claude":
+			b.WriteString("You have the following skills installed (discovered automatically):\n\n")
+		case "codex", "copilot", "opencode", "openclaw", "pi", "cursor", "kimi", "kiro":
+			b.WriteString("You have the following skills installed (discovered automatically):\n\n")
+		case "gemini", "hermes":
+			b.WriteString("Detailed skill instructions are in `.agent_context/skills/`. Each subdirectory contains a `SKILL.md`.\n\n")
+		default:
+			b.WriteString("Detailed skill instructions are in `.agent_context/skills/`. Each subdirectory contains a `SKILL.md`.\n\n")
+		}
+		for _, skill := range ctx.AgentSkills {
+			fmt.Fprintf(b, "- **%s**\n", skill.Name)
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## Attachments\n\n")
+	b.WriteString("If the brief references reference images, download them with `aicortex attachment download <id>` and embed or style from the local file.\n\n")
+
+	b.WriteString("## Output\n\n")
+	b.WriteString("This is a Design Studio task. **Do not post issue comments or create workspace issues.** ")
+	fmt.Fprintf(b, "Your deliverable is `%s` (and any supporting assets) in the work directory. ", entry)
+	b.WriteString("The platform captures your assistant text and renders the artifact preview automatically. ")
+	b.WriteString("Keep the final message brief — e.g. \"Kanban board ready in index.html\".\n")
 }

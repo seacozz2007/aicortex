@@ -239,9 +239,10 @@ type TunnelResponsePayload struct {
 
 type ArtifactRequestPayload struct {
 	RequestID string `json:"request_id"`
-	Op        string `json:"op"` // list | read
+	Op        string `json:"op"` // list | read | write
 	RootPath  string `json:"root_path"`
 	RelPath   string `json:"rel_path,omitempty"`
+	Body      string `json:"body,omitempty"` // base64 for write
 }
 
 type ArtifactListEntry struct {

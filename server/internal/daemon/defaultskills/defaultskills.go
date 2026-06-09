@@ -26,3 +26,8 @@ var All = []DefaultSkill{
 		Content:     questionFormSkillContent,
 	},
 }
+
+// QuestionForm returns the built-in Interactive Forms skill.
+func QuestionForm() DefaultSkill {
+	return All[0]
+}

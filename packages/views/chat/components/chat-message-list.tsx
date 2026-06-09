@@ -48,6 +48,9 @@ interface ChatMessageListProps {
    * message. The formatted prose answer is forwarded as a user message.
    */
   onFormSubmit?: (text: string) => void;
+  /** Design Studio: render forms in the right panel instead of inline. */
+  hideQuestionForms?: boolean;
+  onOpenQuestionsPanel?: () => void;
 }
 
 export function ChatMessageList({
@@ -55,6 +58,8 @@ export function ChatMessageList({
   pendingTask,
   availability,
   onFormSubmit,
+  hideQuestionForms = false,
+  onOpenQuestionsPanel,
 }: ChatMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeStyle = useScrollFade(scrollRef);
@@ -104,13 +109,20 @@ export function ChatMessageList({
               message={msg}
               isPending={!!pendingTaskId && msg.task_id === pendingTaskId}
               onFormSubmit={onFormSubmit}
+              hideQuestionForms={hideQuestionForms}
+              onOpenQuestionsPanel={onOpenQuestionsPanel}
               nextUserContent={nextUserContent}
             />
           );
         })}
         {hasLive && (
           <div className="w-full space-y-1.5">
-            <TimelineView items={liveTimeline} isStreaming />
+            <TimelineView
+              items={liveTimeline}
+              isStreaming
+              hideQuestionForms={hideQuestionForms}
+              onOpenQuestionsPanel={onOpenQuestionsPanel}
+            />
           </div>
         )}
         {showStatusPill && pendingTask && (
@@ -169,11 +181,15 @@ function MessageBubble({
   message,
   isPending,
   onFormSubmit,
+  hideQuestionForms,
+  onOpenQuestionsPanel,
   nextUserContent,
 }: {
   message: ChatMessage;
   isPending: boolean;
   onFormSubmit?: (text: string) => void;
+  hideQuestionForms?: boolean;
+  onOpenQuestionsPanel?: () => void;
   nextUserContent?: string;
 }) {
   if (message.role === "user") {
@@ -197,6 +213,8 @@ function MessageBubble({
       message={message}
       isPending={isPending}
       onFormSubmit={onFormSubmit}
+      hideQuestionForms={hideQuestionForms}
+      onOpenQuestionsPanel={onOpenQuestionsPanel}
       nextUserContent={nextUserContent}
     />
   );
@@ -206,11 +224,15 @@ function AssistantMessage({
   message,
   isPending,
   onFormSubmit,
+  hideQuestionForms,
+  onOpenQuestionsPanel,
   nextUserContent,
 }: {
   message: ChatMessage;
   isPending: boolean;
   onFormSubmit?: (text: string) => void;
+  hideQuestionForms?: boolean;
+  onOpenQuestionsPanel?: () => void;
   nextUserContent?: string;
 }) {
   const taskId = message.task_id;
@@ -247,13 +269,17 @@ function AssistantMessage({
           items={timeline}
           isStreaming={isPending}
           onFormSubmit={onFormSubmit}
+          hideQuestionForms={hideQuestionForms}
+          onOpenQuestionsPanel={onOpenQuestionsPanel}
           nextUserContent={nextUserContent}
         />
       ) : (
         <ChatContent
           content={message.content}
           interactive={!isPending}
+          hideForms={hideQuestionForms}
           onFormSubmit={onFormSubmit}
+          onOpenQuestionsPanel={onOpenQuestionsPanel}
           nextUserContent={nextUserContent}
         />
       )}
@@ -432,11 +458,15 @@ function TimelineView({
   items,
   isStreaming,
   onFormSubmit,
+  hideQuestionForms,
+  onOpenQuestionsPanel,
   nextUserContent,
 }: {
   items: ChatTimelineItem[];
   isStreaming?: boolean;
   onFormSubmit?: (text: string) => void;
+  hideQuestionForms?: boolean;
+  onOpenQuestionsPanel?: () => void;
   nextUserContent?: string;
 }) {
   const { preface, middle, final } = splitTimeline(items);
@@ -447,13 +477,17 @@ function TimelineView({
         <ChatContent
           content={preface.map((t) => t.content ?? "").join("")}
           interactive={!isStreaming}
+          hideForms={hideQuestionForms}
           onFormSubmit={onFormSubmit}
+          onOpenQuestionsPanel={onOpenQuestionsPanel}
           nextUserContent={nextUserContent}
         />
       )}
       {middle.length > 0 && (
         <OuterProcessFold items={middle} defaultOpen={!!isStreaming}
           onFormSubmit={onFormSubmit}
+          hideQuestionForms={hideQuestionForms}
+          onOpenQuestionsPanel={onOpenQuestionsPanel}
           nextUserContent={nextUserContent}
         />
       )}
@@ -461,7 +495,9 @@ function TimelineView({
         <ChatContent
           content={final.map((t) => t.content ?? "").join("")}
           interactive={!isStreaming}
+          hideForms={hideQuestionForms}
           onFormSubmit={onFormSubmit}
+          onOpenQuestionsPanel={onOpenQuestionsPanel}
           nextUserContent={nextUserContent}
         />
       )}
@@ -473,11 +509,15 @@ function OuterProcessFold({
   items,
   defaultOpen,
   onFormSubmit,
+  hideQuestionForms,
+  onOpenQuestionsPanel,
   nextUserContent,
 }: {
   items: ChatTimelineItem[];
   defaultOpen?: boolean;
   onFormSubmit?: (text: string) => void;
+  hideQuestionForms?: boolean;
+  onOpenQuestionsPanel?: () => void;
   nextUserContent?: string;
 }) {
   const { t } = useT("chat");
@@ -501,6 +541,8 @@ function OuterProcessFold({
             item.type === "text" ? (
               <MiddleTextRow key={item.seq} item={item}
                 onFormSubmit={onFormSubmit}
+                hideQuestionForms={hideQuestionForms}
+                onOpenQuestionsPanel={onOpenQuestionsPanel}
                 nextUserContent={nextUserContent}
               />
             ) : (
@@ -520,10 +562,14 @@ function OuterProcessFold({
 function MiddleTextRow({
   item,
   onFormSubmit,
+  hideQuestionForms,
+  onOpenQuestionsPanel,
   nextUserContent,
 }: {
   item: ChatTimelineItem;
   onFormSubmit?: (text: string) => void;
+  hideQuestionForms?: boolean;
+  onOpenQuestionsPanel?: () => void;
   nextUserContent?: string;
 }) {
   return (
@@ -531,7 +577,9 @@ function MiddleTextRow({
       <ChatContent
         content={item.content ?? ""}
         interactive={true}
+        hideForms={hideQuestionForms}
         onFormSubmit={onFormSubmit}
+        onOpenQuestionsPanel={onOpenQuestionsPanel}
         nextUserContent={nextUserContent}
       />
     </div>

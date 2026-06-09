@@ -35,6 +35,10 @@ func (h *Handler) GetDesignSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if agentID.Valid {
+		_ = design.EnsureAgentQuestionFormSkill(r.Context(), h.Queries, wsUUID, agentID)
+	}
+
 	resp := designSettingsResponse{}
 	if agentID.Valid {
 		resp.DefaultDesignAgentID = uuidToString(agentID)
@@ -92,6 +96,13 @@ func (h *Handler) UpdateDesignSettings(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update design settings")
 		return
+	}
+
+	if agentUUID.Valid {
+		if err := design.EnsureAgentQuestionFormSkill(r.Context(), h.Queries, wsUUID, agentUUID); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to attach interactive forms skill")
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, designSettingsResponse{

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
+  Brush,
   CircleHelp,
   Hash,
   MessageSquare,
@@ -27,6 +28,8 @@ import {
   type AgentActivity,
   agentTaskSnapshotOptions,
   agentTasksOptions,
+  isAgentActivityTask,
+  isDesignStudioTask,
   summarizeActivityWindow,
   useWorkspaceActivityMap,
 } from "@aicortex/core/agents";
@@ -81,7 +84,8 @@ export function ActivityTab({ agent }: ActivityTabProps) {
   // (list / detail / activity). They have their own UI in the chat
   // experience; mixing them in here muddies "what is this agent doing
   // for the team" with "what is this agent doing in private chat".
-  const isWorkflowTask = (t: AgentTask) => !t.chat_session_id;
+  // Design Studio tasks are chat-backed but are team-visible design work.
+  const isWorkflowTask = isAgentActivityTask;
 
   const activeTasks = useMemo(() => {
     return snapshot.filter(
@@ -389,32 +393,39 @@ function TaskRow({
     task.status === "completed" ||
     task.status === "failed" ||
     task.status === "cancelled";
+  const isDesignTask = isDesignStudioTask(task);
   const sourceFallback = !hasIssue
     ? task.kind === "quick_create"
       ? isTerminalStatus
         ? t(($) => $.tab_body.activity.source_quick_create)
         : t(($) => $.tab_body.activity.source_creating_issue)
-      : task.chat_session_id
-        ? t(($) => $.tab_body.activity.source_chat_session)
-        : task.autopilot_run_id
-          ? t(($) => $.tab_body.activity.source_autopilot_run)
-          : t(($) => $.tab_body.activity.source_untracked)
+      : isDesignTask
+        ? task.chat_session_title || t(($) => $.tab_body.activity.source_design_session)
+        : task.chat_session_id
+          ? t(($) => $.tab_body.activity.source_chat_session)
+          : task.autopilot_run_id
+            ? t(($) => $.tab_body.activity.source_autopilot_run)
+            : t(($) => $.tab_body.activity.source_untracked)
     : null;
 
   const SourceIcon = hasIssue
     ? Hash
-    : task.chat_session_id
-      ? MessageSquare
-      : task.autopilot_run_id
-        ? Workflow
-        : CircleHelp;
+    : isDesignTask
+      ? Brush
+      : task.chat_session_id
+        ? MessageSquare
+        : task.autopilot_run_id
+          ? Workflow
+          : CircleHelp;
   const sourceLabel = hasIssue
     ? t(($) => $.tab_body.activity.source_issue)
-    : task.chat_session_id
-      ? t(($) => $.tab_body.activity.source_chat)
-      : task.autopilot_run_id
-        ? t(($) => $.tab_body.activity.source_autopilot)
-        : t(($) => $.tab_body.activity.source_untracked);
+    : isDesignTask
+      ? t(($) => $.tab_body.activity.source_design)
+      : task.chat_session_id
+        ? t(($) => $.tab_body.activity.source_chat)
+        : task.autopilot_run_id
+          ? t(($) => $.tab_body.activity.source_autopilot)
+          : t(($) => $.tab_body.activity.source_untracked);
 
   const timeText =
     timeMode === "active"
@@ -531,6 +542,22 @@ function TaskRow({
               <ArrowUpRight className="h-3.5 w-3.5" />
             </TooltipTrigger>
             <TooltipContent>{t(($) => $.tab_body.activity.open_issue_tooltip)}</TooltipContent>
+          </Tooltip>
+        )}
+        {isDesignTask && task.project_id && task.chat_session_id && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <AppLink
+                  href={paths.projectDesignSession(task.project_id, task.chat_session_id)}
+                />
+              }
+              aria-label={t(($) => $.tab_body.activity.open_design_aria)}
+              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>{t(($) => $.tab_body.activity.open_design_tooltip)}</TooltipContent>
           </Tooltip>
         )}
         {showTranscript && (

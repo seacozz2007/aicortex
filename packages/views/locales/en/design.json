@@ -26,41 +26,127 @@
 
     "back_to_project": "Back to project",
 
-    "new_design": "New design",
+    "brand_name": "Design Studio",
 
-    "no_design_system_hint": "Adding a design_system (DESIGN.md) in Project → Resources is recommended for best results.",
+    "hero_title": "What do you want to design?",
 
-    "add_design_system_link": "Go to project resources",
+    "hero_subtitle": "The open-source Claude Design alternative.",
 
-    "design_system": "Design system",
+    "composer_placeholder": "Edit the example query or write your own…",
 
-    "design_system_hint": "Pick a built-in preset here — no need to add it under Project → Resources first.",
+    "send": "Send",
 
-    "project_design_systems": "Or use one already on this project",
+    "more": "More",
+
+    "attachments_soon": "Attachments coming soon",
+
+    "design_system_auto": "Auto",
+
+    "design_system_auto_summary": "Match a suitable design system from your prompt automatically",
+
+    "design_system_search_placeholder": "Search design systems…",
+
+    "design_system_available_count": "{{n}} available",
+
+    "design_system_no_matches": "No matches",
+
+    "design_system_official_preset": "Official preset",
+
+    "design_system_project_resources": "Project resources",
+
+    "design_system_default_badge": "Default",
+
+    "design_system_hint": "Pick a built-in preset — no need to add it under Project → Resources first.",
 
     "select_design_system_optional": "Optional — use project resource…",
 
-    "select_design_system": "Select design system…",
+    "example_prompts": "Example prompts",
 
-    "skill": "Skill",
-
-    "select_skill": "Default skill…",
-
-    "templates": "Templates",
-
-    "design_agent": "Design agent: {{name}}",
-
-    "brief": "Brief",
-
-    "brief_placeholder": "Describe what you want to design…",
-
-    "start": "Start design",
+    "no_examples": "No examples in this category yet.",
 
     "default_title": "New design",
 
-    "sessions": "Sessions",
+    "continue_title": "Continued design",
 
-    "no_sessions": "No design sessions yet."
+    "continue_from_issue": "Continuing from issue artifact — new messages will reuse the same work directory.",
+
+    "parameters": "Skill parameters",
+
+    "sessions": "Recent sessions",
+
+    "no_sessions": "No design sessions yet.",
+
+    "chips": {
+
+      "prototype": "Prototype",
+
+      "deck": "Slide deck",
+
+      "hyperframes": "HyperFrames",
+
+      "live_artifact": "Live artifact",
+
+      "image": "Image",
+
+      "video": "Video",
+
+      "audio": "Audio",
+
+      "from_template": "From template",
+
+      "design_system_chip": "Design system"
+
+    },
+
+    "chip_hints": {
+
+      "hyperframes": "Author HTML-based motion: captions, audio-reactive visuals, scene transitions.",
+
+      "live_artifact": "Build a refreshable artifact backed by connector or local data."
+
+    },
+
+    "hyperframes_source_folder": "Assets folder",
+
+    "hyperframes_source_folder_clear": "Clear folder",
+
+    "hyperframes_aspect_ratio": "Aspect ratio",
+
+    "hyperframes_duration": "Duration",
+
+    "hyperframes_duration_seconds": "{{seconds}}s",
+
+    "clear_active_intent": "Clear type",
+
+    "subcategories": {
+
+      "all": "All",
+
+      "landing_marketing": "Landing / marketing",
+
+      "dashboards": "Dashboards",
+
+      "apps": "Apps",
+
+      "devtools": "Developer tools",
+
+      "docs_reports": "Docs / reports",
+
+      "brand_design": "Brand / design",
+
+      "pitch_business": "Pitch / business",
+
+      "course_training": "Course / training",
+
+      "reports_briefings": "Reports / briefings",
+
+      "product_sales": "Product / sales",
+
+      "engineering_talks": "Engineering talks",
+
+      "creative_decks": "Creative decks"
+
+    }
 
   },
 
@@ -72,7 +158,9 @@
 
     "template": "Template",
 
-    "design_system": "Design system"
+    "design_system": "Design system",
+
+    "hyperframes": "HyperFrames"
 
   },
 
@@ -81,16 +169,26 @@
     "back": "All sessions",
 
     "export": "Export",
+    "jury": "Design jury",
+    "jury_hint": "Queue a multi-round critique of the current artifact.",
 
     "studio_panel": "Studio",
 
     "sessions": "Sessions",
 
-    "comment_mode": "Comment",
+    "comment_mode": "Design",
 
     "comment_prefix": "Comment:",
 
-    "clear_comment": "Clear"
+    "queue_prefix": "Queue ({{count}}):",
+
+    "clear_comment": "Clear",
+
+    "queue_send_message": "Please apply the following preview comments to the design.",
+
+    "comment_preview_hint": "Comment mode is on. Use Studio → Preview on the right to click elements.",
+
+    "open_preview_panel": "Open preview panel"
 
   },
 
@@ -116,7 +214,86 @@
 
     "comment_placeholder": "What should change?",
 
-    "add_comment": "Add to composer"
+    "add_comment": "Add to composer",
+
+    "source_file": "HTML file",
+
+    "source_tunnel": "Dev server",
+
+    "select_html": "Preview file",
+
+    "select_port": "Preview port",
+
+    "loading_files": "Loading files…",
+
+    "no_html": "No HTML files in the work directory yet.",
+
+    "no_ports": "Add or select a port to preview.",
+
+    "open_external": "Open in new window",
+
+    "inspector": {
+      "size": "Size",
+      "color": "Color",
+      "bg": "Bg",
+      "font": "Font",
+      "line": "Line",
+      "comment_placeholder": "Comment on this element…",
+      "attach": "Attach",
+      "close": "Close",
+      "add_to_queue": "Add to queue",
+      "submit_comment": "Comment",
+      "edit_properties": "Edit properties"
+    },
+
+    "toolbar": {
+      "camera": "Screenshot",
+      "crop": "Select",
+      "pencil": "Pencil",
+      "pen": "Pen",
+      "comment": "Comment",
+      "zoom_in": "Zoom in",
+      "zoom_out": "Zoom out"
+    },
+
+    "property_editor": {
+      "size": "Size",
+      "box": "Box",
+      "width": "Width",
+      "height": "Height",
+      "fill": "Fill",
+      "opacity": "Opacity",
+      "padding": "Padding",
+      "margin": "Margin",
+      "typography": "Typography",
+      "font_weight": "Weight",
+      "text_align": "Align",
+      "radius": "Radius",
+      "cancel": "Cancel",
+      "save": "Save",
+      "delete": "Delete",
+      "close": "Close"
+    },
+
+    "queue": {
+      "title": "Queue ({{count}})",
+      "clear_all": "Clear all",
+      "remove": "Remove",
+      "send_to_chat": "Send to Chat",
+      "sending": "Sending…"
+    },
+
+    "hint": {
+      "no_targets": "This HTML has no annotatable elements (missing data-aicortex-id). Describe changes in Chat instead.",
+      "pick_target": "Click an element in the preview to inspect it and add a comment.",
+      "dismiss": "Got it"
+    },
+
+    "screenshot_copied": "Screenshot copied to clipboard",
+    "screenshot_failed": "Screenshot failed — open in a new window instead",
+    "draw_saved": "Annotation saved on preview",
+    "draw_mode_hint": "Pencil/pen: drag on the preview to draw — does not select elements",
+    "comment_added": "Comment added to composer"
 
   },
 
@@ -124,11 +301,23 @@
 
     "unavailable": "Studio tools unavailable for this session.",
 
-    "export_hint": "Download the primary HTML artifact or run export metadata.",
+    "export_hint": "Download packaged exports from the design session work directory.",
 
     "download_html": "Download HTML",
 
+    "download_zip": "Download ZIP",
+
+    "download_pdf": "Print-ready HTML",
+
+    "download_pptx": "Download PPTX",
+
+    "start_jury": "Run design jury",
+
+    "jury_pending": "Starting jury…",
+
     "tabs": {
+
+      "questions": "Questions",
 
       "preview": "Preview",
 

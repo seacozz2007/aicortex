@@ -26,41 +26,127 @@
 
     "back_to_project": "返回项目",
 
-    "new_design": "新建设计",
+    "brand_name": "设计工作室",
 
-    "no_design_system_hint": "建议先在项目 → 资源中添加 design_system（DESIGN.md），效果更好。",
+    "hero_title": "你想设计什么？",
 
-    "add_design_system_link": "前往项目资源",
+    "hero_subtitle": "开源 Claude Design 替代方案。",
 
-    "design_system": "设计系统",
+    "composer_placeholder": "编辑示例描述，或输入你自己的需求…",
 
-    "design_system_hint": "在此直接选择内置预设即可，无需先去项目 → 资源里添加。",
+    "send": "发送",
 
-    "project_design_systems": "或使用项目内已有设计系统",
+    "more": "更多",
+
+    "attachments_soon": "附件功能即将推出",
+
+    "design_system_auto": "自动",
+
+    "design_system_auto_summary": "根据当前 Prompt 自动匹配合适的设计体系",
+
+    "design_system_search_placeholder": "搜索设计体系…",
+
+    "design_system_available_count": "{{n}} 个可用",
+
+    "design_system_no_matches": "无匹配结果",
+
+    "design_system_official_preset": "官方预设",
+
+    "design_system_project_resources": "项目资源",
+
+    "design_system_default_badge": "默认",
+
+    "design_system_hint": "选择内置预设即可，无需先去项目 → 资源里添加。",
 
     "select_design_system_optional": "可选 — 使用项目资源…",
 
-    "select_design_system": "选择设计系统…",
+    "example_prompts": "示例提示词",
 
-    "skill": "Skill",
-
-    "select_skill": "默认 Skill…",
-
-    "templates": "模板",
-
-    "design_agent": "设计 Agent：{{name}}",
-
-    "brief": "需求简述",
-
-    "brief_placeholder": "描述你想设计的内容…",
-
-    "start": "开始设计",
+    "no_examples": "该分类下暂无示例。",
 
     "default_title": "新设计",
 
-    "sessions": "设计会话",
+    "continue_title": "续接设计",
 
-    "no_sessions": "暂无设计会话。"
+    "continue_from_issue": "正从 Issue 产物续接 — 后续消息将复用同一 work_dir。",
+
+    "parameters": "Skill 参数",
+
+    "sessions": "最近会话",
+
+    "no_sessions": "暂无设计会话。",
+
+    "chips": {
+
+      "prototype": "原型",
+
+      "deck": "演示文稿",
+
+      "hyperframes": "HyperFrames",
+
+      "live_artifact": "Live artifact",
+
+      "image": "图片",
+
+      "video": "视频",
+
+      "audio": "音频",
+
+      "from_template": "从模板",
+
+      "design_system_chip": "设计系统"
+
+    },
+
+    "chip_hints": {
+
+      "hyperframes": "创作 HTML 动效：字幕、音频响应视觉与场景转场。",
+
+      "live_artifact": "构建可刷新的实时数据看板或连接器驱动界面。"
+
+    },
+
+    "hyperframes_source_folder": "素材文件夹",
+
+    "hyperframes_source_folder_clear": "清除文件夹",
+
+    "hyperframes_aspect_ratio": "画幅比",
+
+    "hyperframes_duration": "时长",
+
+    "hyperframes_duration_seconds": "{{seconds}} 秒",
+
+    "clear_active_intent": "清除类型",
+
+    "subcategories": {
+
+      "all": "全部",
+
+      "landing_marketing": "落地页 / 营销",
+
+      "dashboards": "仪表盘",
+
+      "apps": "应用",
+
+      "devtools": "开发者工具",
+
+      "docs_reports": "文档 / 报告",
+
+      "brand_design": "品牌 / 设计",
+
+      "pitch_business": "融资 / 商业",
+
+      "course_training": "课程 / 培训",
+
+      "reports_briefings": "报告 / 简报",
+
+      "product_sales": "产品 / 销售",
+
+      "engineering_talks": "工程分享",
+
+      "creative_decks": "创意演示"
+
+    }
 
   },
 
@@ -72,7 +158,9 @@
 
     "template": "模板",
 
-    "design_system": "设计系统"
+    "design_system": "设计系统",
+
+    "hyperframes": "HyperFrames"
 
   },
 
@@ -86,11 +174,19 @@
 
     "sessions": "会话列表",
 
-    "comment_mode": "评论",
+    "comment_mode": "设计",
 
     "comment_prefix": "评论：",
 
-    "clear_comment": "清除"
+    "queue_prefix": "队列 {{count}} 条：",
+
+    "clear_comment": "清除",
+
+    "queue_send_message": "请根据以下预览评论修改设计。",
+
+    "comment_preview_hint": "评论模式已开启。请在右侧「工作室 → 预览」中点击元素。",
+
+    "open_preview_panel": "打开预览面板"
 
   },
 
@@ -116,7 +212,86 @@
 
     "comment_placeholder": "希望如何修改？",
 
-    "add_comment": "添加到输入框"
+    "add_comment": "添加到输入框",
+
+    "source_file": "HTML 文件",
+
+    "source_tunnel": "开发服务",
+
+    "select_html": "预览文件",
+
+    "select_port": "预览端口",
+
+    "loading_files": "加载文件列表…",
+
+    "no_html": "工作目录中还没有 HTML 文件。",
+
+    "no_ports": "添加或选择一个端口进行预览。",
+
+    "open_external": "在新窗口打开",
+
+    "inspector": {
+      "size": "Size",
+      "color": "Color",
+      "bg": "Bg",
+      "font": "Font",
+      "line": "Line",
+      "comment_placeholder": "评论此元素…",
+      "attach": "附件",
+      "close": "关闭",
+      "add_to_queue": "加入队列",
+      "submit_comment": "评论",
+      "edit_properties": "编辑属性"
+    },
+
+    "toolbar": {
+      "camera": "截图",
+      "crop": "选择",
+      "pencil": "铅笔",
+      "pen": "钢笔",
+      "comment": "评论",
+      "zoom_in": "放大",
+      "zoom_out": "缩小"
+    },
+
+    "property_editor": {
+      "size": "Size",
+      "box": "Box",
+      "width": "Width",
+      "height": "Height",
+      "fill": "Fill",
+      "opacity": "Opacity",
+      "padding": "Padding",
+      "margin": "Margin",
+      "typography": "Typography",
+      "font_weight": "Weight",
+      "text_align": "Align",
+      "radius": "Radius",
+      "cancel": "取消",
+      "save": "保存",
+      "delete": "删除",
+      "close": "关闭"
+    },
+
+    "queue": {
+      "title": "队列 {{count}} 条",
+      "clear_all": "清空",
+      "remove": "移除",
+      "send_to_chat": "发送到 Chat",
+      "sending": "发送中…"
+    },
+
+    "hint": {
+      "no_targets": "当前 HTML 没有可标注元素（缺少 data-aicortex-id）。可直接在 Chat 中描述修改。",
+      "pick_target": "点击预览中的元素，查看属性并添加评论。",
+      "dismiss": "知道了"
+    },
+
+    "screenshot_copied": "截图已复制到剪贴板",
+    "screenshot_failed": "截图失败，请在新窗口打开后手动截图",
+    "draw_saved": "标注已保存到预览",
+    "draw_mode_hint": "铅笔/钢笔：在预览上按住拖动绘制，不会选中元素",
+    "comment_added": "评论已添加到输入框"
 
   },
 
@@ -129,6 +304,8 @@
     "download_html": "下载 HTML",
 
     "tabs": {
+
+      "questions": "问题",
 
       "preview": "预览",
 

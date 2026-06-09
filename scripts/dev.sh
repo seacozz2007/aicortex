@@ -40,6 +40,11 @@ set -a
 . "$ENV_FILE"
 set +a
 
+export AICORTEX_DESIGN_RESOURCES="${AICORTEX_DESIGN_RESOURCES:-$REPO_ROOT/server/resources/design}"
+if [ -z "${OPEN_DESIGN_ROOT:-}" ] && [ -d "$(dirname "$REPO_ROOT")/open-design" ]; then
+  export OPEN_DESIGN_ROOT="$(dirname "$REPO_ROOT")/open-design"
+fi
+
 # ---------- Install dependencies ----------
 if [ ! -d node_modules ]; then
   echo "==> Installing dependencies..."

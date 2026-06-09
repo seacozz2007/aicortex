@@ -62,6 +62,12 @@
     "toast_move_issue_failed": "Failed to move issue",
     "design_studio_action": "Design Studio"
   },
+  "workdir": {
+    "section_header": "Agent workdir",
+    "pinned_label": "Pinned agent workdir",
+    "pinned_description": "Each agent reuses a fixed working directory in this project. Tasks auto-commit and push when done, and pull latest code before the next run. Enables multi-agent collaboration on the same codebase.",
+    "toast_update_failed": "Failed to update workdir setting"
+  },
   "resources": {
     "section_header": "Resources",
     "empty": "No resources attached.",
@@ -72,11 +78,6 @@
     "url_placeholder": "https://github.com/owner/repo or git@github.com:owner/repo.git",
     "url_submit": "Add",
     "local_path_placeholder": "/home/user/code/project",
-    "design_system_title": "Design system (DESIGN.md)",
-    "design_system_name_placeholder": "Name, e.g. linear-app",
-    "design_system_content_placeholder": "# DESIGN.md content…",
-    "design_system_submit": "Add design system",
-    "toast_design_system_added": "Design system added",
     "toast_attached": "Repository attached",
     "toast_attach_failed": "Failed to attach",
     "toast_removed": "Resource removed",

@@ -1423,6 +1423,44 @@ export class ApiClient {
     });
   }
 
+  designExportDownloadPath(
+    projectId: string,
+    sessionId: string,
+    format: string,
+    workspaceSlug?: string,
+  ): string {
+    const params = workspaceSlug
+      ? `?workspace_slug=${encodeURIComponent(workspaceSlug)}`
+      : "";
+    return `/api/projects/${projectId}/design/sessions/${sessionId}/export/${format}${params}`;
+  }
+
+  async startDesignJury(
+    projectId: string,
+    sessionId: string,
+    rounds?: number,
+  ): Promise<{ status: string; session_id: string; rounds: number; task_ids: string[] }> {
+    return this.fetch(`/api/projects/${projectId}/design/sessions/${sessionId}/jury`, {
+      method: "POST",
+      body: JSON.stringify({ rounds: rounds ?? 3 }),
+    });
+  }
+
+  async listDesignPlugins(): Promise<
+    import("../types/design").DesignPluginEntry[]
+  > {
+    return this.fetch("/api/design/plugins");
+  }
+
+  async writeTaskArtifact(taskId: string, relPath: string, content: string): Promise<{ path: string; size: number }> {
+    const trimmed = relPath.replace(/^\/+/, "");
+    return this.fetch(`/api/tasks/${taskId}/artifacts/raw/${trimmed}`, {
+      method: "PUT",
+      body: content,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
   async getDesignSettings(): Promise<{ default_design_agent_id?: string }> {
     return this.fetch("/api/design/settings");
   }
