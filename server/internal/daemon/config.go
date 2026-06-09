@@ -83,8 +83,9 @@ type Config struct {
 	CodexArgs                      []string
 	PinnedProjectWorkdir           bool // when true, tasks with a project_id reuse a fixed workdir per (project, agent)
 	CursorACPEnabled               bool          // when true, cursor chat tasks prefer agent acp with a connection pool
-	ChatACPIdleTimeout             time.Duration // evict idle pooled cursor chat connections after this long
-	ChatACPMaxConnections          int           // cap on concurrently pooled cursor chat connections
+	KiroACPEnabled                 bool          // when true, kiro chat tasks prefer kiro-cli acp with a connection pool
+	ChatACPIdleTimeout             time.Duration // evict idle pooled chat acp connections after this long
+	ChatACPMaxConnections          int           // cap on concurrently pooled chat acp connections
 }
 
 // Overrides allows CLI flags to override environment variables and defaults.
@@ -383,6 +384,10 @@ func LoadConfig(overrides Overrides) (Config, error) {
 	if v := strings.TrimSpace(os.Getenv("AICORTEX_CURSOR_ACP_ENABLED")); v == "false" || v == "0" {
 		cursorACPEnabled = false
 	}
+	kiroACPEnabled := true
+	if v := strings.TrimSpace(os.Getenv("AICORTEX_KIRO_ACP_ENABLED")); v == "false" || v == "0" {
+		kiroACPEnabled = false
+	}
 	chatACPIdleTimeout, err := durationFromEnv("AICORTEX_CHAT_ACP_IDLE_TIMEOUT", DefaultChatACPIdleTimeout)
 	if err != nil {
 		return Config{}, err
@@ -421,6 +426,7 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		ClaudeArgs:                     claudeArgs,
 		CodexArgs:                      codexArgs,
 		CursorACPEnabled:               cursorACPEnabled,
+		KiroACPEnabled:                 kiroACPEnabled,
 		ChatACPIdleTimeout:             chatACPIdleTimeout,
 		ChatACPMaxConnections:          chatACPMaxConnections,
 	}, nil

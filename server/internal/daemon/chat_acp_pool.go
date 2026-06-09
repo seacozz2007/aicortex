@@ -11,29 +11,31 @@ import (
 	"github.com/aicortex/aicortex/server/pkg/agent"
 )
 
-type cursorChatPool struct {
-	enabled     bool
-	idleTimeout time.Duration
-	maxEntries  int
-	logger      *slog.Logger
+type chatACPPool struct {
+	cursorEnabled bool
+	kiroEnabled   bool
+	idleTimeout   time.Duration
+	maxEntries    int
+	logger        *slog.Logger
 
 	mu      sync.Mutex
-	entries map[string]*cursorChatPoolEntry
+	entries map[string]*chatACPPoolEntry
 }
 
-type cursorChatPoolEntry struct {
-	key       string
-	chatID    string
-	agentID   string
-	workDir   string
-	model     string
-	agentCfg  agent.Config
-	conn      *agent.CursorACPConn
-	lastUsed  time.Time
-	turnMu    sync.Mutex
+type chatACPPoolEntry struct {
+	key      string
+	provider string
+	chatID   string
+	agentID  string
+	workDir  string
+	model    string
+	agentCfg agent.Config
+	conn     agent.ACPChatConn
+	lastUsed time.Time
+	turnMu   sync.Mutex
 }
 
-func newCursorChatPool(cfg Config, logger *slog.Logger) *cursorChatPool {
+func newChatACPPool(cfg Config, logger *slog.Logger) *chatACPPool {
 	maxEntries := cfg.ChatACPMaxConnections
 	if maxEntries <= 0 {
 		maxEntries = 50
@@ -42,33 +44,55 @@ func newCursorChatPool(cfg Config, logger *slog.Logger) *cursorChatPool {
 	if idle <= 0 {
 		idle = 5 * time.Minute
 	}
-	enabled := cfg.CursorACPEnabled
-	if enabled {
+
+	cursorEnabled := cfg.CursorACPEnabled
+	if cursorEnabled {
 		if entry, ok := cfg.Agents["cursor"]; ok {
-			enabled = agent.CursorACPSupported(entry.Path)
+			cursorEnabled = agent.CursorACPSupported(entry.Path)
 		} else {
-			enabled = false
+			cursorEnabled = false
 		}
 	}
-	return &cursorChatPool{
-		enabled:     enabled,
-		idleTimeout: idle,
-		maxEntries:  maxEntries,
-		logger:      logger,
-		entries:     make(map[string]*cursorChatPoolEntry),
+
+	kiroEnabled := cfg.KiroACPEnabled
+	if kiroEnabled {
+		if entry, ok := cfg.Agents["kiro"]; ok {
+			kiroEnabled = agent.KiroACPSupported(entry.Path)
+		} else {
+			kiroEnabled = false
+		}
+	}
+
+	return &chatACPPool{
+		cursorEnabled: cursorEnabled,
+		kiroEnabled:   kiroEnabled,
+		idleTimeout:   idle,
+		maxEntries:    maxEntries,
+		logger:        logger,
+		entries:       make(map[string]*chatACPPoolEntry),
 	}
 }
 
-func (d *Daemon) cursorChatPoolEnabled() bool {
-	return d != nil && d.cursorChatPool != nil && d.cursorChatPool.enabledForChat()
+func (d *Daemon) chatACPPoolEnabled(provider string) bool {
+	return d != nil && d.chatACPPool != nil && d.chatACPPool.enabledForProvider(provider)
 }
 
-func (p *cursorChatPool) enabledForChat() bool {
-	return p != nil && p.enabled
+func (p *chatACPPool) enabledForProvider(provider string) bool {
+	if p == nil {
+		return false
+	}
+	switch provider {
+	case "cursor":
+		return p.cursorEnabled
+	case "kiro":
+		return p.kiroEnabled
+	default:
+		return false
+	}
 }
 
-func cursorChatPoolKey(chatSessionID, agentID, workDir string) string {
-	return strings.Join([]string{chatSessionID, agentID, workDir}, "\x00")
+func chatACPPoolKey(provider, chatSessionID, agentID, workDir string) string {
+	return strings.Join([]string{provider, chatSessionID, agentID, workDir}, "\x00")
 }
 
 func agentIDFromTask(task Task) string {
@@ -78,22 +102,20 @@ func agentIDFromTask(task Task) string {
 	return ""
 }
 
-func (p *cursorChatPool) runTask(
+func (p *chatACPPool) runTask(
 	ctx context.Context,
 	d *Daemon,
+	provider string,
 	task Task,
 	prompt string,
 	opts agent.ExecOptions,
 	agentCfg agent.Config,
 	taskLog *slog.Logger,
 ) (agent.Result, int32, error) {
-	agentID := ""
-	if task.Agent != nil {
-		agentID = task.Agent.ID
-	}
-	key := cursorChatPoolKey(task.ChatSessionID, agentID, opts.Cwd)
+	agentID := agentIDFromTask(task)
+	key := chatACPPoolKey(provider, task.ChatSessionID, agentID, opts.Cwd)
 
-	entry := p.getOrCreateEntry(key, task.ChatSessionID, agentID, opts.Cwd, opts.Model, agentCfg)
+	entry := p.getOrCreateEntry(key, provider, task.ChatSessionID, agentID, opts.Cwd, opts.Model, agentCfg)
 	entry.turnMu.Lock()
 	defer entry.turnMu.Unlock()
 
@@ -102,22 +124,16 @@ func (p *cursorChatPool) runTask(
 			_ = entry.conn.Close()
 			entry.conn = nil
 		}
-		conn, err := agent.OpenCursorACPConn(ctx, agentCfg, agent.CursorACPConnOpts{
-			Cwd:             opts.Cwd,
-			Model:           opts.Model,
-			ResumeSessionID: opts.ResumeSessionID,
-			Timeout:         opts.Timeout,
-			CustomArgs:      opts.CustomArgs,
-		})
+		conn, err := p.openConn(ctx, provider, agentCfg, opts)
 		if err != nil {
 			p.removeEntry(key)
 			return agent.Result{}, 0, err
 		}
 		entry.conn = conn
 		entry.model = opts.Model
-		taskLog.Info("cursor chat acp pool miss", "chat_session", shortID(task.ChatSessionID))
+		taskLog.Info(provider+" chat acp pool miss", "chat_session", shortID(task.ChatSessionID))
 	} else {
-		taskLog.Info("cursor chat acp pool hit", "chat_session", shortID(task.ChatSessionID))
+		taskLog.Info(provider+" chat acp pool hit", "chat_session", shortID(task.ChatSessionID))
 	}
 
 	entry.lastUsed = time.Now()
@@ -125,7 +141,7 @@ func (p *cursorChatPool) runTask(
 	agentCtx, agentCancel := context.WithCancel(ctx)
 	defer agentCancel()
 
-	session, err := entry.conn.RunPrompt(agentCtx, prompt)
+	session, err := entry.conn.RunPrompt(agentCtx, prompt, opts.SystemPrompt)
 	if err != nil {
 		p.removeEntry(key)
 		return agent.Result{}, 0, err
@@ -142,7 +158,7 @@ func (p *cursorChatPool) runTask(
 	}
 
 	if result.Status == "failed" && opts.ResumeSessionID != "" && result.SessionID == "" {
-		taskLog.Warn("cursor chat acp resume failed, evicting pooled connection", "error", result.Error)
+		taskLog.Warn(provider+" chat acp resume failed, evicting pooled connection", "error", result.Error)
 		p.removeEntry(key)
 	}
 
@@ -150,7 +166,30 @@ func (p *cursorChatPool) runTask(
 	return result, tools, nil
 }
 
-func (p *cursorChatPool) getOrCreateEntry(key, chatID, agentID, workDir, model string, agentCfg agent.Config) *cursorChatPoolEntry {
+func (p *chatACPPool) openConn(ctx context.Context, provider string, agentCfg agent.Config, opts agent.ExecOptions) (agent.ACPChatConn, error) {
+	switch provider {
+	case "cursor":
+		return agent.OpenCursorACPConn(ctx, agentCfg, agent.CursorACPConnOpts{
+			Cwd:             opts.Cwd,
+			Model:           opts.Model,
+			ResumeSessionID: opts.ResumeSessionID,
+			Timeout:         opts.Timeout,
+			CustomArgs:      opts.CustomArgs,
+		})
+	case "kiro":
+		return agent.OpenKiroACPConn(ctx, agentCfg, agent.KiroACPConnOpts{
+			Cwd:             opts.Cwd,
+			Model:           opts.Model,
+			ResumeSessionID: opts.ResumeSessionID,
+			Timeout:         opts.Timeout,
+			CustomArgs:      opts.CustomArgs,
+		})
+	default:
+		return nil, fmt.Errorf("chat acp pool: unsupported provider %q", provider)
+	}
+}
+
+func (p *chatACPPool) getOrCreateEntry(key, provider, chatID, agentID, workDir, model string, agentCfg agent.Config) *chatACPPoolEntry {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -164,8 +203,9 @@ func (p *cursorChatPool) getOrCreateEntry(key, chatID, agentID, workDir, model s
 		p.evictOldestLocked()
 	}
 
-	e := &cursorChatPoolEntry{
+	e := &chatACPPoolEntry{
 		key:      key,
+		provider: provider,
 		chatID:   chatID,
 		agentID:  agentID,
 		workDir:  workDir,
@@ -177,7 +217,7 @@ func (p *cursorChatPool) getOrCreateEntry(key, chatID, agentID, workDir, model s
 	return e
 }
 
-func (p *cursorChatPool) removeEntry(key string) {
+func (p *chatACPPool) removeEntry(key string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if e, ok := p.entries[key]; ok {
@@ -188,7 +228,7 @@ func (p *cursorChatPool) removeEntry(key string) {
 	}
 }
 
-func (p *cursorChatPool) evictIdleLocked(now time.Time) {
+func (p *chatACPPool) evictIdleLocked(now time.Time) {
 	for key, e := range p.entries {
 		if now.Sub(e.lastUsed) <= p.idleTimeout {
 			continue
@@ -197,11 +237,11 @@ func (p *cursorChatPool) evictIdleLocked(now time.Time) {
 			_ = e.conn.Close()
 		}
 		delete(p.entries, key)
-		p.logger.Info("cursor chat acp pool evicted idle connection", "chat_session", shortID(e.chatID))
+		p.logger.Info("chat acp pool evicted idle connection", "provider", e.provider, "chat_session", shortID(e.chatID))
 	}
 }
 
-func (p *cursorChatPool) evictOldestLocked() {
+func (p *chatACPPool) evictOldestLocked() {
 	var oldestKey string
 	var oldestTime time.Time
 	first := true
@@ -220,11 +260,11 @@ func (p *cursorChatPool) evictOldestLocked() {
 			_ = e.conn.Close()
 		}
 		delete(p.entries, oldestKey)
-		p.logger.Info("cursor chat acp pool evicted oldest connection", "chat_session", shortID(e.chatID))
+		p.logger.Info("chat acp pool evicted oldest connection", "provider", e.provider, "chat_session", shortID(e.chatID))
 	}
 }
 
-func (p *cursorChatPool) evictChatSession(chatSessionID string) {
+func (p *chatACPPool) evictChatSession(chatSessionID string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for key, e := range p.entries {
@@ -238,7 +278,7 @@ func (p *cursorChatPool) evictChatSession(chatSessionID string) {
 	}
 }
 
-func (p *cursorChatPool) closeAll() {
+func (p *chatACPPool) closeAll() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for key, e := range p.entries {
@@ -247,19 +287,4 @@ func (p *cursorChatPool) closeAll() {
 		}
 		delete(p.entries, key)
 	}
-}
-
-func (p *cursorChatPool) runTaskSafe(
-	ctx context.Context,
-	d *Daemon,
-	task Task,
-	prompt string,
-	opts agent.ExecOptions,
-	agentCfg agent.Config,
-	taskLog *slog.Logger,
-) (agent.Result, int32, error) {
-	if !p.enabledForChat() {
-		return agent.Result{}, 0, fmt.Errorf("cursor chat acp pool disabled")
-	}
-	return p.runTask(ctx, d, task, prompt, opts, agentCfg, taskLog)
 }

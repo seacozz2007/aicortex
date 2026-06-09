@@ -150,7 +150,7 @@ type Daemon struct {
 	terminalMgr     *TerminalManager // manages PTY sessions for remote terminal access
 	tunnelProxy     *daemontunnel.Proxy
 	artifactBrowser *daemonartifact.Browser
-	cursorChatPool  *cursorChatPool
+	chatACPPool     *chatACPPool
 }
 
 // New creates a new Daemon instance.
@@ -181,7 +181,7 @@ func New(cfg Config, logger *slog.Logger) *Daemon {
 	d.terminalMgr = NewTerminalManager(logger)
 	d.tunnelProxy = daemontunnel.NewProxy(logger)
 	d.artifactBrowser = daemonartifact.NewBrowser(logger)
-	d.cursorChatPool = newCursorChatPool(cfg, logger)
+	d.chatACPPool = newChatACPPool(cfg, logger)
 	return d
 }
 
@@ -2515,12 +2515,12 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	var result agent.Result
 	var tools int32
 	usedChatPool := false
-	if task.ChatSessionID != "" && provider == "cursor" && d.cursorChatPoolEnabled() {
-		result, tools, err = d.cursorChatPool.runTask(ctx, d, task, prompt, execOpts, agentCfg, taskLog)
+	if task.ChatSessionID != "" && d.chatACPPoolEnabled(provider) {
+		result, tools, err = d.chatACPPool.runTask(ctx, d, provider, task, prompt, execOpts, agentCfg, taskLog)
 		if err == nil {
 			usedChatPool = true
 		} else {
-			taskLog.Warn("cursor chat acp pool failed, falling back to stream-json", "error", err)
+			taskLog.Warn(provider+" chat acp pool failed, falling back to one-shot backend", "error", err)
 		}
 	}
 	if !usedChatPool {
@@ -2536,17 +2536,17 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	if result.Status == "failed" && task.PriorSessionID != "" && result.SessionID == "" {
 		firstUsage := result.Usage
 		taskLog.Warn("session resume failed, retrying with fresh session", "error", result.Error)
-		if task.ChatSessionID != "" && provider == "cursor" && d.cursorChatPool != nil {
-			d.cursorChatPool.removeEntry(cursorChatPoolKey(task.ChatSessionID, agentIDFromTask(task), execOpts.Cwd))
+		if task.ChatSessionID != "" && d.chatACPPool != nil {
+			d.chatACPPool.removeEntry(chatACPPoolKey(provider, task.ChatSessionID, agentIDFromTask(task), execOpts.Cwd))
 		}
 		execOpts.ResumeSessionID = ""
 		var retryResult agent.Result
 		var retryTools int32
 		var retryErr error
-		if task.ChatSessionID != "" && provider == "cursor" && d.cursorChatPoolEnabled() {
-			retryResult, retryTools, retryErr = d.cursorChatPool.runTask(ctx, d, task, prompt, execOpts, agentCfg, taskLog)
+		if task.ChatSessionID != "" && d.chatACPPoolEnabled(provider) {
+			retryResult, retryTools, retryErr = d.chatACPPool.runTask(ctx, d, provider, task, prompt, execOpts, agentCfg, taskLog)
 		}
-		if retryErr != nil || task.ChatSessionID == "" || provider != "cursor" || !d.cursorChatPoolEnabled() {
+		if retryErr != nil || task.ChatSessionID == "" || !d.chatACPPoolEnabled(provider) {
 			retryResult, retryTools, retryErr = d.executeAndDrain(ctx, backend, prompt, execOpts, taskLog, task.ID)
 		}
 		if retryErr != nil {
