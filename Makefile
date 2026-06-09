@@ -8,6 +8,12 @@ ifneq ($(wildcard $(ENV_FILE)),)
 include $(ENV_FILE)
 endif
 
+# Same version string as `aicortex version` / daemon (`git describe --tags`).
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+# Local selfhost-build image tag (aicortex-backend:$TAG). Override in ENV_FILE if needed.
+AICORTEX_BUILD_TAG ?= $(VERSION)
+
 POSTGRES_DB ?= aicortex
 POSTGRES_USER ?= aicortex
 POSTGRES_PASSWORD ?= aicortex
@@ -27,6 +33,25 @@ export
 AICORTEX_ARGS ?= $(ARGS)
 
 COMPOSE := docker compose
+
+# Self-host compose honors ENV_FILE (default .env). Example:
+#   make selfhost-build ENV_FILE=.env-pdc
+SELFHOST_COMPOSE = $(COMPOSE) --env-file "$(ENV_FILE)" -f docker-compose.selfhost.yml
+SELFHOST_COMPOSE_BUILD = $(SELFHOST_COMPOSE) -f docker-compose.selfhost.build.yml
+
+define ENSURE_SELFHOST_ENV
+	@if [ ! -f "$(ENV_FILE)" ]; then \
+		echo "==> Creating $(ENV_FILE) from .env.example..."; \
+		cp .env.example "$(ENV_FILE)"; \
+		JWT=$$(openssl rand -hex 32); \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" "$(ENV_FILE)"; \
+		else \
+			sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" "$(ENV_FILE)"; \
+		fi; \
+		echo "==> Generated random JWT_SECRET in $(ENV_FILE)"; \
+	fi
+endef
 
 define REQUIRE_ENV
 	@if [ ! -f "$(ENV_FILE)" ]; then \
@@ -52,28 +77,19 @@ makehelp: help ## Alias for `make help`
 # ---------- Self-hosting (Docker Compose) ----------
 ##@ Self-hosting
 
-selfhost: ## Create .env if needed, then pull and start the official self-hosted images
-	@if [ ! -f .env ]; then \
-		echo "==> Creating .env from .env.example..."; \
-		cp .env.example .env; \
-		JWT=$$(openssl rand -hex 32); \
-		if [ "$$(uname)" = "Darwin" ]; then \
-			sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
-		else \
-			sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
-		fi; \
-		echo "==> Generated random JWT_SECRET"; \
-	fi
+selfhost: ## Create env file if needed, then pull and start official self-hosted images (ENV_FILE=.env-pdc)
+	$(ENSURE_SELFHOST_ENV)
+	@echo "==> Using env file: $(ENV_FILE)"
 	@echo "==> Pulling official AICortex images..."
-	@if ! docker compose -f docker-compose.selfhost.yml pull; then \
+	@if ! $(SELFHOST_COMPOSE) pull; then \
 		echo ""; \
 		echo "Official images for tag '$${AICORTEX_IMAGE_TAG:-latest}' are not published yet."; \
 		echo "If this is before the first GHCR release, build from the current checkout:"; \
-		echo "  make selfhost-build"; \
+		echo "  make selfhost-build ENV_FILE=$(ENV_FILE)"; \
 		exit 1; \
 	fi
 	@echo "==> Starting AICortex via Docker Compose..."
-	docker compose -f docker-compose.selfhost.yml up -d
+	$(SELFHOST_COMPOSE) up -d
 	@echo "==> Waiting for backend to be ready..."
 	@for i in $$(seq 1 30); do \
 		if curl -sf http://localhost:$${PORT:-8080}/health > /dev/null 2>&1; then \
@@ -90,7 +106,7 @@ selfhost: ## Create .env if needed, then pull and start the official self-hosted
 		echo "Images: $${AICORTEX_BACKEND_IMAGE:-ghcr.io/aicortex/aicortex-backend}:$${AICORTEX_IMAGE_TAG:-latest}"; \
 		echo "        $${AICORTEX_WEB_IMAGE:-ghcr.io/aicortex/aicortex-web}:$${AICORTEX_IMAGE_TAG:-latest}"; \
 		echo ""; \
-		echo "Log in: configure RESEND_API_KEY in .env for email codes,"; \
+		echo "Log in: configure RESEND_API_KEY in $(ENV_FILE) for email codes,"; \
 		echo "        or read the generated code from backend logs when Resend is unset."; \
 		echo ""; \
 		echo "Next — install the CLI and connect your machine:"; \
@@ -99,23 +115,14 @@ selfhost: ## Create .env if needed, then pull and start the official self-hosted
 	else \
 		echo ""; \
 		echo "Services are still starting. Check logs:"; \
-		echo "  docker compose -f docker-compose.selfhost.yml logs"; \
+		echo "  $(SELFHOST_COMPOSE) logs"; \
 	fi
 
-selfhost-build: ## Build backend/web from the current checkout and start the self-hosted stack
-	@if [ ! -f .env ]; then \
-		echo "==> Creating .env from .env.example..."; \
-		cp .env.example .env; \
-		JWT=$$(openssl rand -hex 32); \
-		if [ "$$(uname)" = "Darwin" ]; then \
-			sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
-		else \
-			sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
-		fi; \
-		echo "==> Generated random JWT_SECRET"; \
-	fi
-	@echo "==> Building AICortex from the current checkout..."
-	docker compose -f docker-compose.selfhost.yml -f docker-compose.selfhost.build.yml up -d --build
+selfhost-build: ## Build backend/web from checkout and start self-hosted stack (ENV_FILE=.env-pdc)
+	$(ENSURE_SELFHOST_ENV)
+	@echo "==> Using env file: $(ENV_FILE)"
+	@echo "==> Building AICortex from the current checkout (tag: $(AICORTEX_BUILD_TAG))..."
+	$(SELFHOST_COMPOSE_BUILD) up -d --build
 	@echo "==> Waiting for backend to be ready..."
 	@for i in $$(seq 1 30); do \
 		if curl -sf http://localhost:$${PORT:-8080}/health > /dev/null 2>&1; then \
@@ -129,11 +136,11 @@ selfhost-build: ## Build backend/web from the current checkout and start the sel
 		echo "  Frontend: http://localhost:$${FRONTEND_PORT:-3000}"; \
 		echo "  Backend:  http://localhost:$${PORT:-8080}"; \
 		echo ""; \
-		echo "Log in: configure RESEND_API_KEY in .env for email codes,"; \
+		echo "Log in: configure RESEND_API_KEY in $(ENV_FILE) for email codes,"; \
 		echo "        or read the generated code from backend logs when Resend is unset."; \
 		echo ""; \
 		echo "Built images locally via docker-compose.selfhost.build.yml."; \
-		echo "Local tags: aicortex-backend:dev and aicortex-web:dev."; \
+		echo "Local tags: aicortex-backend:$(AICORTEX_BUILD_TAG) and aicortex-web:$(AICORTEX_BUILD_TAG)."; \
 		echo ""; \
 		echo "Next — install the CLI and connect your machine:"; \
 		echo "  brew install aicortex/tap/aicortex"; \
@@ -141,12 +148,12 @@ selfhost-build: ## Build backend/web from the current checkout and start the sel
 	else \
 		echo ""; \
 		echo "Services are still starting. Check logs:"; \
-		echo "  docker compose -f docker-compose.selfhost.yml logs"; \
+		echo "  $(SELFHOST_COMPOSE_BUILD) logs"; \
 	fi
 
-selfhost-stop: ## Stop the self-hosted Docker Compose stack
-	@echo "==> Stopping AICortex services..."
-	docker compose -f docker-compose.selfhost.yml down
+selfhost-stop: ## Stop the self-hosted Docker Compose stack (ENV_FILE=.env-pdc)
+	@echo "==> Stopping AICortex services (env: $(ENV_FILE))..."
+	$(SELFHOST_COMPOSE) down
 	@echo "✓ All services stopped."
 
 # ---------- One-click commands ----------
@@ -282,8 +289,6 @@ cli: ## Run the aicortex CLI with ARGS or AICORTEX_ARGS from source
 aicortex: ## Run the aicortex CLI entrypoint directly from the Go source tree
 	cd server && go run -ldflags "-X main.version=$(VERSION)" ./cmd/aicortex $(AICORTEX_ARGS)
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 # GOEXE is ".exe" on Windows and empty on Linux/macOS (same pattern as release-cli).
