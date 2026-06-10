@@ -38,11 +38,7 @@ import { api } from "@aicortex/core/api";
 import { createLogger } from "@aicortex/core/logger";
 
 const apiLogger = createLogger("chat.api");
-import {
-  useArtifactBrowseFeature,
-  useRuntimeTunnelFeature,
-} from "@aicortex/core/config/features";
-import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
+import { useArtifactBrowseFeature } from "@aicortex/core/config/features";
 import { getCurrentSlug } from "@aicortex/core/platform";
 import { canAssignAgent } from "@aicortex/views/issues/components";
 import type { Agent, ChatSession, ChatMessage, ChatPendingTask } from "@aicortex/core/types";
@@ -279,12 +275,7 @@ export function ChatPage() {
   const hasMessages = messages.length > 0 || !!pendingTaskId;
   const [sessionListOpen, setSessionListOpen] = useState(true);
   const artifactBrowseEnabled = useArtifactBrowseFeature();
-  const runtimeTunnelEnabled = useRuntimeTunnelFeature();
-  const exploreEnabled = useWorkspaceExploreEnabled();
-  const canUseTools =
-    artifactBrowseEnabled ||
-    runtimeTunnelEnabled ||
-    (exploreEnabled && !!currentSession?.runtime_id);
+  const canUseTools = artifactBrowseEnabled;
   const [toolsSidebarOpen, setToolsSidebarOpen] = useState(readToolsSidebarOpen);
   const { defaultLayout: toolsLayout, onLayoutChanged: onToolsLayoutChanged } = useDefaultLayout({
     id: "aicortex_chat_tools_layout",
