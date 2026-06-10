@@ -12,3 +12,8 @@ export function isHtmlArtifact(path: string): boolean {
   const lower = path.toLowerCase();
   return lower.endsWith(".html") || lower.endsWith(".htm");
 }
+
+export function isMarkdownArtifact(path: string): boolean {
+  const lower = path.toLowerCase();
+  return lower.endsWith(".md") || lower.endsWith(".mdx");
+}

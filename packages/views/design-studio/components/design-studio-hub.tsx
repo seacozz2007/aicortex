@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AppWindow,
@@ -29,11 +29,9 @@ import {
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useWorkspacePaths } from "@aicortex/core/paths";
 import { projectDetailOptions } from "@aicortex/core/projects/queries";
-import { agentListOptions } from "@aicortex/core/workspace/queries";
 import {
   designSessionsOptions,
   designSystemResourcesOptions,
-  designSettingsOptions,
   designKeys,
 } from "@aicortex/core/design/queries";
 import {
@@ -59,8 +57,7 @@ import {
 } from "@aicortex/core/design";
 import { api } from "@aicortex/core/api";
 import { useCreateDesignSession } from "@aicortex/core/design/mutations";
-import { skillDetailOptions } from "@aicortex/core/workspace/queries";
-import type { DesignParameterDef, DesignSystemResourceRef, ProjectResource } from "@aicortex/core/types";
+import type { DesignSystemResourceRef, ProjectResource } from "@aicortex/core/types";
 import { Button } from "@aicortex/ui/components/ui/button";
 import {
   Popover,
@@ -130,8 +127,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
   const { data: designSystems = [] as ProjectResource[] } = useQuery(
     designSystemResourcesOptions(wsId, projectId),
   );
-  const { data: designSettings } = useQuery(designSettingsOptions(wsId));
-  const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const createSession = useCreateDesignSession(wsId, projectId);
 
   const [activeIntent, setActiveIntent] = useState<DesignIntentId | null>("prototype");
@@ -139,13 +134,10 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
   const [selectedExampleId, setSelectedExampleId] = useState("");
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [designSystemId, setDesignSystemId] = useState("");
-  const [designSkillId, setDesignSkillId] = useState("");
   const [brief, setBrief] = useState("");
   const [creating, setCreating] = useState(false);
   const [designSystemOpen, setDesignSystemOpen] = useState(false);
-  const [skillOpen, setSkillOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [parameterValues, setParameterValues] = useState<Record<string, number>>({});
   const [hyperframesAspectRatio, setHyperframesAspectRatio] =
     useState<HyperframesAspectRatio>("16:9");
   const [hyperframesDuration, setHyperframesDuration] = useState<HyperframesDurationSec>(10);
@@ -155,30 +147,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
 
   const isHyperframes = activeIntent === "hyperframes";
 
-  const { data: selectedSkillDetail } = useQuery({
-    ...skillDetailOptions(wsId, designSkillId),
-    enabled: !!designSkillId,
-  });
-
-  const skillParameters = useMemo((): DesignParameterDef[] => {
-    const od = selectedSkillDetail?.config?.od as { parameters?: DesignParameterDef[] } | undefined;
-    return od?.parameters ?? [];
-  }, [selectedSkillDetail?.config]);
-
-  useEffect(() => {
-    if (skillParameters.length === 0) {
-      setParameterValues({});
-      return;
-    }
-    const defaults: Record<string, number> = {};
-    for (const param of skillParameters) {
-      defaults[param.id] = param.default;
-    }
-    setParameterValues(defaults);
-  }, [designSkillId, skillParameters]);
-
-  const designAgent = agents.find((a) => a.id === designSettings?.default_design_agent_id);
-  const designSkills = designAgent?.skills ?? [];
   const activeChip = activeIntent ? intentChip(activeIntent) : undefined;
   const subcategories = activeIntent ? subcategoriesForIntent(activeIntent) : [];
   const visibleExamples = useMemo(
@@ -188,7 +156,7 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
 
   const selectedPreset = findDesignSystemCatalogEntry(selectedPresetId);
   const selectedProjectDesignSystem = designSystems.find((ds) => ds.id === designSystemId);
-  const selectedSkill = designSkills.find((skill) => skill.id === designSkillId);
+  const selectedExample = selectedExampleId ? findDesignExample(selectedExampleId) : undefined;
   const canSubmit = Boolean(brief.trim() || selectedExampleId);
 
   const designSystemButtonLabel = useMemo(() => {
@@ -238,7 +206,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
     setCreating(true);
     try {
       const trimmedBrief = brief.trim();
-      const selectedExample = findDesignExample(selectedExampleId);
       const designSystemResourceId = isHyperframes
         ? undefined
         : await resolveDesignSystemResourceId();
@@ -252,7 +219,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
         : "";
       const session = await createSession.mutateAsync({
         design_mode: designMode,
-        design_skill_id: designSkillId || undefined,
         design_example_id: selectedExampleId || undefined,
         design_system_resource_id: designSystemResourceId,
         artifact_entry:
@@ -265,14 +231,8 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
           (selectedExample ? designExampleTitle(selectedExample, i18n.language) : undefined) ||
           (continueTaskId ? t(($) => $.hub.continue_title) : t(($) => $.hub.default_title)),
       });
-      const paramLines =
-        skillParameters.length > 0
-          ? skillParameters
-              .map((p) => `${p.label}: ${parameterValues[p.id] ?? p.default}`)
-              .join("\n")
-          : "";
       const message =
-        [hyperframesPrefix, trimmedBrief || (selectedExample ? designExampleBrief(selectedExample, i18n.language) : ""), paramLines]
+        [hyperframesPrefix, trimmedBrief || (selectedExample ? designExampleBrief(selectedExample, i18n.language) : "")]
           .filter(Boolean)
           .join("\n\n") || undefined;
       if (message) {
@@ -330,6 +290,10 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
     setSelectedExampleId(example.id);
     setBrief(designExampleBrief(example, i18n.language));
     requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function clearSelectedExample() {
+    setSelectedExampleId("");
   }
 
   function onPromptKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -439,6 +403,22 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
                 <IntentIcon className="size-3.5" />
                 {t(($) => $.hub.chips[chipLocaleKey(activeIntent) as keyof typeof $.hub.chips])}
                 <X className="size-3 opacity-70" />
+              </button>
+            )}
+
+            {selectedExample && (
+              <button
+                type="button"
+                onClick={clearSelectedExample}
+                className="inline-flex max-w-[200px] items-center gap-1.5 rounded-full border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/15"
+                title={t(($) => $.hub.clear_active_example)}
+                aria-label={t(($) => $.hub.clear_active_example)}
+              >
+                <LayoutTemplate className="size-3.5 shrink-0" />
+                <span className="truncate">
+                  {designExampleTitle(selectedExample, i18n.language)}
+                </span>
+                <X className="size-3 shrink-0 opacity-70" />
               </button>
             )}
 
@@ -577,56 +557,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
             />
             )}
 
-            {designAgent && (
-              <Popover open={skillOpen} onOpenChange={setSkillOpen}>
-                <PopoverTrigger
-                  render={
-                    <button
-                      type="button"
-                      className="inline-flex max-w-[180px] items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
-                    >
-                      <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">
-                        {selectedSkill?.name ?? designAgent.name}
-                      </span>
-                      <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-                    </button>
-                  }
-                />
-                <PopoverContent align="start" className="w-52 p-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDesignSkillId("");
-                      setSkillOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent",
-                      !designSkillId && "bg-accent",
-                    )}
-                  >
-                    {designAgent.name}
-                  </button>
-                  {designSkills.map((skill) => (
-                    <button
-                      key={skill.id}
-                      type="button"
-                      onClick={() => {
-                        setDesignSkillId(skill.id);
-                        setSkillOpen(false);
-                      }}
-                      className={cn(
-                        "flex w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent",
-                        designSkillId === skill.id && "bg-accent",
-                      )}
-                    >
-                      {skill.name}
-                    </button>
-                  ))}
-                </PopoverContent>
-              </Popover>
-            )}
-
             <div className="ml-auto">
               <Button
                 type="button"
@@ -641,36 +571,6 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
             </div>
           </div>
         </div>
-
-        {skillParameters.length > 0 && (
-          <div className="mx-auto mt-4 w-full max-w-[720px] space-y-2 rounded-xl border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground">{t(($) => $.hub.parameters)}</p>
-            {skillParameters.map((param) => (
-              <label key={param.id} className="block space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span>{param.label}</span>
-                  <span className="font-mono text-muted-foreground">
-                    {parameterValues[param.id] ?? param.default}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={param.min}
-                  max={param.max}
-                  step={param.step ?? 1}
-                  value={parameterValues[param.id] ?? param.default}
-                  onChange={(e) =>
-                    setParameterValues((prev) => ({
-                      ...prev,
-                      [param.id]: Number(e.target.value),
-                    }))
-                  }
-                  className="w-full"
-                />
-              </label>
-            ))}
-          </div>
-        )}
 
         {!activeIntent && (
         <div className="mx-auto mt-3 flex w-full max-w-[720px] flex-col items-center gap-2">

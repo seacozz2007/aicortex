@@ -51,6 +51,8 @@ import {
 import { useChatStore } from "@aicortex/core/chat";
 import { useEnsureChatSession } from "@aicortex/core/chat/ensure-session";
 import { sendChatMessageWithRecovery } from "@aicortex/core/chat/send-message";
+import { shouldEnqueueOutbound, type OutboundQueuedMessage } from "@aicortex/core/chat/outbound-queue";
+import { useFlushOutboundQueue } from "@aicortex/core/chat/use-flush-outbound-queue";
 import { useStaleChatSessionGuard } from "@aicortex/core/chat/stale-session-guard";
 import { ChatMessageList, ChatMessageSkeleton } from "./chat-message-list";
 import { ChatInput } from "./chat-input";
@@ -242,6 +244,48 @@ export function ChatWindow() {
     [ensureSession, uploadWithToast, qc, setActiveSession],
   );
 
+  const performSend = useCallback(
+    async (sessionId: string, finalContent: string, attachmentIds?: string[]) => {
+      if (!activeAgent) return;
+
+      const sentAt = new Date().toISOString();
+      const optimistic: ChatMessage = {
+        id: `optimistic-${Date.now()}`,
+        chat_session_id: sessionId,
+        role: "user",
+        content: finalContent,
+        task_id: null,
+        created_at: sentAt,
+      };
+      qc.setQueryData<ChatMessage[]>(
+        chatKeys.messages(sessionId),
+        (old) => (old ? [...old, optimistic] : [optimistic]),
+      );
+      qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
+        task_id: `optimistic-${optimistic.id}`,
+        status: "queued",
+        created_at: sentAt,
+      });
+      setActiveSession(sessionId);
+
+      const result = await sendChatMessageWithRecovery(
+        qc,
+        wsId,
+        { sessionId, content: finalContent, attachmentIds, optimistic },
+        ensureSession,
+        activeAgent,
+        setActiveSession,
+      );
+      if (result) {
+        apiLogger.info("sendChatMessage.success", {
+          messageId: result.message_id,
+          taskId: result.task_id,
+        });
+      }
+    },
+    [activeAgent, ensureSession, qc, setActiveSession, wsId],
+  );
+
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
       try {
@@ -255,11 +299,9 @@ export function ChatWindow() {
           ? `${buildAnchorMarkdown(anchorCandidate)}\n\n${content}`
           : content;
 
-        const isNewSession = !activeSessionId;
-
         apiLogger.info("sendChatMessage.start", {
           sessionId: activeSessionId,
-          isNewSession,
+          isNewSession: !activeSessionId,
           agentId: activeAgent.id,
           contentLength: finalContent.length,
           hasAnchor: focusOn && !!anchorCandidate,
@@ -272,59 +314,23 @@ export function ChatWindow() {
           return;
         }
 
-        // Optimistic burst — everything that gives the user "I sent a message
-        // and the agent is now working" feedback fires BEFORE the HTTP roundtrip.
-        // Pre-#status-pill the pending-task seed lived after `await
-        // sendChatMessage` and the pill blinked in a few hundred ms after the
-        // user's message — small but visible "did it actually send?" gap.
-        const sentAt = new Date().toISOString();
-        const optimistic: ChatMessage = {
-          id: `optimistic-${Date.now()}`,
-          chat_session_id: sessionId,
-          role: "user",
-          content: finalContent,
-          task_id: null,
-          created_at: sentAt,
-        };
-        // Seed cache BEFORE flipping activeSessionId. If we set the active
-        // session first, useQuery's first subscription to the new key sees no
-        // cached data and renders ChatMessageSkeleton for one frame — the
-        // "new-chat first-message" white flash. Priming the cache first means
-        // the very first read after activeSessionId flips hits data
-        // synchronously and ChatMessageList mounts directly.
-        qc.setQueryData<ChatMessage[]>(
-          chatKeys.messages(sessionId),
-          (old) => (old ? [...old, optimistic] : [optimistic]),
+        const existingPending = qc.getQueryData<ChatPendingTask>(
+          chatKeys.pendingTask(sessionId),
         );
-        // Seed the pending-task with a temporary id so the StatusPill mounts
-        // and starts ticking the instant the user clicks send. Real task_id
-        // and server-authoritative created_at land below; until then the pill
-        // is anchored to the local clock (drift is the request RTT, ~50–200ms,
-        // which doesn't change the rendered "Ns" value).
-        qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
-          task_id: `optimistic-${optimistic.id}`,
-          status: "queued",
-          created_at: sentAt,
-        });
-        // Cache primed → safe to publish the new active session. Idempotent
-        // when the session was already active (existing-conversation send).
-        setActiveSession(sessionId);
-        apiLogger.debug("sendChatMessage.optimistic", { sessionId, optimisticId: optimistic.id });
-
-        const result = await sendChatMessageWithRecovery(
-          qc,
-          wsId,
-          { sessionId, content: finalContent, attachmentIds, optimistic },
-          ensureSession,
-          activeAgent,
-          setActiveSession,
-        );
-        if (result) {
-          apiLogger.info("sendChatMessage.success", {
-            messageId: result.message_id,
-            taskId: result.task_id,
+        const localQueue = useChatStore.getState().outboundQueues[sessionId] ?? [];
+        if (shouldEnqueueOutbound(existingPending, localQueue.length)) {
+          useChatStore.getState().enqueueOutbound(sessionId, {
+            id: crypto.randomUUID(),
+            content: finalContent,
+            attachmentIds,
           });
+          setActiveSession(sessionId);
+          apiLogger.debug("sendChatMessage.enqueued", { sessionId });
+          return;
         }
+
+        apiLogger.debug("sendChatMessage.optimistic", { sessionId });
+        await performSend(sessionId, finalContent, attachmentIds);
       } catch (err) {
         apiLogger.error("handleSend.failed", err);
       }
@@ -334,11 +340,23 @@ export function ChatWindow() {
       activeAgent,
       anchorCandidate,
       ensureSession,
+      performSend,
       qc,
       setActiveSession,
-      wsId,
     ],
   );
+
+  useFlushOutboundQueue({
+    sessionId: activeSessionId,
+    pendingTask,
+    flushItem: useCallback(
+      async (item: OutboundQueuedMessage) => {
+        if (!activeSessionId) return;
+        await performSend(activeSessionId, item.content, item.attachmentIds);
+      },
+      [activeSessionId, performSend],
+    ),
+  });
 
   const handleStop = useCallback(() => {
     if (!pendingTaskId || !activeSessionId) {

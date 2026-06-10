@@ -2,8 +2,15 @@
 
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useCurrentWorkspace } from "../paths";
 import { useWorkspaceId } from "../hooks";
 import { memberListOptions, agentListOptions, squadListOptions } from "./queries";
+import { isWorkspaceExploreEnabled } from "./settings";
+
+export function useWorkspaceExploreEnabled(): boolean {
+  const workspace = useCurrentWorkspace();
+  return isWorkspaceExploreEnabled(workspace?.settings);
+}
 
 export function useActorName() {
   const wsId = useWorkspaceId();

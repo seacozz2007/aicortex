@@ -7,18 +7,20 @@ import { useT } from "../../i18n";
 import { buildArtifactRawURL } from "../../chat/components/chat-artifact-url";
 import { applyPropertyDraft } from "../lib/apply-element-styles";
 import { extractSelectedElement, isPreviewTarget } from "../lib/extract-element-style";
+import { injectSnapshotBridge } from "../lib/preview-screenshot";
 import {
   formatPropertyPatch,
   propertyDraftFromElement,
   type ElementPropertyDraft,
-  type PreviewTool,
+  type MarkAnnotationAction,
+  type PreviewToolMode,
   type SelectedPreviewElement,
 } from "../lib/preview-element";
 import { copyIframeScreenshot } from "../lib/preview-screenshot";
 import { DesignCommentQueuePanel, type QueuedPreviewComment } from "./design-comment-queue-panel";
 import { DesignCommentToolbar } from "./design-comment-toolbar";
 import { DesignElementInspector } from "./design-element-inspector";
-import { DesignPreviewDrawLayer } from "./design-preview-draw-layer";
+import { DesignMarkOverlay } from "./design-mark-overlay";
 import { DesignPropertyEditorModal } from "./design-property-editor-modal";
 import { DesignPreviewCommentHint } from "./design-preview-comment-hint";
 import { DesignSelectionOverlay } from "./design-selection-overlay";
@@ -39,10 +41,6 @@ const VIEWPORT_WIDTH: Record<DesignViewport, string> = {
 
 const DECK_FIX_STYLE_ID = "aicortex-preview-deck-fix";
 const COMMENT_STYLE_ID = "aicortex-preview-comment-style";
-
-function isDrawTool(tool: PreviewTool): tool is "pencil" | "pen" {
-  return tool === "pencil" || tool === "pen";
-}
 
 function resolveTarget(el: HTMLElement): HTMLElement {
   return (el.closest("[data-aicortex-id]") as HTMLElement | null) ?? el;
@@ -122,9 +120,11 @@ export function DesignHtmlPreview({
   taskId,
   workspaceSlug,
   commentMode = false,
-  onComment,
+  sendDisabled = false,
   onQueueComment,
+  onSendToChat,
   onPropertySave,
+  onMarkAnnotation,
   queuedComments = [],
   onRemoveQueuedComment,
   onClearQueuedComments,
@@ -135,9 +135,17 @@ export function DesignHtmlPreview({
   taskId: string;
   workspaceSlug: string;
   commentMode?: boolean;
+  sendDisabled?: boolean;
   onComment?: PreviewCommentHandler;
   onQueueComment?: PreviewCommentHandler;
+  onSendToChat?: PreviewCommentHandler;
   onPropertySave?: (element: SelectedPreviewElement, patch: string) => void;
+  onMarkAnnotation?: (payload: {
+    action: MarkAnnotationAction;
+    note: string;
+    imageFile?: File;
+    extraFiles?: File[];
+  }) => Promise<void>;
   queuedComments?: QueuedPreviewComment[];
   onRemoveQueuedComment?: (id: string) => void;
   onClearQueuedComments?: () => void;
@@ -153,7 +161,7 @@ export function DesignHtmlPreview({
 
   const [viewport, setViewport] = useState<DesignViewport>("desktop");
   const [loading, setLoading] = useState(true);
-  const [tool, setTool] = useState<PreviewTool | null>("comment");
+  const [tool, setTool] = useState<PreviewToolMode | null>(null);
   const [zoom, setZoom] = useState(100);
   const [selectedElement, setSelectedElement] = useState<SelectedPreviewElement | null>(null);
   const [hoveredElement, setHoveredElement] = useState<SelectedPreviewElement | null>(null);
@@ -169,18 +177,15 @@ export function DesignHtmlPreview({
 
   const previewURL = buildArtifactRawURL(taskId, path, workspaceSlug);
   const scale = zoom / 100;
-  const drawActive = tool === "pencil" || tool === "pen";
-  const toolRef = useRef<PreviewTool | null>(tool);
-  const drawActiveRef = useRef(drawActive);
+  const markActive = tool === "mark";
+  const editActive = tool === "edit";
+  const commentActive = tool === "comment";
+  const toolRef = useRef<PreviewToolMode | null>(tool);
   const propertyEditorOpenRef = useRef(propertyEditorOpen);
 
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
-
-  useEffect(() => {
-    drawActiveRef.current = drawActive;
-  }, [drawActive]);
 
   useEffect(() => {
     propertyEditorOpenRef.current = propertyEditorOpen;
@@ -189,7 +194,7 @@ export function DesignHtmlPreview({
   const stageBounds = useStageOverlayBounds(
     stageRef,
     overlayRef,
-    commentMode && !loading,
+    commentMode && !loading && markActive,
     [viewport, scale, previewURL, tool],
   );
 
@@ -200,7 +205,35 @@ export function DesignHtmlPreview({
     setPendingImages([]);
     setInspectorPos(null);
     setPropertyEditorOpen(false);
+    propertyBaselineRef.current = null;
   }, []);
+
+  const updateInspectorPosition = useCallback(() => {
+    const node = selectedNodeRef.current;
+    const container = overlayRef.current;
+    if (!node || !container || propertyEditorOpen || markActive) {
+      setInspectorPos(null);
+      return;
+    }
+    const elRect = node.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const top = elRect.bottom - containerRect.top + 8;
+    const left = Math.max(8, Math.min(elRect.left - containerRect.left, containerRect.width - 368));
+    setInspectorPos({ top, left });
+  }, [markActive, propertyEditorOpen]);
+
+  const openPropertyEditorFor = useCallback(
+    (snapshot: SelectedPreviewElement, node: HTMLElement) => {
+      selectedNodeRef.current = node;
+      setSelectedElement(snapshot);
+      setHoveredElement(null);
+      setHoverCardPos(null);
+      propertyBaselineRef.current = propertyDraftFromElement(snapshot);
+      setPropertyEditorOpen(true);
+      setInspectorPos(null);
+    },
+    [],
+  );
 
   const buildSnapshot = useCallback(
     (el: HTMLElement): SelectedPreviewElement | null => {
@@ -213,38 +246,18 @@ export function DesignHtmlPreview({
     [scale],
   );
 
-  const updateInspectorPosition = useCallback(() => {
-    const node = selectedNodeRef.current;
-    const container = overlayRef.current;
-    if (!node || !container || propertyEditorOpen || drawActive) {
-      setInspectorPos(null);
-      return;
-    }
-    const elRect = node.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const top = elRect.bottom - containerRect.top + 8;
-    const left = Math.max(8, Math.min(elRect.left - containerRect.left, containerRect.width - 368));
-    setInspectorPos({ top, left });
-  }, [drawActive, propertyEditorOpen]);
-
-  const selectElement = useCallback(
-    (el: HTMLElement, openPropertyEditor: boolean) => {
-      selectedNodeRef.current = el;
+  const selectElementForComment = useCallback(
+    (el: HTMLElement) => {
       const snapshot = buildSnapshot(el);
       if (!snapshot) return;
+      selectedNodeRef.current = el;
       setSelectedElement(snapshot);
       setHoveredElement(null);
       setHoverCardPos(null);
       setInspectorNote("");
       setPendingImages([]);
-      if (openPropertyEditor) {
-        propertyBaselineRef.current = propertyDraftFromElement(snapshot);
-        setPropertyEditorOpen(true);
-        setInspectorPos(null);
-      } else {
-        setPropertyEditorOpen(false);
-        requestAnimationFrame(updateInspectorPosition);
-      }
+      setPropertyEditorOpen(false);
+      requestAnimationFrame(updateInspectorPosition);
     },
     [buildSnapshot, updateInspectorPosition],
   );
@@ -253,17 +266,7 @@ export function DesignHtmlPreview({
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
 
-    if (doc.querySelector(".deck") && !doc.getElementById(DECK_FIX_STYLE_ID)) {
-      const fix = doc.createElement("style");
-      fix.id = DECK_FIX_STYLE_ID;
-      fix.textContent = `
-        html, body { height: 100%; margin: 0; overflow: hidden; }
-        .deck { width: 100% !important; height: 100% !important; }
-      `;
-      doc.head?.appendChild(fix);
-    }
-
-    if (!commentMode) return;
+    if (!commentMode || markActive || !tool) return;
 
     let style = doc.getElementById(COMMENT_STYLE_ID) as HTMLStyleElement | null;
     if (!style) {
@@ -271,22 +274,31 @@ export function DesignHtmlPreview({
       style.id = COMMENT_STYLE_ID;
       doc.head?.appendChild(style);
     }
-    style.textContent = `
-      * { cursor: crosshair !important; }
-    `;
+    style.textContent =
+      tool === "edit"
+        ? `* { cursor: pointer !important; }`
+        : `* { cursor: crosshair !important; }`;
 
     const onClick = (event: MouseEvent) => {
-      if (drawActiveRef.current) return;
+      const mode = toolRef.current;
+      if (!mode || mode === "mark") return;
       if (!isPreviewTarget(event.target, doc)) return;
       event.preventDefault();
       event.stopPropagation();
       const el = resolveTarget(event.target as HTMLElement);
-      selectElement(el, toolRef.current === "crop");
+      if (mode === "edit") {
+        const snapshot = buildSnapshot(el);
+        if (snapshot) openPropertyEditorFor(snapshot, el);
+        return;
+      }
+      if (mode === "comment") {
+        selectElementForComment(el);
+      }
     };
 
     const onMove = (event: MouseEvent) => {
       if (
-        drawActiveRef.current ||
+        toolRef.current !== "comment" ||
         propertyEditorOpenRef.current ||
         selectedNodeRef.current
       ) {
@@ -301,6 +313,7 @@ export function DesignHtmlPreview({
       }
       const el = resolveTarget(event.target as HTMLElement);
       const snapshot = buildSnapshot(el);
+      if (!snapshot) return;
       setHoveredElement(snapshot);
       const container = overlayRef.current;
       if (container) {
@@ -327,7 +340,26 @@ export function DesignHtmlPreview({
       doc.removeEventListener("mouseleave", onLeave as EventListener, true);
       doc.getElementById(COMMENT_STYLE_ID)?.remove();
     };
-  }, [buildSnapshot, commentMode, selectElement]);
+  }, [
+    buildSnapshot,
+    commentMode,
+    markActive,
+    openPropertyEditorFor,
+    selectElementForComment,
+    tool,
+  ]);
+
+  const applyDeckFix = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc?.querySelector(".deck") || doc.getElementById(DECK_FIX_STYLE_ID)) return;
+    const fix = doc.createElement("style");
+    fix.id = DECK_FIX_STYLE_ID;
+    fix.textContent = `
+      html, body { height: 100%; margin: 0; overflow: hidden; }
+      .deck { width: 100% !important; height: 100% !important; }
+    `;
+    doc.head?.appendChild(fix);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -344,7 +376,7 @@ export function DesignHtmlPreview({
       setHoveredElement(null);
       setHoverCardPos(null);
       setHintDismissed(false);
-      setPropertyEditorOpen(false);
+      setTool(null);
     }
   }, [commentMode, clearSelection]);
 
@@ -357,6 +389,8 @@ export function DesignHtmlPreview({
       clearSelection();
       setHoveredElement(null);
       setHoverCardPos(null);
+      applyDeckFix();
+      injectSnapshotBridge(iframe);
       const doc = iframe.contentDocument;
       if (doc) {
         setAnnotatedCount(doc.querySelectorAll("[data-aicortex-id]").length);
@@ -368,7 +402,7 @@ export function DesignHtmlPreview({
       finishLoad();
     }
     return () => iframe.removeEventListener("load", finishLoad);
-  }, [previewURL, clearSelection]);
+  }, [applyDeckFix, previewURL, clearSelection]);
 
   useEffect(() => {
     if (loading) return;
@@ -395,37 +429,23 @@ export function DesignHtmlPreview({
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const flushComment = useCallback(
-    (element: SelectedPreviewElement, note: string, images?: File[]) => {
-      if (!note.trim() || !onComment) return;
-      onComment(element, note.trim(), images);
-    },
-    [onComment],
-  );
-
-  const handleQueueComment = () => {
+  const handleSaveComment = () => {
     if (!selectedElement || !inspectorNote.trim()) return;
     onQueueComment?.(selectedElement, inspectorNote.trim(), pendingImages);
     setInspectorNote("");
     setPendingImages([]);
     clearSelection();
+    setToast(t(($) => $.preview.comment_saved));
   };
 
-  const handleSubmitComment = () => {
+  const handleSendToChat = () => {
     if (!selectedElement || !inspectorNote.trim()) return;
-    flushComment(selectedElement, inspectorNote, pendingImages);
+    onSendToChat?.(selectedElement, inspectorNote.trim(), pendingImages);
     setInspectorNote("");
     setPendingImages([]);
     clearSelection();
     setToast(t(($) => $.preview.comment_added));
   };
-
-  const openPropertyEditor = useCallback(() => {
-    if (!selectedElement) return;
-    propertyBaselineRef.current = propertyDraftFromElement(selectedElement);
-    setPropertyEditorOpen(true);
-    setInspectorPos(null);
-  }, [selectedElement]);
 
   const handlePropertyDraftChange = (draft: ElementPropertyDraft) => {
     const node = selectedNodeRef.current;
@@ -443,7 +463,7 @@ export function DesignHtmlPreview({
 
   const handlePropertyCancel = () => {
     closePropertyEditor(true);
-    setTool(null);
+    clearSelection();
   };
 
   const handlePropertySave = (draft: ElementPropertyDraft) => {
@@ -451,8 +471,8 @@ export function DesignHtmlPreview({
     onPropertySave?.(selectedElement, formatPropertyPatch(selectedElement, draft));
     propertyBaselineRef.current = null;
     setPropertyEditorOpen(false);
-    setTool(null);
     clearSelection();
+    setToast(t(($) => $.preview.edit_saved));
   };
 
   const handlePropertyDelete = () => {
@@ -462,35 +482,25 @@ export function DesignHtmlPreview({
       `[Delete element · ${selectedElement.id}]\nRemove this element from the design.`,
     );
     selectedNodeRef.current?.remove();
-    setTool(null);
     clearSelection();
   };
 
   const handleToolChange = useCallback(
-    (next: PreviewTool) => {
-      if (next === "camera") return;
-
+    (next: PreviewToolMode) => {
       if (next === tool) {
         if (propertyEditorOpen) closePropertyEditor(true);
+        clearSelection();
         setTool(null);
         return;
       }
 
+      if (propertyEditorOpen) closePropertyEditor(true);
+      clearSelection();
+      setHoveredElement(null);
+      setHoverCardPos(null);
       setTool(next);
-      if (isDrawTool(next)) {
-        setToast(t(($) => $.preview.draw_mode_hint));
-        setHoveredElement(null);
-        setHoverCardPos(null);
-        if (propertyEditorOpen) closePropertyEditor(true);
-        return;
-      }
-
-      if (next === "comment") {
-        if (propertyEditorOpen) closePropertyEditor(true);
-        requestAnimationFrame(updateInspectorPosition);
-      }
     },
-    [closePropertyEditor, propertyEditorOpen, t, tool, updateInspectorPosition],
+    [clearSelection, closePropertyEditor, propertyEditorOpen, tool],
   );
 
   const handleScreenshot = async () => {
@@ -509,18 +519,18 @@ export function DesignHtmlPreview({
 
   const showInspector =
     selectedElement &&
+    commentActive &&
     !propertyEditorOpen &&
-    !drawActive &&
-    (tool === null || tool === "comment") &&
+    !markActive &&
     inspectorPos;
 
   const overlayTarget =
-    !drawActive &&
+    !markActive &&
     !propertyEditorOpen &&
-    (selectedElement ??
-      (hoveredElement ? hoveredElement : null));
+    (selectedElement ?? (hoveredElement && commentActive ? hoveredElement : null));
 
-  const selectionOverlayVariant = selectedElement ? "selected" : "hover";
+  const selectionOverlayVariant =
+    selectedElement && (commentActive || editActive) ? "selected" : "hover";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -587,7 +597,7 @@ export function DesignHtmlPreview({
             src={previewURL}
             className={cn(
               "h-full min-h-[320px] w-full rounded-md border bg-background shadow-sm",
-              drawActive && "pointer-events-none",
+              markActive && "pointer-events-none",
             )}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
           />
@@ -602,12 +612,9 @@ export function DesignHtmlPreview({
           ) : null}
         </div>
 
-        {commentMode && !loading && stageBounds ? (
+        {commentMode && !loading && markActive && stageBounds ? (
           <div
-            className={cn(
-              "absolute z-[35] overflow-hidden rounded-md",
-              drawActive ? "pointer-events-auto cursor-crosshair" : "pointer-events-none",
-            )}
+            className="absolute z-[35] overflow-hidden rounded-md"
             style={{
               top: stageBounds.top,
               left: stageBounds.left,
@@ -615,10 +622,15 @@ export function DesignHtmlPreview({
               height: stageBounds.height,
             }}
           >
-            <DesignPreviewDrawLayer
-              active={drawActive}
-              tool={tool}
-              onStrokeComplete={() => setToast(t(($) => $.preview.draw_saved))}
+            <DesignMarkOverlay
+              iframeRef={iframeRef}
+              active={markActive}
+              sendDisabled={sendDisabled}
+              onClose={() => setTool(null)}
+              onSubmit={async (payload) => {
+                await onMarkAnnotation?.(payload);
+                setToast(t(($) => $.preview.mark.submitted));
+              }}
             />
           </div>
         ) : null}
@@ -656,16 +668,15 @@ export function DesignHtmlPreview({
                 note={inspectorNote}
                 onNoteChange={setInspectorNote}
                 onClose={clearSelection}
-                onQueue={handleQueueComment}
-                onSubmit={handleSubmitComment}
+                onSaveComment={handleSaveComment}
+                onSendToChat={handleSendToChat}
                 onAttachImages={(files) => setPendingImages((prev) => [...prev, ...files])}
-                onOpenPropertyEditor={openPropertyEditor}
                 attachmentCount={pendingImages.length}
                 style={{ top: inspectorPos.top, left: inspectorPos.left }}
               />
             ) : null}
 
-            {hoveredElement && hoverCardPos && !selectedElement && !drawActive && !propertyEditorOpen ? (
+            {hoveredElement && hoverCardPos && !selectedElement && commentActive && !markActive ? (
               <div
                 className="pointer-events-none absolute z-[25] max-w-[280px] rounded-lg border border-white/10 bg-[#141418]/90 px-2.5 py-2 text-[10px] text-white shadow-lg backdrop-blur-md"
                 style={{
@@ -682,7 +693,7 @@ export function DesignHtmlPreview({
               </div>
             ) : null}
 
-            {selectedElement && propertyEditorOpen ? (
+            {selectedElement && propertyEditorOpen && editActive ? (
               <DesignPropertyEditorModal
                 element={selectedElement}
                 open={propertyEditorOpen}

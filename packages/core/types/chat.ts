@@ -92,4 +92,6 @@ export interface ChatPendingTask {
   task_id?: string;
   status?: string;
   created_at?: string;
+  /** User messages waiting behind the active task in this session. */
+  queued_count?: number;
 }

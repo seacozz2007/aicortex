@@ -12,6 +12,19 @@
     "send_tooltip": "发送",
     "stop_tooltip": "停止"
   },
+  "queue_bar": {
+    "queued_count_one": "{{count}} 条排队",
+    "queued_count_other": "{{count}} 条排队",
+    "send_hint": "可继续输入并发送",
+    "waiting_hint": "等待上一条完成",
+    "more_queued_one": "另有 {{count}} 条",
+    "more_queued_other": "另有 {{count}} 条",
+    "edit_aria": "编辑排队消息",
+    "delete_aria": "删除排队消息",
+    "move_up_aria": "移到队首",
+    "save_edit_aria": "保存编辑",
+    "cancel_edit_aria": "取消编辑"
+  },
   "message_list": {
     "show_details": "查看详情",
     "replied_in": "{{elapsed}} 内回复",
@@ -23,7 +36,9 @@
     "process_steps_other": "{{count}} 步",
     "copy_action": "复制",
     "copied_toast": "已复制",
-    "copy_failed_toast": "复制失败"
+    "copy_failed_toast": "复制失败",
+    "queued_follow_up_one": "还有 {{count}} 条消息排队中",
+    "queued_follow_up_other": "还有 {{count}} 条消息排队中"
   },
   "session_history": {
     "untitled": "无标题",
@@ -176,6 +191,7 @@
       "offline": "离线",
       "reconnecting": "重连中",
       "queued": "排队中",
+      "preparing": "准备中",
       "starting_up": "启动中",
       "thinking": "思考中",
       "typing": "输入中"

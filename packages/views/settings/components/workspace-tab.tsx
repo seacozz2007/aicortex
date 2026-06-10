@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, LogOut } from "lucide-react";
+import { Save, LogOut, Terminal } from "lucide-react";
 import { Input } from "@aicortex/ui/components/ui/input";
 import { Textarea } from "@aicortex/ui/components/ui/textarea";
 import { Label } from "@aicortex/ui/components/ui/label";
 import { Button } from "@aicortex/ui/components/ui/button";
+import { Switch } from "@aicortex/ui/components/ui/switch";
 import { Card, CardContent } from "@aicortex/ui/components/ui/card";
 import {
   AlertDialog,
@@ -23,6 +24,7 @@ import { useAuthStore } from "@aicortex/core/auth";
 import { useLeaveWorkspace, useDeleteWorkspace } from "@aicortex/core/workspace/mutations";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useDesignStudioFeature } from "@aicortex/core/config/features";
+import { isWorkspaceExploreEnabled } from "@aicortex/core/workspace/settings";
 import { designSettingsOptions, useUpdateDesignSettings } from "@aicortex/core/design";
 import {
   memberListOptions,
@@ -121,6 +123,10 @@ export function WorkspaceTab() {
     onConfirm: () => Promise<void>;
   } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [featureSaving, setFeatureSaving] = useState(false);
+
+  const workspaceSettings = (workspace?.settings as Record<string, unknown>) ?? {};
+  const exploreEnabled = isWorkspaceExploreEnabled(workspace?.settings);
 
   const currentMember = members.find((m) => m.user_id === user?.id) ?? null;
   const canManageWorkspace = currentMember?.role === "owner" || currentMember?.role === "admin";
@@ -201,6 +207,23 @@ export function WorkspaceTab() {
     }
   };
 
+  const updateExploreEnabled = async (checked: boolean) => {
+    if (!workspace || featureSaving) return;
+    setFeatureSaving(true);
+    try {
+      const updated = await api.updateWorkspace(workspace.id, {
+        settings: { ...workspaceSettings, explore_enabled: checked },
+      });
+      qc.setQueryData(workspaceKeys.list(), (old: Workspace[] | undefined) =>
+        old?.map((ws) => (ws.id === updated.id ? updated : ws)),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t(($) => $.workspace.toast_save_failed));
+    } finally {
+      setFeatureSaving(false);
+    }
+  };
+
   if (!workspace) return null;
 
   return (
@@ -264,6 +287,35 @@ export function WorkspaceTab() {
                 {t(($) => $.workspace.manage_hint)}
               </p>
             )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">{t(($) => $.workspace.section_features)}</h2>
+        <Card>
+          <CardContent>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-md border bg-muted/50 p-2 text-muted-foreground">
+                  <Terminal className="h-4 w-4" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="explore-enabled" className="text-sm font-medium">
+                    {t(($) => $.workspace.explore_enabled_label)}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t(($) => $.workspace.explore_enabled_description)}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="explore-enabled"
+                checked={exploreEnabled}
+                onCheckedChange={updateExploreEnabled}
+                disabled={!canManageWorkspace || featureSaving}
+              />
+            </div>
           </CardContent>
         </Card>
       </section>

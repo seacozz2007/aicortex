@@ -22,16 +22,18 @@ import { useT } from "../i18n";
 export function WorkspaceNavMenu({
   designStudio,
   forumEnabled,
+  exploreEnabled,
   onNavigate,
 }: {
   designStudio: boolean;
   forumEnabled: boolean;
+  exploreEnabled: boolean;
   onNavigate?: () => void;
 }) {
   const { t } = useT("layout");
   const p = useWorkspacePaths();
   const { pathname } = useNavigation();
-  const filterOpts = { designStudio, forumEnabled };
+  const filterOpts = { designStudio, forumEnabled, exploreEnabled };
 
   return (
     <>

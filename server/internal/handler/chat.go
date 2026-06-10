@@ -542,9 +542,10 @@ func (h *Handler) ListChatMessages(w http.ResponseWriter, r *http.Request) {
 // optimistic seeds don't have a real task created_at and the timer needs to
 // survive refresh / reopen.
 type PendingChatTaskResponse struct {
-	TaskID    string `json:"task_id,omitempty"`
-	Status    string `json:"status,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
+	TaskID      string `json:"task_id,omitempty"`
+	Status      string `json:"status,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+	QueuedCount int    `json:"queued_count,omitempty"`
 }
 
 // MarkChatSessionRead clears the session's unread_since (→ has_unread=false)
@@ -676,11 +677,23 @@ func (h *Handler) GetPendingChatTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, PendingChatTaskResponse{
+	queuedCount := 0
+	if count, countErr := h.Queries.CountQueuedChatTasksForSession(r.Context(), session.ID); countErr == nil {
+		queuedCount = int(count)
+		if task.Status == "queued" && queuedCount > 0 {
+			queuedCount--
+		}
+	}
+
+	resp := PendingChatTaskResponse{
 		TaskID:    uuidToString(task.ID),
 		Status:    task.Status,
 		CreatedAt: timestampToString(task.CreatedAt),
-	})
+	}
+	if queuedCount > 0 {
+		resp.QueuedCount = queuedCount
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // ---------------------------------------------------------------------------

@@ -2,22 +2,27 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Terminal, X, Circle, PanelLeftClose, PanelLeftOpen, Pencil } from "lucide-react";
+import { Plus, Terminal, X, Circle, PanelLeftClose, PanelLeftOpen, Pencil, Settings } from "lucide-react";
 import { terminalSessionListOptions, useCloseTerminalSession, useTerminalStore, type TerminalSession } from "@aicortex/core/terminal";
 import { runtimeListOptions } from "@aicortex/core/runtimes/queries";
-import { useCurrentWorkspace } from "@aicortex/core/paths";
+import { useCurrentWorkspace, useWorkspacePaths } from "@aicortex/core/paths";
+import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
 import { api } from "@aicortex/core/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { TerminalPanel } from "./terminal-panel";
 import { NewSessionDialog } from "./new-session-dialog";
+import { AppLink } from "../../navigation";
 import { useT } from "../../i18n";
 
 export function ExplorePage() {
   const { t } = useT("runtimes");
+  const { t: tSettings } = useT("settings");
   const workspace = useCurrentWorkspace();
+  const exploreEnabled = useWorkspaceExploreEnabled();
+  const p = useWorkspacePaths();
   const { data: sessions = [] } = useQuery({
     ...terminalSessionListOptions(workspace?.id ?? ""),
-    enabled: !!workspace?.id,
+    enabled: !!workspace?.id && exploreEnabled,
   });
   const activeSessionId = useTerminalStore((s) => s.activeSessionId);
   const setActiveSession = useTerminalStore((s) => s.setActiveSession);
@@ -26,8 +31,28 @@ export function ExplorePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { data: runtimes = [] } = useQuery({
     ...runtimeListOptions(workspace?.id ?? ""),
-    enabled: !!workspace?.id,
+    enabled: !!workspace?.id && exploreEnabled,
   });
+
+  if (!exploreEnabled) {
+    return (
+      <div className="flex h-[calc(100vh-3rem)] items-center justify-center px-4">
+        <div className="max-w-md space-y-3 text-center">
+          <Terminal className="mx-auto size-12 opacity-30" />
+          <p className="text-sm text-muted-foreground">
+            {tSettings(($) => $.workspace.explore_enabled_description)}
+          </p>
+          <AppLink
+            href={`${p.settings()}?tab=workspace`}
+            className="inline-flex items-center gap-1.5 text-sm text-brand hover:underline"
+          >
+            <Settings className="size-3.5" />
+            {tSettings(($) => $.workspace.explore_enabled_label)}
+          </AppLink>
+        </div>
+      </div>
+    );
+  }
 
   const runtimeMap = Object.fromEntries(runtimes.map((r) => [r.id, r.name]));
 

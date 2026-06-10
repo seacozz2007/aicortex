@@ -117,6 +117,7 @@
     "hyperframes_duration_seconds": "{{seconds}}s",
 
     "clear_active_intent": "Clear type",
+    "clear_active_example": "Clear example",
 
     "subcategories": {
 
@@ -186,9 +187,19 @@
 
     "queue_send_message": "Please apply the following preview comments to the design.",
 
+    "mark_queue_message": "Please apply the following page marks to the design.",
+
+    "mark_send_message": "Please apply the following page marks to the design.",
+
+    "mark_upload_failed": "Failed to upload mark screenshot. Please try again.",
+
     "comment_preview_hint": "Comment mode is on. Use Studio → Preview on the right to click elements.",
 
-    "open_preview_panel": "Open preview panel"
+    "open_preview_panel": "Open preview panel",
+
+    "collapse_sessions": "Collapse sessions",
+
+    "expand_sessions": "Expand sessions"
 
   },
 
@@ -224,6 +235,12 @@
 
     "select_port": "Preview port",
 
+    "port_group_active": "Active",
+
+    "port_group_disconnect": "Disconnect",
+
+    "disconnect_port": "Disconnect :{{port}}",
+
     "loading_files": "Loading files…",
 
     "no_html": "No HTML files in the work directory yet.",
@@ -231,6 +248,16 @@
     "no_ports": "Add or select a port to preview.",
 
     "open_external": "Open in new window",
+
+    "generation": {
+      "title": "Generating…",
+      "failed_title": "Generation failed",
+      "awaiting_title": "Waiting for your input",
+      "awaiting_lead": "Answer the questions in chat to continue.",
+      "step_understand": "Understanding requirements",
+      "step_generate": "Building pages",
+      "step_prepare": "Preparing preview"
+    },
 
     "inspector": {
       "size": "Size",
@@ -243,17 +270,32 @@
       "close": "Close",
       "add_to_queue": "Add to queue",
       "submit_comment": "Comment",
+      "send_to_chat": "Send to chat",
       "edit_properties": "Edit properties"
     },
 
     "toolbar": {
-      "camera": "Screenshot",
-      "crop": "Select",
-      "pencil": "Pencil",
-      "pen": "Pen",
+      "screenshot": "Screenshot",
       "comment": "Comment",
+      "mark": "Mark",
+      "edit": "Edit",
       "zoom_in": "Zoom in",
       "zoom_out": "Zoom out"
+    },
+
+    "mark": {
+      "close": "Close",
+      "box_select": "Box select",
+      "pen": "Pen",
+      "undo": "Undo",
+      "redo": "Redo",
+      "attach_image": "Attach image",
+      "note_placeholder": "Add a note for this mark",
+      "add_to_input": "Add to input",
+      "queue": "Queue",
+      "send": "Send",
+      "send_disabled": "A task is currently running",
+      "submitted": "Mark submitted"
     },
 
     "property_editor": {
@@ -293,7 +335,9 @@
     "screenshot_failed": "Screenshot failed — open in a new window instead",
     "draw_saved": "Annotation saved on preview",
     "draw_mode_hint": "Pencil/pen: drag on the preview to draw — does not select elements",
-    "comment_added": "Comment added to composer"
+    "comment_added": "Comment added to composer",
+    "comment_saved": "Comment added to queue",
+    "edit_saved": "Style edit added to composer"
 
   },
 
@@ -314,6 +358,10 @@
     "start_jury": "Run design jury",
 
     "jury_pending": "Starting jury…",
+
+    "files": {
+      "select_file": "Select a Markdown or text file. Open HTML in the Preview tab."
+    },
 
     "tabs": {
 

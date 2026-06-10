@@ -6,6 +6,7 @@ import {
   useArtifactBrowseFeature,
   useRuntimeTunnelFeature,
 } from "@aicortex/core/config/features";
+import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
 import type { ChatSession } from "@aicortex/core/types";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
@@ -23,6 +24,7 @@ export function ChatToolsSidebar({
   const { t } = useT("chat");
   const artifactEnabled = useArtifactBrowseFeature();
   const tunnelEnabled = useRuntimeTunnelFeature();
+  const exploreEnabled = useWorkspaceExploreEnabled();
   const runtimeId = session?.runtime_id;
   const [tab, setTab] = useState<ToolsTab>("files");
 
@@ -35,7 +37,7 @@ export function ChatToolsSidebar({
         icon: FileText,
       });
     }
-    if (runtimeId) {
+    if (exploreEnabled && runtimeId) {
       result.push({
         id: "terminal",
         label: t(($) => $.tools_sidebar.tabs.terminal),
@@ -53,7 +55,7 @@ export function ChatToolsSidebar({
       });
     }
     return result;
-  }, [artifactEnabled, tunnelEnabled, runtimeId, t]);
+  }, [artifactEnabled, exploreEnabled, tunnelEnabled, runtimeId, session?.last_task_id, session?.work_dir, t]);
 
   useEffect(() => {
     if (tabs.length === 0) return;

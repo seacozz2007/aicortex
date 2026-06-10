@@ -13,6 +13,19 @@
     "send_tooltip": "Send",
     "stop_tooltip": "Stop"
   },
+  "queue_bar": {
+    "queued_count_one": "{{count}} Queued",
+    "queued_count_other": "{{count}} Queued",
+    "send_hint": "to Send",
+    "waiting_hint": "Waiting for current reply",
+    "more_queued_one": "+{{count}} more",
+    "more_queued_other": "+{{count}} more",
+    "edit_aria": "Edit queued message",
+    "delete_aria": "Remove from queue",
+    "move_up_aria": "Move to front",
+    "save_edit_aria": "Save edit",
+    "cancel_edit_aria": "Cancel edit"
+  },
   "message_list": {
     "show_details": "Show details",
     "replied_in": "Replied in {{elapsed}}",
@@ -26,7 +39,9 @@
     "process_steps_other": "{{count}} steps",
     "copy_action": "Copy",
     "copied_toast": "Copied",
-    "copy_failed_toast": "Copy failed"
+    "copy_failed_toast": "Copy failed",
+    "queued_follow_up_one": "{{count}} message queued",
+    "queued_follow_up_other": "{{count}} messages queued"
   },
   "session_history": {
     "untitled": "Untitled",
@@ -180,6 +195,7 @@
       "offline": "Offline",
       "reconnecting": "Reconnecting",
       "queued": "Queued",
+      "preparing": "Preparing",
       "starting_up": "Starting up",
       "thinking": "Thinking",
       "typing": "Typing"

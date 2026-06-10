@@ -117,6 +117,7 @@
     "hyperframes_duration_seconds": "{{seconds}} 秒",
 
     "clear_active_intent": "清除类型",
+    "clear_active_example": "清除示例",
 
     "subcategories": {
 
@@ -184,9 +185,19 @@
 
     "queue_send_message": "请根据以下预览评论修改设计。",
 
+    "mark_queue_message": "请根据以下页面标记修改设计。",
+
+    "mark_send_message": "请根据以下页面标记修改设计。",
+
+    "mark_upload_failed": "标记截图上传失败，请重试",
+
     "comment_preview_hint": "评论模式已开启。请在右侧「工作室 → 预览」中点击元素。",
 
-    "open_preview_panel": "打开预览面板"
+    "open_preview_panel": "打开预览面板",
+
+    "collapse_sessions": "收起会话列表",
+
+    "expand_sessions": "展开会话列表"
 
   },
 
@@ -222,6 +233,12 @@
 
     "select_port": "预览端口",
 
+    "port_group_active": "已连接",
+
+    "port_group_disconnect": "断开",
+
+    "disconnect_port": "断开 :{{port}}",
+
     "loading_files": "加载文件列表…",
 
     "no_html": "工作目录中还没有 HTML 文件。",
@@ -229,6 +246,16 @@
     "no_ports": "添加或选择一个端口进行预览。",
 
     "open_external": "在新窗口打开",
+
+    "generation": {
+      "title": "正在生成…",
+      "failed_title": "生成失败",
+      "awaiting_title": "等待你的回答",
+      "awaiting_lead": "请在左侧对话中完成问题表单后继续。",
+      "step_understand": "理解需求",
+      "step_generate": "生成页面",
+      "step_prepare": "准备预览"
+    },
 
     "inspector": {
       "size": "Size",
@@ -241,17 +268,32 @@
       "close": "关闭",
       "add_to_queue": "加入队列",
       "submit_comment": "评论",
+      "send_to_chat": "发送到聊天",
       "edit_properties": "编辑属性"
     },
 
     "toolbar": {
-      "camera": "截图",
-      "crop": "选择",
-      "pencil": "铅笔",
-      "pen": "钢笔",
-      "comment": "评论",
+      "screenshot": "截图",
+      "comment": "注释",
+      "mark": "标记",
+      "edit": "编辑",
       "zoom_in": "放大",
       "zoom_out": "缩小"
+    },
+
+    "mark": {
+      "close": "关闭",
+      "box_select": "框选",
+      "pen": "钢笔",
+      "undo": "撤销",
+      "redo": "重做",
+      "attach_image": "添加图片",
+      "note_placeholder": "为这个标记添加说明",
+      "add_to_input": "发送到输入框",
+      "queue": "加入队列",
+      "send": "发送",
+      "send_disabled": "当前正有任务在执行",
+      "submitted": "标记已提交"
     },
 
     "property_editor": {
@@ -291,7 +333,9 @@
     "screenshot_failed": "截图失败，请在新窗口打开后手动截图",
     "draw_saved": "标注已保存到预览",
     "draw_mode_hint": "铅笔/钢笔：在预览上按住拖动绘制，不会选中元素",
-    "comment_added": "评论已添加到输入框"
+    "comment_added": "评论已添加到输入框",
+    "comment_saved": "评论已加入队列",
+    "edit_saved": "样式修改已添加到输入框"
 
   },
 
@@ -302,6 +346,10 @@
     "export_hint": "下载主 HTML 产物或运行导出。",
 
     "download_html": "下载 HTML",
+
+    "files": {
+      "select_file": "选择 Markdown 或文本文件查看；HTML 请在「预览」标签页中打开。"
+    },
 
     "tabs": {
 

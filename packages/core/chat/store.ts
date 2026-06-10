@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { StorageAdapter } from "../types";
 import { getCurrentSlug, registerForWorkspaceRehydration } from "../platform/workspace-storage";
 import { createLogger } from "../logger";
+import type { OutboundQueuedMessage } from "./outbound-queue";
 
 const logger = createLogger("chat.store");
 
@@ -90,6 +91,8 @@ export interface ChatState {
   selectedProjectId: string | null;
   /** Drafts per session: sessionId (or DRAFT_NEW_SESSION) → markdown text. */
   inputDrafts: Record<string, string>;
+  /** Outbound messages waiting while the session task is in flight. */
+  outboundQueues: Record<string, OutboundQueuedMessage[]>;
   /**
    * When on, the chat tracks whatever issue/project/inbox-item the user is
    * looking at and prepends it to outgoing messages. Persisted globally so
@@ -108,6 +111,14 @@ export interface ChatState {
   /** sessionId accepts a real session UUID or DRAFT_NEW_SESSION. */
   setInputDraft: (sessionId: string, draft: string) => void;
   clearInputDraft: (sessionId: string) => void;
+  enqueueOutbound: (
+    sessionId: string,
+    item: Omit<OutboundQueuedMessage, "createdAt"> & { createdAt?: string },
+  ) => void;
+  updateOutbound: (sessionId: string, id: string, content: string) => void;
+  removeOutbound: (sessionId: string, id: string) => void;
+  moveOutboundToFront: (sessionId: string, id: string) => void;
+  dequeueOutbound: (sessionId: string, id: string) => void;
   setFocusMode: (on: boolean) => void;
   /** Persist raw size and auto-exit expanded mode. */
   setChatSize: (width: number, height: number) => void;
@@ -138,6 +149,7 @@ export function createChatStore(options: ChatStoreOptions) {
     selectedAgentId: storage.getItem(wsKey(AGENT_STORAGE_KEY)),
     selectedProjectId: null,
     inputDrafts: readDrafts(storage, wsKey(DRAFTS_KEY)),
+    outboundQueues: {},
     focusMode: storage.getItem(FOCUS_MODE_KEY) === "true",
     chatWidth: Number(storage.getItem(CHAT_WIDTH_KEY)) || CHAT_DEFAULT_W,
     chatHeight: Number(storage.getItem(CHAT_HEIGHT_KEY)) || CHAT_DEFAULT_H,
@@ -176,6 +188,59 @@ export function createChatStore(options: ChatStoreOptions) {
       const next = { ...get().inputDrafts, [sessionId]: draft };
       writeDrafts(storage, wsKey(DRAFTS_KEY), next);
       set({ inputDrafts: next });
+    },
+    enqueueOutbound: (sessionId, item) => {
+      const entry: OutboundQueuedMessage = {
+        ...item,
+        createdAt: item.createdAt ?? new Date().toISOString(),
+      };
+      set((state) => ({
+        outboundQueues: {
+          ...state.outboundQueues,
+          [sessionId]: [...(state.outboundQueues[sessionId] ?? []), entry],
+        },
+      }));
+    },
+    updateOutbound: (sessionId, id, content) => {
+      set((state) => {
+        const queue = state.outboundQueues[sessionId];
+        if (!queue?.length) return state;
+        return {
+          outboundQueues: {
+            ...state.outboundQueues,
+            [sessionId]: queue.map((item) =>
+              item.id === id ? { ...item, content } : item,
+            ),
+          },
+        };
+      });
+    },
+    removeOutbound: (sessionId, id) => {
+      set((state) => {
+        const queue = state.outboundQueues[sessionId];
+        if (!queue?.length) return state;
+        const next = queue.filter((item) => item.id !== id);
+        const outboundQueues = { ...state.outboundQueues };
+        if (next.length === 0) delete outboundQueues[sessionId];
+        else outboundQueues[sessionId] = next;
+        return { outboundQueues };
+      });
+    },
+    moveOutboundToFront: (sessionId, id) => {
+      set((state) => {
+        const queue = state.outboundQueues[sessionId];
+        if (!queue?.length) return state;
+        const index = queue.findIndex((item) => item.id === id);
+        if (index <= 0) return state;
+        const item = queue[index]!;
+        const next = [item, ...queue.slice(0, index), ...queue.slice(index + 1)];
+        return {
+          outboundQueues: { ...state.outboundQueues, [sessionId]: next },
+        };
+      });
+    },
+    dequeueOutbound: (sessionId, id) => {
+      get().removeOutbound(sessionId, id);
     },
     setFocusMode: (on) => {
       logger.info("setFocusMode", { to: on });
@@ -229,6 +294,7 @@ export function createChatStore(options: ChatStoreOptions) {
       activeSessionId: nextSession,
       selectedAgentId: nextAgent,
       inputDrafts: nextDrafts,
+      outboundQueues: {},
     });
   });
 

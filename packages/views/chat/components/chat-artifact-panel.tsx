@@ -14,8 +14,8 @@ import {
 } from "@aicortex/ui/components/ui/resizable";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
-import { buildArtifactRawURL, isHtmlArtifact } from "./chat-artifact-url";
-import { ArtifactHtmlPreview } from "../../shared/artifact-preview";
+import { buildArtifactRawURL, isHtmlArtifact, isMarkdownArtifact } from "./chat-artifact-url";
+import { ArtifactHtmlPreview, ArtifactMarkdownPreview } from "../../shared/artifact-preview";
 import { api } from "@aicortex/core/api";
 
 const MAX_TEXT_BYTES = 512 * 1024;
@@ -138,9 +138,17 @@ function EditableTextPreview({
 export function ChatArtifactPanel({
   taskId,
   hasWorkDir,
+  htmlPreview = true,
+  markdownPreview = false,
+  selectFileHint,
 }: {
   taskId?: string | null;
   hasWorkDir?: boolean;
+  /** When false, HTML opens as editable source — no iframe render (design studio). */
+  htmlPreview?: boolean;
+  /** Markdown gets rendered preview + source toggle (design studio). */
+  markdownPreview?: boolean;
+  selectFileHint?: string;
 }) {
   const { t: tChat } = useT("chat");
   const { t: tRuntimes } = useT("runtimes");
@@ -177,13 +185,13 @@ export function ChatArtifactPanel({
   }, [taskId]);
 
   useEffect(() => {
-    if (
-      !selectedPath ||
-      !taskId ||
-      !workspaceSlug ||
-      isHtmlArtifact(selectedPath) ||
-      !isTextArtifact(selectedPath)
-    ) {
+    if (!selectedPath || !taskId || !workspaceSlug) {
+      return;
+    }
+    if (isHtmlArtifact(selectedPath) && htmlPreview) {
+      return;
+    }
+    if (!isHtmlArtifact(selectedPath) && !isTextArtifact(selectedPath)) {
       return;
     }
 
@@ -223,7 +231,7 @@ export function ChatArtifactPanel({
     return () => {
       cancelled = true;
     };
-  }, [selectedPath, taskId, workspaceSlug]);
+  }, [selectedPath, taskId, workspaceSlug, htmlPreview, tChat]);
 
   const navigateTo = useCallback((path: string) => {
     setCwd(path);
@@ -247,13 +255,15 @@ export function ChatArtifactPanel({
         return;
       }
       if (isHtmlArtifact(entry.path)) {
-        setContentError(null);
-        setUnsupportedPath(null);
-        setTextContent(null);
-        setSelectedPath(entry.path);
-        return;
-      }
-      if (!isTextArtifact(entry.path)) {
+        if (htmlPreview) {
+          setContentError(null);
+          setUnsupportedPath(null);
+          setTextContent(null);
+          setSelectedPath(entry.path);
+          return;
+        }
+        // Design studio: HTML source only — fall through to text loader.
+      } else if (!isTextArtifact(entry.path)) {
         setSelectedPath(null);
         setTextContent(null);
         setContentError(null);
@@ -264,7 +274,7 @@ export function ChatArtifactPanel({
       setUnsupportedPath(null);
       setSelectedPath(entry.path);
     },
-    [navigateTo, tChat],
+    [navigateTo, tChat, htmlPreview],
   );
 
   if (!enabled) {
@@ -302,6 +312,7 @@ export function ChatArtifactPanel({
       selectedPath &&
       taskId &&
       workspaceSlug &&
+      htmlPreview &&
       isHtmlArtifact(selectedPath)
     ) {
       return (
@@ -309,6 +320,22 @@ export function ChatArtifactPanel({
           path={selectedPath}
           taskId={taskId}
           workspaceSlug={workspaceSlug}
+        />
+      );
+    }
+    if (
+      selectedPath &&
+      textContent !== null &&
+      taskId &&
+      markdownPreview &&
+      isMarkdownArtifact(selectedPath)
+    ) {
+      return (
+        <ArtifactMarkdownPreview
+          path={selectedPath}
+          content={textContent}
+          taskId={taskId}
+          onSaved={setTextContent}
         />
       );
     }
@@ -324,7 +351,7 @@ export function ChatArtifactPanel({
     }
     return (
       <p className="p-4 text-xs text-muted-foreground">
-        {tChat(($) => $.tools_sidebar.files.select_file)}
+        {selectFileHint ?? tChat(($) => $.tools_sidebar.files.select_file)}
       </p>
     );
   })();

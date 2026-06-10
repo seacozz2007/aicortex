@@ -74,6 +74,7 @@ import {
 import { useAuthStore } from "@aicortex/core/auth";
 import { useCurrentWorkspace, useWorkspacePaths, paths } from "@aicortex/core/paths";
 import { useDesignStudioFeature } from "@aicortex/core/config/features";
+import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
 import { workspaceListOptions, myInvitationListOptions, workspaceKeys } from "@aicortex/core/workspace/queries";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inboxKeys, deduplicateInboxItems } from "@aicortex/core/inbox/queries";
@@ -387,6 +388,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const logout = useLogout();
   const workspace = useCurrentWorkspace();
   const designStudioEnabled = useDesignStudioFeature();
+  const exploreEnabled = useWorkspaceExploreEnabled();
   const p = useWorkspacePaths();
   const { data: workspaces = EMPTY_WORKSPACES } = useQuery(workspaceListOptions());
   const { data: myInvitations = EMPTY_INVITATIONS } = useQuery(myInvitationListOptions());
@@ -747,6 +749,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                     const s = (workspace?.settings as Record<string, unknown>) ?? {};
                     if (s.forum_enabled !== true) return null;
                   }
+                  if (item.key === "explore" && !exploreEnabled) return null;
                   const href = resolveSidebarHref(p, item.key);
                   const isActive = isNavActive(pathname, href);
                   return (

@@ -3,25 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Camera,
-  Crop,
-  MessageSquare,
+  MessageSquarePlus,
   PenLine,
   Pencil,
 } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
-import type { PreviewTool } from "../lib/preview-element";
+import type { PreviewToolMode } from "../lib/preview-element";
 
-const TOOLS: {
-  id: PreviewTool;
-  icon: typeof Crop;
-  labelKey: "camera" | "crop" | "pencil" | "pen" | "comment";
+const MODE_TOOLS: {
+  id: PreviewToolMode;
+  icon: typeof MessageSquarePlus;
+  labelKey: "comment" | "mark" | "edit";
 }[] = [
-  { id: "camera", icon: Camera, labelKey: "camera" },
-  { id: "crop", icon: Crop, labelKey: "crop" },
-  { id: "pencil", icon: Pencil, labelKey: "pencil" },
-  { id: "pen", icon: PenLine, labelKey: "pen" },
-  { id: "comment", icon: MessageSquare, labelKey: "comment" },
+  { id: "comment", icon: MessageSquarePlus, labelKey: "comment" },
+  { id: "mark", icon: PenLine, labelKey: "mark" },
+  { id: "edit", icon: Pencil, labelKey: "edit" },
 ];
 
 const ZOOM_STEPS = [50, 75, 100, 125, 150, 200];
@@ -35,8 +32,8 @@ export function DesignCommentToolbar({
   onScreenshot,
   screenshotPending = false,
 }: {
-  tool: PreviewTool | null;
-  onToolChange: (tool: PreviewTool) => void;
+  tool: PreviewToolMode | null;
+  onToolChange: (tool: PreviewToolMode) => void;
   queueCount: number;
   zoom: number;
   onZoomChange: (zoom: number) => void;
@@ -58,26 +55,30 @@ export function DesignCommentToolbar({
 
   return (
     <div className="pointer-events-auto absolute left-1/2 top-3 z-[60] flex -translate-x-1/2 items-center gap-0.5 rounded-xl border border-white/10 bg-[#141418]/92 px-1.5 py-1 shadow-2xl backdrop-blur-md">
-      {TOOLS.map(({ id, icon: Icon, labelKey }) => (
+      <button
+        type="button"
+        onClick={() => onScreenshot?.()}
+        disabled={screenshotPending}
+        className="inline-flex size-8 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/8 hover:text-white disabled:opacity-40"
+        title={t(($) => $.preview.toolbar.screenshot)}
+        aria-label={t(($) => $.preview.toolbar.screenshot)}
+      >
+        <Camera className="size-4" />
+      </button>
+
+      {MODE_TOOLS.map(({ id, icon: Icon, labelKey }) => (
         <button
           key={id}
           type="button"
-          onClick={() => {
-            if (id === "camera") {
-              onScreenshot?.();
-              return;
-            }
-            onToolChange(id);
-          }}
-          disabled={id === "camera" && screenshotPending}
+          onClick={() => onToolChange(id)}
           className={cn(
-            "relative inline-flex size-8 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/8 hover:text-white disabled:opacity-40",
-            tool === id && id !== "camera" && "bg-[#c96442]/25 text-[#e8926f]",
+            "relative inline-flex size-8 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/8 hover:text-white",
+            tool === id && "bg-[#c96442]/25 text-[#e8926f]",
             id === "comment" && tool !== id && queueCount > 0 && "text-white/80",
           )}
           title={t(($) => $.preview.toolbar[labelKey])}
           aria-label={t(($) => $.preview.toolbar[labelKey])}
-          aria-pressed={tool === id && id !== "camera"}
+          aria-pressed={tool === id}
         >
           <Icon className="size-4" />
           {id === "comment" && queueCount > 0 ? (

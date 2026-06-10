@@ -44,6 +44,7 @@ export interface NavItemDef {
   labelKey: string;
   requiresDesignStudio?: boolean;
   requiresForum?: boolean;
+  requiresExplore?: boolean;
 }
 
 export interface NavGroupDef {
@@ -59,7 +60,7 @@ const item = (
   resolveHref: (p: WorkspacePaths) => string,
   icon: LucideIcon,
   labelKey: string,
-  opts?: { requiresDesignStudio?: boolean; requiresForum?: boolean },
+  opts?: { requiresDesignStudio?: boolean; requiresForum?: boolean; requiresExplore?: boolean },
 ): NavItemDef => ({
   key,
   resolveHref,
@@ -92,7 +93,7 @@ export const WORKSPACE_NAV_GROUPS: NavGroupDef[] = [
       item("agents", (p) => p.agents(), Bot, "agents"),
       item("autopilots", (p) => p.autopilots(), Zap, "autopilots"),
       item("squads", (p) => p.squads(), Users, "squads"),
-      item("explore", (p) => p.explore(), Terminal, "explore"),
+      item("explore", (p) => p.explore(), Terminal, "explore", { requiresExplore: true }),
       item("usage", (p) => p.usage(), BarChart3, "usage"),
     ],
   },
@@ -119,10 +120,11 @@ export const WORKSPACE_NAV_GROUPS: NavGroupDef[] = [
 
 export function filterNavItem(
   itemDef: NavItemDef,
-  opts: { designStudio: boolean; forumEnabled: boolean },
+  opts: { designStudio: boolean; forumEnabled: boolean; exploreEnabled: boolean },
 ): boolean {
   if (itemDef.requiresDesignStudio && !opts.designStudio) return false;
   if (itemDef.requiresForum && !opts.forumEnabled) return false;
+  if (itemDef.requiresExplore && !opts.exploreEnabled) return false;
   return true;
 }
 
@@ -141,7 +143,7 @@ export function isNavGroupActive(
   pathname: string,
   group: NavGroupDef,
   p: WorkspacePaths,
-  opts: { designStudio: boolean; forumEnabled: boolean },
+  opts: { designStudio: boolean; forumEnabled: boolean; exploreEnabled: boolean },
 ): boolean {
   return group.items.some((navItem) => {
     if (!filterNavItem(navItem, opts)) return false;

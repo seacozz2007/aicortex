@@ -26,6 +26,7 @@ type StageKey =
   | "offline"
   | "reconnecting"
   | "queued"
+  | "preparing"
   | "starting_up"
   | "thinking"
   | "typing";
@@ -74,7 +75,10 @@ function pickStageKeys(
     return { stageKey: "reconnecting" };
   }
   if (status === "queued") return { stageKey: "queued" };
-  if (status === "dispatched") return { stageKey: "starting_up" };
+  if (status === "dispatched") {
+    if (taskMessages.length === 0) return { stageKey: "preparing" };
+    return { stageKey: "starting_up" };
+  }
 
   // running: latest meaningful message decides the label.
   let latest: TaskMessagePayload | null = null;

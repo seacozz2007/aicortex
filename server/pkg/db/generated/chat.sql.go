@@ -327,7 +327,13 @@ func (q *Queries) GetLastChatTaskWithWorkDir(ctx context.Context, chatSessionID 
 const getPendingChatTask = `-- name: GetPendingChatTask :one
 SELECT id, status, created_at FROM agent_task_queue
 WHERE chat_session_id = $1 AND status IN ('queued', 'dispatched', 'running')
-ORDER BY created_at DESC
+ORDER BY
+  CASE status
+    WHEN 'running' THEN 0
+    WHEN 'dispatched' THEN 1
+    WHEN 'queued' THEN 2
+  END,
+  created_at ASC
 LIMIT 1
 `
 
@@ -337,16 +343,25 @@ type GetPendingChatTaskRow struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-// Returns the most recent in-flight task for a chat session, if any.
-// Used by the frontend to recover pending state after refresh / reopen.
-// created_at is the anchor for the chat StatusPill timer (it computes
-// elapsed = now - task.created_at), so the pill survives refresh / reopen
-// without "resetting to 0s".
+// Returns the active in-flight task for UI: running/dispatched beats queued;
+// among queued tasks, the oldest (head of queue) wins.
 func (q *Queries) GetPendingChatTask(ctx context.Context, chatSessionID pgtype.UUID) (GetPendingChatTaskRow, error) {
 	row := q.db.QueryRow(ctx, getPendingChatTask, chatSessionID)
 	var i GetPendingChatTaskRow
 	err := row.Scan(&i.ID, &i.Status, &i.CreatedAt)
 	return i, err
+}
+
+const countQueuedChatTasksForSession = `-- name: CountQueuedChatTasksForSession :one
+SELECT COUNT(*)::int FROM agent_task_queue
+WHERE chat_session_id = $1 AND status = 'queued'
+`
+
+func (q *Queries) CountQueuedChatTasksForSession(ctx context.Context, chatSessionID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countQueuedChatTasksForSession, chatSessionID)
+	var count int32
+	err := row.Scan(&count)
+	return count, err
 }
 
 const listAllChatSessionsByCreator = `-- name: ListAllChatSessionsByCreator :many

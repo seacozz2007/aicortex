@@ -1,4 +1,8 @@
-export type PreviewTool = "select" | "comment" | "crop" | "pencil" | "pen" | "camera";
+export type PreviewToolMode = "comment" | "mark" | "edit";
+
+export type MarkSubTool = "box" | "pen";
+
+export type MarkAnnotationAction = "draft" | "queue" | "send";
 
 export interface ElementBoxSides {
   top: number;
@@ -35,8 +39,13 @@ export interface SelectedPreviewElement {
   padding: ElementBoxSides;
   margin: ElementBoxSides;
   borderRadius: number;
+  fontFamily: string;
+  fontSize: number;
   fontWeight: string;
+  color: string;
   textAlign: string;
+  lineHeight: number;
+  letterSpacing: number;
 }
 
 export interface PreviewCommentItem {
@@ -46,30 +55,26 @@ export interface PreviewCommentItem {
 }
 
 export interface ElementPropertyDraft {
-  width: number;
-  height: number;
-  fill: string;
-  opacity: number;
-  padding: ElementBoxSides;
-  margin: ElementBoxSides;
-  borderRadius: number;
+  fontFamily: string;
+  fontSize: number;
   fontWeight: string;
+  color: string;
   textAlign: string;
+  lineHeight: number;
+  letterSpacing: number;
 }
 
 export function propertyDraftFromElement(
   element: SelectedPreviewElement,
 ): ElementPropertyDraft {
   return {
-    width: element.width,
-    height: element.height,
-    fill: element.fill,
-    opacity: element.opacity,
-    padding: { ...element.padding },
-    margin: { ...element.margin },
-    borderRadius: element.borderRadius,
+    fontFamily: element.fontFamily,
+    fontSize: element.fontSize,
     fontWeight: element.fontWeight,
+    color: element.color,
     textAlign: element.textAlign,
+    lineHeight: element.lineHeight,
+    letterSpacing: element.letterSpacing,
   };
 }
 
@@ -79,15 +84,20 @@ export function formatPropertyPatch(
 ): string {
   const lines = [
     `[Property edit · ${element.id}]`,
-    `width: ${draft.width}px`,
-    `height: ${draft.height}px`,
-    `background: ${draft.fill}`,
-    `opacity: ${draft.opacity}`,
-    `padding: ${draft.padding.top}px ${draft.padding.right}px ${draft.padding.bottom}px ${draft.padding.left}px`,
-    `margin: ${draft.margin.top}px ${draft.margin.right}px ${draft.margin.bottom}px ${draft.margin.left}px`,
-    `border-radius: ${draft.borderRadius}px`,
+    `font-family: ${draft.fontFamily}`,
+    `font-size: ${draft.fontSize}px`,
     `font-weight: ${draft.fontWeight}`,
+    `color: ${draft.color}`,
     `text-align: ${draft.textAlign}`,
+    `line-height: ${draft.lineHeight}px`,
+    `letter-spacing: ${draft.letterSpacing}px`,
   ];
   return lines.join("\n");
+}
+
+export interface MarkAnnotationPayload {
+  action: MarkAnnotationAction;
+  note: string;
+  imageFile?: File;
+  extraFiles?: File[];
 }

@@ -4,6 +4,7 @@ import { createLogger } from "../logger";
 import type { Agent, ChatMessage, ChatPendingTask } from "../types";
 import type { EnsureChatSessionOptions } from "./ensure-session";
 import { invalidateStaleChatSession } from "./ensure-session";
+import { mergePendingTaskOnEnqueue } from "./pending-task";
 import { chatKeys } from "./queries";
 import { rollbackOptimisticChatSend } from "./rollback-optimistic-send";
 
@@ -14,6 +15,8 @@ export interface SendChatMessageAttempt {
   content: string;
   attachmentIds?: string[];
   optimistic: ChatMessage;
+  /** When true, a running task stays active and this send joins the queue. */
+  queueFollowUp?: boolean;
 }
 
 type EnsureSessionFn = (
@@ -39,11 +42,14 @@ export async function sendChatMessageWithRecovery(
     api.sendChatMessage(sessionId, attempt.content, attempt.attachmentIds);
 
   const applySuccess = (sessionId: string, result: Awaited<ReturnType<typeof post>>) => {
-    qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
+    const incoming: ChatPendingTask = {
       task_id: result.task_id,
       status: "queued",
       created_at: result.created_at,
-    });
+    };
+    qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), (old) =>
+      mergePendingTaskOnEnqueue(old, incoming),
+    );
     qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
   };
 
@@ -52,7 +58,9 @@ export async function sendChatMessageWithRecovery(
     applySuccess(attempt.sessionId, result);
     return result;
   } catch (err) {
-    rollbackOptimisticChatSend(qc, attempt.sessionId, attempt.optimistic.id);
+    rollbackOptimisticChatSend(qc, attempt.sessionId, attempt.optimistic.id, {
+      preservePending: attempt.queueFollowUp,
+    });
 
     if (!isChatSessionNotFound(err)) {
       logger.error("sendChatMessage.error", { sessionId: attempt.sessionId, err });

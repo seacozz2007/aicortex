@@ -28,6 +28,8 @@ import {
 import { useChatStore } from "@aicortex/core/chat";
 import { useEnsureChatSession } from "@aicortex/core/chat/ensure-session";
 import { sendChatMessageWithRecovery } from "@aicortex/core/chat/send-message";
+import { shouldEnqueueOutbound, type OutboundQueuedMessage } from "@aicortex/core/chat/outbound-queue";
+import { useFlushOutboundQueue } from "@aicortex/core/chat/use-flush-outbound-queue";
 import { useStaleChatSessionGuard } from "@aicortex/core/chat/stale-session-guard";
 import { useAgentPresenceDetail, useWorkspaceAgentAvailability } from "@aicortex/core/agents";
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
@@ -40,6 +42,7 @@ import {
   useArtifactBrowseFeature,
   useRuntimeTunnelFeature,
 } from "@aicortex/core/config/features";
+import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
 import { getCurrentSlug } from "@aicortex/core/platform";
 import { canAssignAgent } from "@aicortex/views/issues/components";
 import type { Agent, ChatSession, ChatMessage, ChatPendingTask } from "@aicortex/core/types";
@@ -164,6 +167,41 @@ export function ChatPage() {
   );
 
   // Send message
+  const performSend = useCallback(
+    async (sessionId: string, finalContent: string, attachmentIds?: string[]) => {
+      if (!activeAgent) return;
+
+      const sentAt = new Date().toISOString();
+      const optimistic: ChatMessage = {
+        id: `optimistic-${Date.now()}`,
+        chat_session_id: sessionId,
+        role: "user",
+        content: finalContent,
+        task_id: null,
+        created_at: sentAt,
+      };
+      qc.setQueryData<ChatMessage[]>(chatKeys.messages(sessionId), (old) =>
+        old ? [...old, optimistic] : [optimistic],
+      );
+      qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
+        task_id: `optimistic-${optimistic.id}`,
+        status: "queued",
+        created_at: sentAt,
+      });
+      setActiveSession(sessionId);
+
+      await sendChatMessageWithRecovery(
+        qc,
+        wsId,
+        { sessionId, content: finalContent, attachmentIds, optimistic },
+        ensureSession,
+        activeAgent,
+        setActiveSession,
+      );
+    },
+    [activeAgent, ensureSession, qc, setActiveSession, wsId],
+  );
+
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
       try {
@@ -177,40 +215,39 @@ export function ChatPage() {
         const sessionId = await ensureSession(finalContent, activeAgent);
         if (!sessionId) return;
 
-        const sentAt = new Date().toISOString();
-        const optimistic: ChatMessage = {
-          id: `optimistic-${Date.now()}`,
-          chat_session_id: sessionId,
-          role: "user",
-          content: finalContent,
-          task_id: null,
-          created_at: sentAt,
-        };
-        qc.setQueryData<ChatMessage[]>(
-          chatKeys.messages(sessionId),
-          (old) => (old ? [...old, optimistic] : [optimistic]),
+        const existingPending = qc.getQueryData<ChatPendingTask>(
+          chatKeys.pendingTask(sessionId),
         );
-        qc.setQueryData<ChatPendingTask>(chatKeys.pendingTask(sessionId), {
-          task_id: `optimistic-${optimistic.id}`,
-          status: "queued",
-          created_at: sentAt,
-        });
-        setActiveSession(sessionId);
+        const localQueue = useChatStore.getState().outboundQueues[sessionId] ?? [];
+        if (shouldEnqueueOutbound(existingPending, localQueue.length)) {
+          useChatStore.getState().enqueueOutbound(sessionId, {
+            id: crypto.randomUUID(),
+            content: finalContent,
+            attachmentIds,
+          });
+          setActiveSession(sessionId);
+          return;
+        }
 
-        await sendChatMessageWithRecovery(
-          qc,
-          wsId,
-          { sessionId, content: finalContent, attachmentIds, optimistic },
-          ensureSession,
-          activeAgent,
-          setActiveSession,
-        );
+        await performSend(sessionId, finalContent, attachmentIds);
       } catch (err) {
         apiLogger.error("handleSend.failed", err);
       }
     },
-    [activeAgent, anchorCandidate, ensureSession, qc, setActiveSession, wsId],
+    [activeAgent, anchorCandidate, ensureSession, performSend, qc, setActiveSession],
   );
+
+  useFlushOutboundQueue({
+    sessionId: activeSessionId,
+    pendingTask,
+    flushItem: useCallback(
+      async (item: OutboundQueuedMessage) => {
+        if (!activeSessionId) return;
+        await performSend(activeSessionId, item.content, item.attachmentIds);
+      },
+      [activeSessionId, performSend],
+    ),
+  });
 
   // Stop task
   const handleStop = useCallback(() => {
@@ -243,10 +280,11 @@ export function ChatPage() {
   const [sessionListOpen, setSessionListOpen] = useState(true);
   const artifactBrowseEnabled = useArtifactBrowseFeature();
   const runtimeTunnelEnabled = useRuntimeTunnelFeature();
+  const exploreEnabled = useWorkspaceExploreEnabled();
   const canUseTools =
     artifactBrowseEnabled ||
     runtimeTunnelEnabled ||
-    !!currentSession?.runtime_id;
+    (exploreEnabled && !!currentSession?.runtime_id);
   const [toolsSidebarOpen, setToolsSidebarOpen] = useState(readToolsSidebarOpen);
   const { defaultLayout: toolsLayout, onLayoutChanged: onToolsLayoutChanged } = useDefaultLayout({
     id: "aicortex_chat_tools_layout",

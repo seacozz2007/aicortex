@@ -33,6 +33,9 @@ func (h *Handler) CreateTerminalSession(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	if !h.requireWorkspaceExplore(w, r, member) {
+		return
+	}
 
 	var req struct {
 		RuntimeID string `json:"runtime_id"`
@@ -107,6 +110,9 @@ func (h *Handler) ListTerminalSessions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	if !h.requireWorkspaceExplore(w, r, member) {
+		return
+	}
 
 	wsID := uuidToString(member.WorkspaceID)
 	rows, err := h.DB.Query(r.Context(),
@@ -152,6 +158,9 @@ func (h *Handler) UpdateTerminalSession(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	if !h.requireWorkspaceExplore(w, r, member) {
+		return
+	}
 
 	sessionID := chi.URLParam(r, "sessionId")
 	wsID := uuidToString(member.WorkspaceID)
@@ -180,6 +189,9 @@ func (h *Handler) CloseTerminalSession(w http.ResponseWriter, r *http.Request) {
 	member, ok := middleware.MemberFromContext(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !h.requireWorkspaceExplore(w, r, member) {
 		return
 	}
 

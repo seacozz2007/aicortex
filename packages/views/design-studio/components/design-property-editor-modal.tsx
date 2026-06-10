@@ -4,46 +4,63 @@ import { GripVertical, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
-import type { ElementBoxSides, ElementPropertyDraft, SelectedPreviewElement } from "../lib/preview-element";
+import type { ElementPropertyDraft, SelectedPreviewElement } from "../lib/preview-element";
 import { propertyDraftFromElement } from "../lib/preview-element";
 
-function SideInputs({
+const FONT_OPTIONS = [
+  "inherit",
+  "Arial, sans-serif",
+  "Georgia, serif",
+  "Times New Roman, serif",
+  "Caveat, cursive",
+  "Zilla Slab, serif",
+  "Shrikhand, cursive",
+  "system-ui, sans-serif",
+];
+
+const WEIGHT_OPTIONS = ["100", "300", "400", "500", "600", "700", "800", "900"];
+const ALIGN_OPTIONS = ["left", "center", "right", "justify"];
+
+function StepperInput({
   label,
   value,
   onChange,
+  unit = "px",
+  step = 1,
 }: {
   label: string;
-  value: ElementBoxSides;
-  onChange: (next: ElementBoxSides) => void;
+  value: number;
+  onChange: (value: number) => void;
+  unit?: string;
+  step?: number;
 }) {
-  const sides = (
-    [
-      ["T", "top"],
-      ["R", "right"],
-      ["B", "bottom"],
-      ["L", "left"],
-    ] as const
-  );
-
   return (
-    <div>
-      <p className="mb-1.5 text-[11px] font-medium text-white/45">{label}</p>
-      <div className="grid grid-cols-4 gap-1.5">
-        {sides.map(([short, key]) => (
-          <label key={key} className="space-y-0.5">
-            <span className="text-[10px] text-white/35">{short}</span>
-            <input
-              type="number"
-              value={value[key]}
-              onChange={(e) =>
-                onChange({ ...value, [key]: Number(e.target.value) || 0 })
-              }
-              className="w-full rounded-md border border-white/10 bg-black/30 px-1.5 py-1 text-[11px] tabular-nums text-white focus:border-white/25 focus:outline-none"
-            />
-          </label>
-        ))}
+    <label className="space-y-0.5">
+      <span className="text-[10px] text-white/35">{label}</span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, value - step))}
+          className="inline-flex size-6 items-center justify-center rounded border border-white/10 text-white/60 hover:bg-white/8"
+        >
+          −
+        </button>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value) || 0)}
+          className="w-full min-w-0 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 text-[11px] tabular-nums text-white focus:border-white/25 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => onChange(value + step)}
+          className="inline-flex size-6 items-center justify-center rounded border border-white/10 text-white/60 hover:bg-white/8"
+        >
+          +
+        </button>
+        {unit ? <span className="text-[10px] text-white/35">{unit}</span> : null}
       </div>
-    </div>
+    </label>
   );
 }
 
@@ -99,150 +116,91 @@ export function DesignPropertyEditorModal({
 
         <div className="max-h-[min(60vh,420px)] space-y-4 overflow-auto px-3 py-3">
           <section>
-            <p className="mb-1.5 text-[11px] font-medium text-white/45">
-              {t(($) => $.preview.property_editor.size)}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="space-y-0.5">
-                <span className="text-[10px] text-white/35">
-                  {t(($) => $.preview.property_editor.width)}
-                </span>
-                <input
-                  type="number"
-                  value={draft.width}
-                  onChange={(e) =>
-                    updateDraft({ ...draft, width: Number(e.target.value) || 0 })
-                  }
-                  className="w-full rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs tabular-nums text-white focus:border-white/25 focus:outline-none"
-                />
-              </label>
-              <label className="space-y-0.5">
-                <span className="text-[10px] text-white/35">
-                  {t(($) => $.preview.property_editor.height)}
-                </span>
-                <input
-                  type="number"
-                  value={draft.height}
-                  onChange={(e) =>
-                    updateDraft({ ...draft, height: Number(e.target.value) || 0 })
-                  }
-                  className="w-full rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs tabular-nums text-white focus:border-white/25 focus:outline-none"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section>
-            <p className="mb-1.5 text-[11px] font-medium text-white/45">
-              {t(($) => $.preview.property_editor.box)}
-            </p>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <span className="w-10 text-[10px] text-white/35">
-                  {t(($) => $.preview.property_editor.fill)}
-                </span>
-                <input
-                  type="color"
-                  value={draft.fill.startsWith("#") ? draft.fill : "#000000"}
-                  onChange={(e) => updateDraft({ ...draft, fill: e.target.value })}
-                  className="size-7 cursor-pointer rounded border border-white/10 bg-transparent"
-                />
-                <input
-                  type="text"
-                  value={draft.fill}
-                  onChange={(e) => updateDraft({ ...draft, fill: e.target.value })}
-                  className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] font-mono text-white focus:border-white/25 focus:outline-none"
-                />
-              </label>
-              <label className="flex items-center gap-2">
-                <span className="w-10 text-[10px] text-white/35">
-                  {t(($) => $.preview.property_editor.opacity)}
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={draft.opacity}
-                  onChange={(e) =>
-                    updateDraft({ ...draft, opacity: Number(e.target.value) })
-                  }
-                  className="flex-1 accent-[#c96442]"
-                />
-                <span className="w-8 text-right text-[11px] tabular-nums text-white/70">
-                  {draft.opacity.toFixed(2)}
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <SideInputs
-            label={t(($) => $.preview.property_editor.padding)}
-            value={draft.padding}
-            onChange={(padding) => updateDraft({ ...draft, padding })}
-          />
-          <SideInputs
-            label={t(($) => $.preview.property_editor.margin)}
-            value={draft.margin}
-            onChange={(margin) => updateDraft({ ...draft, margin })}
-          />
-
-          <section>
-            <p className="mb-1.5 text-[11px] font-medium text-white/45">
+            <p className="mb-2 text-[11px] font-semibold tracking-wide text-white/45">
               {t(($) => $.preview.property_editor.typography)}
             </p>
             <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <span className="w-16 text-[10px] text-white/35">
-                  {t(($) => $.preview.property_editor.font_weight)}
-                </span>
+              <label className="block space-y-0.5">
+                <span className="text-[10px] text-white/35">Font</span>
                 <select
-                  value={draft.fontWeight}
-                  onChange={(e) => updateDraft({ ...draft, fontWeight: e.target.value })}
-                  className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-white focus:border-white/25 focus:outline-none"
+                  value={draft.fontFamily}
+                  onChange={(e) => updateDraft({ ...draft, fontFamily: e.target.value })}
+                  className="w-full rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white focus:border-white/25 focus:outline-none"
                 >
-                  {["100", "300", "400", "500", "600", "700", "800", "900"].map((w) => (
-                    <option key={w} value={w}>
-                      {w}
+                  {FONT_OPTIONS.map((font) => (
+                    <option key={font} value={font}>
+                      {font.split(",")[0]?.replace(/['"]/g, "") ?? font}
                     </option>
                   ))}
                 </select>
               </label>
+              <div className="grid grid-cols-2 gap-2">
+                <StepperInput
+                  label="Size"
+                  value={draft.fontSize}
+                  onChange={(fontSize) => updateDraft({ ...draft, fontSize })}
+                />
+                <label className="space-y-0.5">
+                  <span className="text-[10px] text-white/35">
+                    {t(($) => $.preview.property_editor.font_weight)}
+                  </span>
+                  <select
+                    value={draft.fontWeight}
+                    onChange={(e) => updateDraft({ ...draft, fontWeight: e.target.value })}
+                    className="w-full rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white focus:border-white/25 focus:outline-none"
+                  >
+                    {WEIGHT_OPTIONS.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <label className="flex items-center gap-2">
-                <span className="w-16 text-[10px] text-white/35">
+                <span className="w-12 text-[10px] text-white/35">Color</span>
+                <input
+                  type="color"
+                  value={draft.color.startsWith("#") ? draft.color : "#000000"}
+                  onChange={(e) => updateDraft({ ...draft, color: e.target.value })}
+                  className="size-7 cursor-pointer rounded border border-white/10 bg-transparent"
+                />
+                <input
+                  type="text"
+                  value={draft.color}
+                  onChange={(e) => updateDraft({ ...draft, color: e.target.value })}
+                  className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] font-mono text-white focus:border-white/25 focus:outline-none"
+                />
+              </label>
+              <label className="block space-y-0.5">
+                <span className="text-[10px] text-white/35">
                   {t(($) => $.preview.property_editor.text_align)}
                 </span>
                 <select
                   value={draft.textAlign}
                   onChange={(e) => updateDraft({ ...draft, textAlign: e.target.value })}
-                  className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-white focus:border-white/25 focus:outline-none"
+                  className="w-full rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white focus:border-white/25 focus:outline-none"
                 >
-                  {["left", "center", "right", "justify"].map((a) => (
+                  {ALIGN_OPTIONS.map((a) => (
                     <option key={a} value={a}>
                       {a}
                     </option>
                   ))}
                 </select>
               </label>
-              <label className="flex items-center gap-2">
-                <span className="w-16 text-[10px] text-white/35">
-                  {t(($) => $.preview.property_editor.radius)}
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={48}
-                  step={1}
-                  value={draft.borderRadius}
-                  onChange={(e) =>
-                    updateDraft({ ...draft, borderRadius: Number(e.target.value) })
-                  }
-                  className="flex-1 accent-[#c96442]"
+              <div className="grid grid-cols-2 gap-2">
+                <StepperInput
+                  label="Line"
+                  value={draft.lineHeight}
+                  onChange={(lineHeight) => updateDraft({ ...draft, lineHeight })}
                 />
-                <span className="w-8 text-right text-[11px] tabular-nums text-white/70">
-                  {draft.borderRadius}px
-                </span>
-              </label>
+                <StepperInput
+                  label="Tracking"
+                  value={draft.letterSpacing}
+                  onChange={(letterSpacing) => updateDraft({ ...draft, letterSpacing })}
+                  step={0.5}
+                />
+              </div>
             </div>
           </section>
         </div>

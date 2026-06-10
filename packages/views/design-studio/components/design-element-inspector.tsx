@@ -40,10 +40,9 @@ export function DesignElementInspector({
   note,
   onNoteChange,
   onClose,
-  onQueue,
-  onSubmit,
+  onSaveComment,
+  onSendToChat,
   onAttachImages,
-  onOpenPropertyEditor,
   attachmentCount = 0,
   style,
 }: {
@@ -51,10 +50,9 @@ export function DesignElementInspector({
   note: string;
   onNoteChange: (value: string) => void;
   onClose: () => void;
-  onQueue: () => void;
-  onSubmit: () => void;
+  onSaveComment: () => void;
+  onSendToChat: () => void;
   onAttachImages?: (files: File[]) => void;
-  onOpenPropertyEditor?: () => void;
   attachmentCount?: number;
   style?: React.CSSProperties;
 }) {
@@ -67,18 +65,7 @@ export function DesignElementInspector({
       style={style}
     >
       <div className="space-y-2 border-b border-white/8 px-3 py-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[10px] font-mono text-white/45">{element.id}</span>
-          {onOpenPropertyEditor ? (
-            <button
-              type="button"
-              onClick={onOpenPropertyEditor}
-              className="shrink-0 rounded px-2 py-0.5 text-[10px] text-[#e8926f] hover:bg-white/5"
-            >
-              {t(($) => $.preview.inspector.edit_properties)}
-            </button>
-          ) : null}
-        </div>
+        <span className="truncate text-[10px] font-mono text-white/45">{element.id}</span>
         <PropertyRow label={t(($) => $.preview.inspector.size)} value={element.style.size} />
         <PropertyRow
           label={t(($) => $.preview.inspector.color)}
@@ -104,6 +91,12 @@ export function DesignElementInspector({
           placeholder={t(($) => $.preview.inspector.comment_placeholder)}
           className="min-h-[72px] w-full resize-none rounded-lg border border-[#5e6ad2]/60 bg-black/30 px-2.5 py-2 text-xs text-white placeholder:text-white/35 focus:border-[#5e6ad2] focus:outline-none"
           autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (note.trim()) onSaveComment();
+            }
+          }}
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
@@ -146,15 +139,15 @@ export function DesignElementInspector({
             <button
               type="button"
               disabled={!note.trim()}
-              onClick={onQueue}
+              onClick={onSendToChat}
               className="rounded-md px-2.5 py-1 text-[11px] text-white/70 hover:bg-white/5 disabled:opacity-40"
             >
-              {t(($) => $.preview.inspector.add_to_queue)}
+              {t(($) => $.preview.inspector.send_to_chat)}
             </button>
             <button
               type="button"
               disabled={!note.trim()}
-              onClick={onSubmit}
+              onClick={onSaveComment}
               className="rounded-md bg-[#c96442] px-3 py-1 text-[11px] font-medium text-white disabled:opacity-40"
             >
               {t(($) => $.preview.inspector.submit_comment)}

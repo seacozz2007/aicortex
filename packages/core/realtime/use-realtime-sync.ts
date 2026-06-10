@@ -32,6 +32,7 @@ import { inboxKeys } from "../inbox/queries";
 import { notificationPreferenceOptions } from "../notification-preferences/queries";
 import { workspaceKeys, workspaceListOptions } from "../workspace/queries";
 import { chatKeys } from "../chat/queries";
+import { mergePendingTaskOnEnqueue } from "../chat/pending-task";
 import { useChatStore } from "../chat";
 import { resolvePostAuthDestination, useHasOnboarded } from "../paths";
 import type {
@@ -691,11 +692,11 @@ export function useRealtimeSync(
       if (!payload.chat_session_id) return;
       qc.setQueryData<ChatPendingTask>(
         chatKeys.pendingTask(payload.chat_session_id),
-        (old) => ({
-          ...(old ?? {}),
-          task_id: payload.task_id,
-          status: "queued",
-        }),
+        (old) =>
+          mergePendingTaskOnEnqueue(old, {
+            task_id: payload.task_id,
+            status: "queued",
+          }),
       );
       invalidatePendingAggregate();
     });
@@ -712,8 +713,13 @@ export function useRealtimeSync(
       qc.setQueryData<ChatPendingTask>(
         chatKeys.pendingTask(payload.chat_session_id),
         (old) => {
-          if (!old || old.task_id !== payload.task_id) return old;
-          return { ...old, status: "running" };
+          if (old?.task_id && old.task_id !== payload.task_id) return old;
+          return {
+            ...(old ?? {}),
+            task_id: payload.task_id,
+            status: "running",
+            queued_count: 0,
+          };
         },
       );
     });

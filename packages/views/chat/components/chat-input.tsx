@@ -2,7 +2,14 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useRef, useState } from "react";
+import { Square } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
+import { Button } from "@aicortex/ui/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@aicortex/ui/components/ui/tooltip";
 import {
   ContentEditor,
   type ContentEditorRef,
@@ -12,15 +19,19 @@ import {
 import { FileUploadButton } from "@aicortex/ui/components/common/file-upload-button";
 import { SubmitButton } from "@aicortex/ui/components/common/submit-button";
 import { useChatStore, DRAFT_NEW_SESSION } from "@aicortex/core/chat";
+import { EMPTY_OUTBOUND_QUEUE } from "@aicortex/core/chat/outbound-queue";
 import { createLogger } from "@aicortex/core/logger";
 import { enterKey, formatShortcut, modKey } from "@aicortex/core/platform";
 import type { UploadResult } from "@aicortex/core/hooks/use-file-upload";
 import { useT } from "../../i18n";
+import { ChatQueueBar } from "./chat-queue-bar";
 
 const logger = createLogger("chat.ui");
 
 interface ChatInputProps {
   onSend: (content: string, attachmentIds?: string[]) => void | Promise<unknown>;
+  /** When unset, queue bar reads from the chat store for activeSessionId. */
+  queueSessionId?: string | null;
   /** Receives a File and returns the attachment row (with id + CDN link).
    *  The wrapper owner (ChatWindow) lazy-creates a chat_session if needed
    *  and forwards `chatSessionId` to the upload — chat-input only cares
@@ -57,6 +68,7 @@ export function ChatInput({
   leftAdornment,
   rightAdornment,
   topSlot,
+  queueSessionId,
 }: ChatInputProps) {
   const { t } = useT("chat");
   const editorRef = useRef<ContentEditorRef>(null);
@@ -90,6 +102,12 @@ export function ChatInput({
   const inputDraft = useChatStore((s) => s.inputDrafts[draftKey] ?? "");
   const setInputDraft = useChatStore((s) => s.setInputDraft);
   const clearInputDraft = useChatStore((s) => s.clearInputDraft);
+  const outboundQueue = useChatStore((s) => {
+    const sid = queueSessionId ?? activeSessionId;
+    return sid
+      ? (s.outboundQueues[sid] ?? EMPTY_OUTBOUND_QUEUE)
+      : EMPTY_OUTBOUND_QUEUE;
+  });
   const [isEmpty, setIsEmpty] = useState(!inputDraft.trim());
   // Number of in-flight uploads. We track this explicitly (rather than
   // peeking at the editor on every render) so the SubmitButton visibly
@@ -129,10 +147,9 @@ export function ChatInput({
 
   const handleSend = () => {
     const content = editorRef.current?.getMarkdown()?.replace(/(\n\s*)+$/, "").trim();
-    if (!content || isRunning || disabled || noAgent) {
+    if (!content || disabled || noAgent) {
       logger.debug("input.send skipped", {
         emptyContent: !content,
-        isRunning,
         disabled,
         noAgent,
       });
@@ -190,30 +207,28 @@ export function ChatInput({
       : agentName
         ? t(($) => $.input.placeholder_named, { name: agentName })
         : t(($) => $.input.placeholder_default);
+  const stopTooltip = t(($) => $.input.stop_tooltip);
 
   const uploadEnabled = !!onUploadFile && !disabled && !noAgent;
 
   return (
     <div
       className={cn(
-        "px-5 pb-3 pt-0",
-        // Outer wrapper carries the disabled cursor. Inner card sets
-        // pointer-events-none, which suppresses hover (and therefore
-        // any cursor of its own) — splitting the two layers lets hover
-        // bubble back here so the browser actually reads cursor.
+        "space-y-2 px-5 pb-3 pt-0",
         noAgent && "cursor-not-allowed",
       )}
     >
+      {outboundQueue.length > 0 && (queueSessionId ?? activeSessionId) && (
+        <ChatQueueBar
+          sessionId={(queueSessionId ?? activeSessionId)!}
+          items={outboundQueue}
+          sendShortcut={formatShortcut(modKey, enterKey)}
+        />
+      )}
       <div
         {...(uploadEnabled ? dropZoneProps : {})}
         className={cn(
           "relative mx-auto flex min-h-16 max-h-40 w-full max-w-4xl flex-col rounded-lg bg-card pb-9 border-1 border-border transition-colors focus-within:border-brand",
-          // Visual + interaction lock when there's no agent. We don't
-          // toggle ContentEditor's editable mode (Tiptap can't switch
-          // cleanly post-mount, and the prop has been removed); instead
-          // we drop pointer events at the wrapper level so clicks miss
-          // the editor entirely, and dim the surface so it reads as
-          // "disabled" rather than "broken".
           noAgent && "pointer-events-none opacity-60",
         )}
         aria-disabled={noAgent || undefined}
@@ -256,13 +271,23 @@ export function ChatInput({
               onSelect={(file) => editorRef.current?.uploadFile(file)}
             />
           )}
+          {isRunning && onStop && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button size="icon-sm" onClick={onStop}>
+                    <Square className="fill-current" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="top">{stopTooltip}</TooltipContent>
+            </Tooltip>
+          )}
           <SubmitButton
             onClick={handleSend}
             disabled={isEmpty || !!disabled || !!noAgent || pendingUploads > 0}
-            running={isRunning}
-            onStop={onStop}
+            running={false}
             tooltip={`${t(($) => $.input.send_tooltip)} · ${formatShortcut(modKey, enterKey)}`}
-            stopTooltip={t(($) => $.input.stop_tooltip)}
           />
         </div>
         {uploadEnabled && isDragOver && <FileDropOverlay />}

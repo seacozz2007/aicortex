@@ -73,8 +73,13 @@ export function extractSelectedElement(el: HTMLElement): SelectedPreviewElement 
       left: parsePx(cs.marginLeft),
     },
     borderRadius: parsePx(cs.borderRadius),
+    fontFamily: primaryFontFamily(cs.fontFamily),
+    fontSize: parsePx(cs.fontSize),
     fontWeight: cs.fontWeight || "400",
+    color: shortenColor(cs.color),
     textAlign: cs.textAlign || "left",
+    lineHeight: parsePx(cs.lineHeight),
+    letterSpacing: parsePx(cs.letterSpacing),
   };
 }
 

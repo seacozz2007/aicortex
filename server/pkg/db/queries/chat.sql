@@ -137,15 +137,22 @@ ORDER BY completed_at DESC
 LIMIT 1;
 
 -- name: GetPendingChatTask :one
--- Returns the most recent in-flight task for a chat session, if any.
--- Used by the frontend to recover pending state after refresh / reopen.
--- created_at is the anchor for the chat StatusPill timer (it computes
--- elapsed = now - task.created_at), so the pill survives refresh / reopen
--- without "resetting to 0s".
+-- Returns the active in-flight task for UI: running/dispatched beats queued;
+-- among queued tasks, the oldest (head of queue) wins.
 SELECT id, status, created_at FROM agent_task_queue
 WHERE chat_session_id = $1 AND status IN ('queued', 'dispatched', 'running')
-ORDER BY created_at DESC
+ORDER BY
+  CASE status
+    WHEN 'running' THEN 0
+    WHEN 'dispatched' THEN 1
+    WHEN 'queued' THEN 2
+  END,
+  created_at ASC
 LIMIT 1;
+
+-- name: CountQueuedChatTasksForSession :one
+SELECT COUNT(*)::int FROM agent_task_queue
+WHERE chat_session_id = $1 AND status = 'queued';
 
 -- name: ListPendingChatTasksByCreator :many
 -- Aggregate view of all in-flight chat tasks owned by a given creator in a

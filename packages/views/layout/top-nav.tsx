@@ -55,6 +55,7 @@ import { useLogout } from "../auth";
 import { useT } from "../i18n";
 import { useModalStore } from "@aicortex/core/modals";
 import { useDesignStudioFeature } from "@aicortex/core/config/features";
+import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
 import { WORKSPACE_NAV_GROUPS, filterNavItem, resolveNavHref } from "@aicortex/core/nav/workspace-nav";
 import { WorkspaceNavMenu } from "./workspace-nav-menu";
 
@@ -74,13 +75,14 @@ export function TopNav({ className }: TopNavProps) {
   const settings = (workspace?.settings as Record<string, unknown>) ?? {};
   const designStudioEnabled = useDesignStudioFeature();
   const forumEnabled = settings.forum_enabled === true;
+  const exploreEnabled = useWorkspaceExploreEnabled();
 
   const isMobile = useIsMobile();
   const [navSheetOpen, setNavSheetOpen] = useState(false);
 
   const mobileNavItems = WORKSPACE_NAV_GROUPS.flatMap((group) =>
     group.items
-      .filter((item) => filterNavItem(item, { designStudio: designStudioEnabled, forumEnabled }))
+      .filter((item) => filterNavItem(item, { designStudio: designStudioEnabled, forumEnabled, exploreEnabled }))
       .map((item) => ({
         key: item.key,
         label: t(($) => $.nav[item.labelKey as keyof typeof $.nav] as string),
@@ -188,6 +190,7 @@ export function TopNav({ className }: TopNavProps) {
           <WorkspaceNavMenu
             designStudio={designStudioEnabled}
             forumEnabled={forumEnabled}
+            exploreEnabled={exploreEnabled}
           />
         )}
       </div>
