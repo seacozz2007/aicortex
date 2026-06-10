@@ -1,0 +1,38 @@
+{
+  "picker": {
+    "title": "Dev Studio",
+    "subtitle": "Choose a project to start developing",
+    "search_placeholder": "Search projects…",
+    "new_project": "New project",
+    "empty": "Create a project first, then return here to open Dev Studio.",
+    "no_results": "No projects match your search.",
+    "create_first": "Create project",
+    "open_studio": "Open Dev Studio"
+  },
+  "hub": {
+    "title": "Dev Studio",
+    "back_to_project": "Back to project",
+    "brand_name": "Dev Studio",
+    "hero_title": "What do you want to build?",
+    "hero_subtitle": "Select a project, choose an agent, and start building with a terminal-connected runtime.",
+    "composer_placeholder": "Describe what you want to build…",
+    "select_agent": "Select agent…",
+    "agent_online": "Online",
+    "agent_offline": "Offline",
+    "start_session": "Start",
+    "start_session_short": "Go"
+  },
+  "session": {
+    "back": "Back to Dev Studio",
+    "sessions": "Sessions",
+    "terminal_hint": "Terminal connected to agent runtime — run commands and see real-time output.",
+    "terminal_connecting": "Connecting to runtime…",
+    "terminal_connected": "Runtime connected",
+    "terminal_closed": "Terminal closed",
+    "terminal_retry": "Reconnect",
+    "tabs_preview": "Preview",
+    "tabs_files": "Files",
+    "preview_unavailable": "No preview available yet. Run a task to generate preview content.",
+    "files_empty": "No files available yet."
+  }
+}

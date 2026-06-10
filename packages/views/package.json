@@ -47,6 +47,7 @@
     "./search": "./search/index.ts",
     "./chat": "./chat/index.ts",
     "./design-studio": "./design-studio/index.ts",
+    "./dev-studio": "./dev-studio/index.ts",
     "./chat-share/public": "./chat-share/public/index.ts",
     "./settings": "./settings/index.ts",
     "./invite": "./invite/index.ts",
