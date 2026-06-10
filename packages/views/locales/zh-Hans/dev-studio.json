@@ -1,0 +1,38 @@
+{
+  "picker": {
+    "title": "开发工作室",
+    "subtitle": "选择一个项目开始开发",
+    "search_placeholder": "搜索项目…",
+    "new_project": "新建项目",
+    "empty": "请先创建一个项目，然后返回这里打开开发工作室。",
+    "no_results": "没有匹配的项目。",
+    "create_first": "创建项目",
+    "open_studio": "打开开发工作室"
+  },
+  "hub": {
+    "title": "开发工作室",
+    "back_to_project": "返回项目",
+    "brand_name": "开发工作室",
+    "hero_title": "想要构建什么？",
+    "hero_subtitle": "选择一个项目和 Agent，在终端连接 Runtime 的环境中直接开始构建。",
+    "composer_placeholder": "描述你想要构建的内容…",
+    "select_agent": "选择 Agent…",
+    "agent_online": "在线",
+    "agent_offline": "离线",
+    "start_session": "开始",
+    "start_session_short": "开始"
+  },
+  "session": {
+    "back": "返回开发工作室",
+    "sessions": "会话",
+    "terminal_hint": "终端已连接到 Agent Runtime — 运行命令查看实时输出。",
+    "terminal_connecting": "正在连接到 Runtime…",
+    "terminal_connected": "Runtime 已连接",
+    "terminal_closed": "终端已关闭",
+    "terminal_retry": "重新连接",
+    "tabs_preview": "预览",
+    "tabs_files": "文件",
+    "preview_unavailable": "暂无预览内容。运行任务来生成预览。",
+    "files_empty": "暂无可用文件。"
+  }
+}

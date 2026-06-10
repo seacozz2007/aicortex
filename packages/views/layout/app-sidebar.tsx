@@ -99,6 +99,7 @@ function isNavActive(pathname: string, href: string): boolean {
 
 function resolveSidebarHref(p: ReturnType<typeof useWorkspacePaths>, key: NavKey): string {
   if (key === "designStudio") return p.projects();
+  if (key === "dev") return p.dev();
   return p[key]();
 }
 
@@ -134,7 +135,8 @@ type NavKey =
   | "meetings"
   | "recent"
   | "chat"
-  | "designStudio";
+  | "designStudio"
+  | "dev";
 
 // Static schema (key + icon) — labels resolved at render via useT("layout").
 type NavLabelKey =
@@ -156,7 +158,8 @@ type NavLabelKey =
   | "meetings"
   | "recent"
   | "chat"
-  | "design_studio";
+  | "design_studio"
+  | "dev_studio";
 
 const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "home", labelKey: "home", icon: Home },
@@ -168,6 +171,7 @@ const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] 
 const createNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox; requiresDesignStudio?: boolean }[] = [
   { key: "chat", labelKey: "chat", icon: MessageSquare },
   { key: "designStudio", labelKey: "design_studio", icon: Palette, requiresDesignStudio: true },
+  { key: "dev", labelKey: "dev_studio", icon: Terminal },
 ];
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
@@ -685,7 +689,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                   const isActive =
                     item.key === "designStudio"
                       ? pathname.includes("/design")
-                      : isNavActive(pathname, href);
+                      : item.key === "dev"
+                        ? pathname === href || pathname.includes("/dev")
+                        : isNavActive(pathname, href);
                   return (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton

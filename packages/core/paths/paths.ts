@@ -25,10 +25,14 @@ function workspaceScoped(slug: string) {
     issueDetail: (id: string) => `${ws}/issues/${encode(id)}`,
     projects: () => `${ws}/projects`,
     design: () => `${ws}/design`,
+    dev: () => `${ws}/dev`,
     projectDetail: (id: string) => `${ws}/projects/${encode(id)}`,
     projectDesign: (projectId: string) => `${ws}/projects/${encode(projectId)}/design`,
     projectDesignSession: (projectId: string, sessionId: string) =>
       `${ws}/projects/${encode(projectId)}/design/sessions/${encode(sessionId)}`,
+    projectDev: (projectId: string) => `${ws}/projects/${encode(projectId)}/dev`,
+    projectDevSession: (projectId: string, sessionId: string) =>
+      `${ws}/projects/${encode(projectId)}/dev/sessions/${encode(sessionId)}`,
     autopilots: () => `${ws}/autopilots`,
     autopilotDetail: (id: string) => `${ws}/autopilots/${encode(id)}`,
     agents: () => `${ws}/agents`,

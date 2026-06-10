@@ -617,7 +617,7 @@ export function DesignHtmlPreview({
           >
             <DesignPreviewDrawLayer
               active={drawActive}
-              tool={tool}
+              tool={tool!}
               onStrokeComplete={() => setToast(t(($) => $.preview.draw_saved))}
             />
           </div>
