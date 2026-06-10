@@ -36,7 +36,7 @@ import { BoardView } from "../../issues/components/board-view";
 import { ListView } from "../../issues/components/list-view";
 import { BatchActionToolbar } from "../../issues/components/batch-action-toolbar";
 import { Skeleton } from "@aicortex/ui/components/ui/skeleton";
-import { Button } from "@aicortex/ui/components/ui/button";
+import { Button, buttonVariants } from "@aicortex/ui/components/ui/button";
 import { Switch } from "@aicortex/ui/components/ui/switch";
 import { Label } from "@aicortex/ui/components/ui/label";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@aicortex/ui/components/ui/resizable";
@@ -648,15 +648,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {designStudioEnabled && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  render={<AppLink href={wsPaths.projectDesign(projectId)} />}
+                <AppLink
+                  href={wsPaths.projectDesign(projectId)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 gap-1.5 text-xs")}
                 >
                   <Palette className="size-3.5" />
                   {t(($) => $.detail.design_studio_action)}
-                </Button>
+                </AppLink>
               )}
               <Button
                 variant="ghost"

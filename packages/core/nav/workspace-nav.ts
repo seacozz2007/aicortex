@@ -32,6 +32,7 @@ export type NavKey =
   | "usage"
   | "chat"
   | "designStudio"
+  | "dev"
   | "meetings"
   | "office"
   | "forum";
@@ -105,6 +106,7 @@ export const WORKSPACE_NAV_GROUPS: NavGroupDef[] = [
       item("designStudio", (p) => p.design(), Palette, "design_studio", {
         requiresDesignStudio: true,
       }),
+      item("dev", (p) => p.dev(), Terminal, "dev_studio"),
     ],
   },
   {
@@ -135,6 +137,9 @@ export function resolveNavHref(item: NavItemDef, p: WorkspacePaths): string {
 export function isNavItemActive(pathname: string, item: NavItemDef, href: string): boolean {
   if (item.key === "designStudio") {
     return pathname.includes("/design");
+  }
+  if (item.key === "dev") {
+    return pathname.includes("/dev");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

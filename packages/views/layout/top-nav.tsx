@@ -31,6 +31,7 @@ import {
   Users,
   Palette,
   MessageSquarePlus,
+  Terminal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -56,7 +57,7 @@ import { useT } from "../i18n";
 import { useModalStore } from "@aicortex/core/modals";
 import { useDesignStudioFeature } from "@aicortex/core/config/features";
 import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
-import { WORKSPACE_NAV_GROUPS, filterNavItem, resolveNavHref } from "@aicortex/core/nav/workspace-nav";
+import { WORKSPACE_NAV_GROUPS, filterNavItem, resolveNavHref, isNavItemActive } from "@aicortex/core/nav/workspace-nav";
 import { WorkspaceNavMenu } from "./workspace-nav-menu";
 
 interface TopNavProps {
@@ -118,7 +119,10 @@ export function TopNav({ className }: TopNavProps) {
               </SheetHeader>
               <nav className="flex flex-col gap-1 pt-6">
                 {mobileNavItems.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/") || (item.key === "designStudio" && pathname.includes("/design"));
+                  const navItem = WORKSPACE_NAV_GROUPS.flatMap((g) => g.items).find((i) => i.key === item.key);
+                  const isActive = navItem
+                    ? isNavItemActive(pathname, navItem, item.href)
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
                   return (
                     <AppLink
                       key={item.key}
@@ -238,6 +242,10 @@ export function TopNav({ className }: TopNavProps) {
                 {t(($) => $.nav.design_studio)}
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem render={<AppLink href={p.dev()} />}>
+              <Terminal className="size-4" />
+              {t(($) => $.nav.dev_studio)}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

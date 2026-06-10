@@ -40,7 +40,6 @@ import {
   Terminal,
   Video,
   Clock,
-  Palette,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@aicortex/ui/components/common/actor-avatar";
@@ -75,6 +74,12 @@ import { useAuthStore } from "@aicortex/core/auth";
 import { useCurrentWorkspace, useWorkspacePaths, paths } from "@aicortex/core/paths";
 import { useDesignStudioFeature } from "@aicortex/core/config/features";
 import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
+import {
+  WORKSPACE_NAV_GROUPS,
+  filterNavItem,
+  isNavItemActive,
+  resolveNavHref,
+} from "@aicortex/core/nav/workspace-nav";
 import { workspaceListOptions, myInvitationListOptions, workspaceKeys } from "@aicortex/core/workspace/queries";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inboxKeys, deduplicateInboxItems } from "@aicortex/core/inbox/queries";
@@ -99,8 +104,6 @@ function isNavActive(pathname: string, href: string): boolean {
 }
 
 function resolveSidebarHref(p: ReturnType<typeof useWorkspacePaths>, key: NavKey): string {
-  if (key === "designStudio") return p.projects();
-  if (key === "dev") return p.dev();
   return p[key]();
 }
 
@@ -135,9 +138,7 @@ type NavKey =
   | "settings"
   | "meetings"
   | "recent"
-  | "chat"
-  | "designStudio"
-  | "dev";
+  | "chat";
 
 // Static schema (key + icon) — labels resolved at render via useT("layout").
 type NavLabelKey =
@@ -158,21 +159,13 @@ type NavLabelKey =
   | "settings"
   | "meetings"
   | "recent"
-  | "chat"
-  | "design_studio"
-  | "dev_studio";
+  | "chat";
 
 const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "home", labelKey: "home", icon: Home },
   { key: "inbox", labelKey: "inbox", icon: Inbox },
   { key: "myIssues", labelKey: "my_issues", icon: CircleUser },
   { key: "recent", labelKey: "recent", icon: Clock },
-];
-
-const createNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox; requiresDesignStudio?: boolean }[] = [
-  { key: "chat", labelKey: "chat", icon: MessageSquare },
-  { key: "designStudio", labelKey: "design_studio", icon: Palette, requiresDesignStudio: true },
-  { key: "dev", labelKey: "dev_studio", icon: Terminal },
 ];
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
@@ -393,6 +386,13 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const workspace = useCurrentWorkspace();
   const designStudioEnabled = useDesignStudioFeature();
   const exploreEnabled = useWorkspaceExploreEnabled();
+  const settings = (workspace?.settings as Record<string, unknown>) ?? {};
+  const forumEnabled = settings.forum_enabled === true;
+  const navFilterOpts = { designStudio: designStudioEnabled, forumEnabled, exploreEnabled };
+  const createNavItems =
+    WORKSPACE_NAV_GROUPS.find((group) => group.id === "create")?.items.filter((item) =>
+      filterNavItem(item, navFilterOpts),
+    ) ?? [];
   const p = useWorkspacePaths();
   const { data: workspaces = EMPTY_WORKSPACES } = useQuery(workspaceListOptions());
   const { data: myInvitations = EMPTY_INVITATIONS } = useQuery(myInvitationListOptions());
@@ -685,15 +685,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             <SidebarGroupLabel>{t(($) => $.nav.group.create)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
-                {createNav.map((item) => {
-                  if (item.requiresDesignStudio && !designStudioEnabled) return null;
-                  const href = item.key === "designStudio" ? p.projects() : p[item.key]();
-                  const isActive =
-                    item.key === "designStudio"
-                      ? pathname.includes("/design")
-                      : item.key === "dev"
-                        ? pathname === href || pathname.includes("/dev")
-                        : isNavActive(pathname, href);
+                {createNavItems.map((item) => {
+                  const href = resolveNavHref(item, p);
+                  const isActive = isNavItemActive(pathname, item, href);
                   return (
                     <SidebarMenuItem key={item.key}>
                       <SidebarMenuButton
@@ -702,7 +696,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                         className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
                       >
                         <item.icon />
-                        <span>{t(($) => $.nav[item.labelKey])}</span>
+                        <span>
+                          {t(($) => $.nav[item.labelKey as keyof typeof $.nav] as string)}
+                        </span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
