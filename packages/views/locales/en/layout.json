@@ -29,7 +29,8 @@
   },
   "topnav": {
     "search": "Search",
-    "new_issue": "New",
+    "new": "New",
+    "new_issue": "New Issue",
     "new_chat": "New chat",
     "my_account": "My Account",
     "profile": "Profile",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, ExternalLink, FileText, Globe, Gavel, MessageSquare, Terminal } from "lucide-react";
+import { Download, ExternalLink, FileText, Globe, Gavel, Terminal } from "lucide-react";
 import {
   useArtifactBrowseFeature,
   useDesignExportFeature,
@@ -25,9 +25,11 @@ import { DesignQuestionsPanel } from "./design-questions-panel";
 import type { QuestionForm } from "../../chat/lib/question-form-parser";
 import {
   buildTunnelPreviewURL,
-  DesignPreviewSourceBar,
+  DesignPreviewSourcePanel,
+  formatPreviewAddressLabel,
   useDesignPreviewSource,
 } from "./design-preview-source-bar";
+import { DesignPreviewBrowserChrome } from "./design-preview-browser-chrome";
 import { DesignGenerationPreview } from "./design-generation-preview";
 
 export type DesignToolsTab = "questions" | "preview" | "files" | "terminal" | "export";
@@ -63,6 +65,7 @@ export function DesignToolsSidebar({
   session,
   projectId,
   commentMode = false,
+  onCommentModeChange,
   onSendToChat,
   onQueueComment,
   onPropertySave,
@@ -91,6 +94,7 @@ export function DesignToolsSidebar({
   taskMessages?: readonly TaskMessagePayload[];
   hasPriorCompletedRun?: boolean;
   commentMode?: boolean;
+  onCommentModeChange?: (enabled: boolean) => void;
   onSendToChat?: PreviewCommentHandler;
   onQueueComment?: PreviewCommentHandler;
   onPropertySave?: (element: SelectedPreviewElement, patch: string) => void;
@@ -127,6 +131,7 @@ export function DesignToolsSidebar({
   const artifactEntry = (session as { artifact_entry?: string })?.artifact_entry ?? "index.html";
 
   const [tab, setTab] = useState<DesignToolsTab>("preview");
+  const [tunnelReloadKey, setTunnelReloadKey] = useState(0);
   const tabUserSelectedRef = useRef(false);
   const sessionId = session?.id;
 
@@ -309,17 +314,6 @@ export function DesignToolsSidebar({
             );
           })}
         </div>
-        {tab === "preview" && canDesignPreview && (
-          <span
-            className={cn(
-              "ml-1 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px]",
-              commentMode ? "bg-brand/15 text-brand" : "text-muted-foreground",
-            )}
-            title={t(($) => $.preview.comment_mode_hint)}
-          >
-            <MessageSquare className="size-3" />
-          </span>
-        )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -328,21 +322,6 @@ export function DesignToolsSidebar({
         )}
         {tab === "preview" && canDesignPreview && taskId && session && (
           <>
-            <DesignPreviewSourceBar
-              sessionId={session.id}
-              artifactEntry={artifactEntry}
-              htmlEntries={htmlEntries}
-              htmlLoading={rootListingLoading}
-              runtimeId={runtimeId}
-              workspaceSlug={workspaceSlug}
-              commentMode={commentMode}
-              mode={previewSource.mode}
-              onModeChange={previewSource.setMode}
-              selectedHtmlPath={previewSource.selectedHtmlPath}
-              onHtmlPathChange={previewSource.setSelectedHtmlPath}
-              selectedPort={previewSource.selectedPort}
-              onPortChange={previewSource.setSelectedPort}
-            />
             {previewSource.mode === "file" && previewSource.effectiveHtmlPath ? (
               <div className="min-h-0 flex-1">
                 <DesignHtmlPreview
@@ -350,6 +329,18 @@ export function DesignToolsSidebar({
                   taskId={taskId}
                   workspaceSlug={workspaceSlug}
                   commentMode={commentMode}
+                  onCommentModeChange={onCommentModeChange}
+                  previewSource={{
+                    mode: previewSource.mode,
+                    setMode: previewSource.setMode,
+                    selectedHtmlPath: previewSource.selectedHtmlPath,
+                    setSelectedHtmlPath: previewSource.setSelectedHtmlPath,
+                    selectedPort: previewSource.selectedPort,
+                    setSelectedPort: previewSource.setSelectedPort,
+                  }}
+                  htmlEntries={htmlEntries}
+                  htmlLoading={rootListingLoading}
+                  runtimeId={runtimeId}
                   sendDisabled={sendDisabled}
                   onSendToChat={onSendToChat}
                   onQueueComment={onQueueComment}
@@ -360,34 +351,44 @@ export function DesignToolsSidebar({
                   onClearQueuedComments={onClearQueuedComments}
                   onSendQueue={onSendQueue}
                   queueSending={queueSending}
+                  onTunnelConnect={() => setTunnelReloadKey((key) => key + 1)}
                 />
               </div>
             ) : previewSource.mode === "tunnel" &&
               runtimeId &&
               previewSource.selectedPort != null ? (
               <div className="flex min-h-0 flex-1 flex-col bg-muted/20">
-                <div className="flex shrink-0 items-center justify-end border-b px-2 py-1">
-                  <a
-                    href={buildTunnelPreviewURL(
-                      runtimeId,
-                      previewSource.selectedPort,
-                      workspaceSlug,
-                    )}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title={t(($) => $.preview.open_external)}
-                  >
-                    <ExternalLink className="size-3.5" />
-                    {t(($) => $.preview.open_external)}
-                  </a>
-                </div>
-                <iframe
-                  key={buildTunnelPreviewURL(
+                <DesignPreviewBrowserChrome
+                  addressText={formatPreviewAddressLabel({
+                    mode: "tunnel",
+                    port: previewSource.selectedPort,
+                  })}
+                  externalHref={buildTunnelPreviewURL(
                     runtimeId,
                     previewSource.selectedPort,
                     workspaceSlug,
                   )}
+                  onRefresh={() => setTunnelReloadKey((key) => key + 1)}
+                  designEnabled={false}
+                  sourcePanel={(close) => (
+                    <DesignPreviewSourcePanel
+                      htmlEntries={htmlEntries}
+                      htmlLoading={rootListingLoading}
+                      runtimeId={runtimeId}
+                      commentMode={commentMode}
+                      mode={previewSource.mode}
+                      onModeChange={previewSource.setMode}
+                      selectedHtmlPath={previewSource.selectedHtmlPath}
+                      onHtmlPathChange={previewSource.setSelectedHtmlPath}
+                      selectedPort={previewSource.selectedPort}
+                      onPortChange={previewSource.setSelectedPort}
+                      onAfterSelect={close}
+                      onTunnelConnect={() => setTunnelReloadKey((key) => key + 1)}
+                    />
+                  )}
+                />
+                <iframe
+                  key={`${buildTunnelPreviewURL(runtimeId, previewSource.selectedPort, workspaceSlug)}-${tunnelReloadKey}`}
                   title={t(($) => $.preview.frame_title)}
                   src={buildTunnelPreviewURL(
                     runtimeId,
@@ -399,11 +400,35 @@ export function DesignToolsSidebar({
                 />
               </div>
             ) : (
-              <p className="p-4 text-xs text-muted-foreground">
-                {previewSource.mode === "tunnel"
-                  ? t(($) => $.preview.no_ports)
-                  : t(($) => $.preview.no_html)}
-              </p>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <DesignPreviewBrowserChrome
+                  addressText={formatPreviewAddressLabel({ mode: previewSource.mode, htmlPath: null })}
+                  designEnabled={false}
+                  sourcePanel={(close) =>
+                    htmlEntries.length > 0 || runtimeId ? (
+                      <DesignPreviewSourcePanel
+                        htmlEntries={htmlEntries}
+                        htmlLoading={rootListingLoading}
+                        runtimeId={runtimeId}
+                        commentMode={commentMode}
+                        mode={previewSource.mode}
+                        onModeChange={previewSource.setMode}
+                        selectedHtmlPath={previewSource.selectedHtmlPath}
+                        onHtmlPathChange={previewSource.setSelectedHtmlPath}
+                        selectedPort={previewSource.selectedPort}
+                        onPortChange={previewSource.setSelectedPort}
+                        onAfterSelect={close}
+                        onTunnelConnect={() => setTunnelReloadKey((key) => key + 1)}
+                      />
+                    ) : undefined
+                  }
+                />
+                <p className="p-4 text-xs text-muted-foreground">
+                  {previewSource.mode === "tunnel"
+                    ? t(($) => $.preview.no_ports)
+                    : t(($) => $.preview.no_html)}
+                </p>
+              </div>
             )}
           </>
         )}

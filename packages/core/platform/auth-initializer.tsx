@@ -57,6 +57,9 @@ export function AuthInitializer({
         if (cfg.features) {
           configStore.getState().setFeatures(cfg.features);
         }
+        if (cfg.tunnel_scan_ports?.length) {
+          configStore.getState().setTunnelScanPorts(cfg.tunnel_scan_ports);
+        }
         if (cfg.posthog_key) {
           initAnalytics({
             key: cfg.posthog_key,

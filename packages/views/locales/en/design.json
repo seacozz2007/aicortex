@@ -217,6 +217,13 @@
 
     "comment_mode_hint": "Click an element in the preview",
 
+    "chrome": {
+      "refresh": "Refresh",
+      "address": "Preview address",
+      "more": "More",
+      "viewport_label": "Viewport"
+    },
+
     "loading": "Loading preview…",
 
     "frame_title": "Design preview",

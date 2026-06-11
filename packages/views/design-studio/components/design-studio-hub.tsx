@@ -338,7 +338,7 @@ export function DesignStudioHub({ projectId }: { projectId: string }) {
       <header className="flex shrink-0 items-center gap-3 border-b px-6 py-3">
         <span className="text-sm text-muted-foreground">{project?.title ?? projectId}</span>
         <AppLink
-          href={p.projectDetail(projectId)}
+          href={p.design()}
           className="ml-auto text-sm text-muted-foreground hover:text-foreground"
         >
           {t(($) => $.hub.back_to_project)}

@@ -222,7 +222,7 @@ export function TopNav({ className }: TopNavProps) {
                 className="inline-flex items-center gap-1 rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
               >
                 <SquarePen className="size-3.5" />
-                <span className="hidden sm:inline">{t(($) => $.topnav.new_issue)}</span>
+                <span className="hidden sm:inline">{t(($) => $.topnav.new)}</span>
                 <ChevronDown className="size-3 opacity-80" />
               </button>
             }

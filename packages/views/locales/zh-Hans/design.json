@@ -215,6 +215,13 @@
 
     "comment_mode_hint": "在预览中点击元素",
 
+    "chrome": {
+      "refresh": "刷新",
+      "address": "预览地址",
+      "more": "更多",
+      "viewport_label": "视口"
+    },
+
     "loading": "加载预览…",
 
     "frame_title": "设计预览",

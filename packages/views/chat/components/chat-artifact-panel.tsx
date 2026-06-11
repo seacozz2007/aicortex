@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronRight, FileText, Folder, Loader2 } from "lucide-react";
+import { ChevronRight, FileText, Folder, ImageIcon, Loader2 } from "lucide-react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { useArtifactBrowseFeature } from "@aicortex/core/config/features";
 import { useTaskArtifacts } from "@aicortex/core/artifacts/queries";
@@ -14,8 +14,8 @@ import {
 } from "@aicortex/ui/components/ui/resizable";
 import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
-import { buildArtifactRawURL, isHtmlArtifact, isMarkdownArtifact } from "./chat-artifact-url";
-import { ArtifactHtmlPreview, ArtifactMarkdownPreview } from "../../shared/artifact-preview";
+import { buildArtifactRawURL, isHtmlArtifact, isImageArtifact, isMarkdownArtifact } from "./chat-artifact-url";
+import { ArtifactHtmlPreview, ArtifactImagePreview, ArtifactMarkdownPreview } from "../../shared/artifact-preview";
 import { api } from "@aicortex/core/api";
 
 const MAX_TEXT_BYTES = 512 * 1024;
@@ -191,6 +191,9 @@ export function ChatArtifactPanel({
     if (isHtmlArtifact(selectedPath) && htmlPreview) {
       return;
     }
+    if (isImageArtifact(selectedPath)) {
+      return;
+    }
     if (!isHtmlArtifact(selectedPath) && !isTextArtifact(selectedPath)) {
       return;
     }
@@ -263,6 +266,12 @@ export function ChatArtifactPanel({
           return;
         }
         // Design studio: HTML source only — fall through to text loader.
+      } else if (isImageArtifact(entry.path)) {
+        setContentError(null);
+        setUnsupportedPath(null);
+        setTextContent(null);
+        setSelectedPath(entry.path);
+        return;
       } else if (!isTextArtifact(entry.path)) {
         setSelectedPath(null);
         setTextContent(null);
@@ -307,6 +316,20 @@ export function ChatArtifactPanel({
     }
     if (contentError) {
       return <p className="p-4 text-xs text-destructive">{contentError}</p>;
+    }
+    if (
+      selectedPath &&
+      taskId &&
+      workspaceSlug &&
+      isImageArtifact(selectedPath)
+    ) {
+      return (
+        <ArtifactImagePreview
+          path={selectedPath}
+          taskId={taskId}
+          workspaceSlug={workspaceSlug}
+        />
+      );
     }
     if (
       selectedPath &&
@@ -409,6 +432,8 @@ export function ChatArtifactPanel({
                 >
                   {entry.is_dir ? (
                     <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : isImageArtifact(entry.path) ? (
+                    <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   ) : (
                     <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   )}

@@ -139,7 +139,7 @@ export function isNavItemActive(pathname: string, item: NavItemDef, href: string
     return pathname.includes("/design");
   }
   if (item.key === "dev") {
-    return pathname.includes("/dev");
+    return pathname === href || pathname.includes("/dev");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

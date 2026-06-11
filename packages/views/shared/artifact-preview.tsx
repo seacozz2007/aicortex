@@ -249,3 +249,46 @@ export function ArtifactMarkdownPreview({
     </div>
   );
 }
+
+export function ArtifactImagePreview({
+  path,
+  taskId,
+  workspaceSlug,
+}: {
+  path: string;
+  taskId: string;
+  workspaceSlug: string;
+}) {
+  const { t } = useT("chat");
+  const previewURL = buildArtifactRawURL(taskId, path, workspaceSlug);
+  const fileName = path.split("/").pop() ?? path;
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+  }, [path, taskId]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b px-3 py-2">
+        <p className="truncate font-mono text-xs text-foreground">{fileName}</p>
+        <p className="truncate font-mono text-[10px] text-muted-foreground">{path}</p>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-muted/20 p-4">
+        {error ? (
+          <p className="text-xs text-destructive">
+            {t(($) => $.tools_sidebar.files.load_error)}
+          </p>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewURL}
+            alt={fileName}
+            className="max-h-full max-w-full object-contain"
+            onError={() => setError(true)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

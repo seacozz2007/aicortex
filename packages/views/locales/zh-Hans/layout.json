@@ -29,8 +29,9 @@
   },
   "topnav": {
     "search": "搜索",
-    "new_issue": "新建",
-    "new_chat": "新建聊天",
+    "new": "新建",
+    "new_issue": "新建 issue",
+    "new_chat": "新建会话",
     "my_account": "我的账户",
     "profile": "个人资料",
     "preferences": "偏好设置",

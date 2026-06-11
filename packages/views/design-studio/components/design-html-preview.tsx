@@ -1,12 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Loader2, Monitor, Smartphone, Tablet } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
+import {
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+} from "@aicortex/ui/components/ui/dropdown-menu";
 import { useT } from "../../i18n";
 import { buildArtifactRawURL } from "../../chat/components/chat-artifact-url";
 import { applyPropertyDraft } from "../lib/apply-element-styles";
 import { extractSelectedElement, isPreviewTarget } from "../lib/extract-element-style";
+import {
+  elementVisualViewportRect,
+  overlayRectForContainer,
+} from "../lib/preview-element-rect";
+import {
+  clearPreviewIframeSelectionOverlay,
+  syncPreviewIframeSelectionOverlay,
+} from "../lib/preview-iframe-overlay";
 import { injectSnapshotBridge } from "../lib/preview-screenshot";
 import {
   formatPropertyPatch,
@@ -22,8 +37,13 @@ import { DesignCommentToolbar } from "./design-comment-toolbar";
 import { DesignElementInspector } from "./design-element-inspector";
 import { DesignMarkOverlay } from "./design-mark-overlay";
 import { DesignPropertyEditorModal } from "./design-property-editor-modal";
+import { DesignPreviewBrowserChrome } from "./design-preview-browser-chrome";
 import { DesignPreviewCommentHint } from "./design-preview-comment-hint";
-import { DesignSelectionOverlay } from "./design-selection-overlay";
+import {
+  DesignPreviewSourcePanel,
+  formatPreviewAddressLabel,
+  type DesignPreviewMode,
+} from "./design-preview-source-bar";
 
 export type DesignViewport = "desktop" | "tablet" | "mobile";
 
@@ -44,21 +64,6 @@ const COMMENT_STYLE_ID = "aicortex-preview-comment-style";
 
 function resolveTarget(el: HTMLElement): HTMLElement {
   return (el.closest("[data-aicortex-id]") as HTMLElement | null) ?? el;
-}
-
-function stageRectForElement(
-  el: HTMLElement,
-  stage: HTMLElement,
-  scale: number,
-): SelectedPreviewElement["rect"] {
-  const elRect = el.getBoundingClientRect();
-  const stageRect = stage.getBoundingClientRect();
-  return {
-    top: (elRect.top - stageRect.top) / scale,
-    left: (elRect.left - stageRect.left) / scale,
-    width: elRect.width / scale,
-    height: elRect.height / scale,
-  };
 }
 
 type StageOverlayBounds = {
@@ -90,8 +95,8 @@ function useStageOverlayBounds(
       const stageRect = stage.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
       setBounds({
-        top: stageRect.top - containerRect.top + container.scrollTop,
-        left: stageRect.left - containerRect.left + container.scrollLeft,
+        top: stageRect.top - containerRect.top,
+        left: stageRect.left - containerRect.left,
         width: stageRect.width,
         height: stageRect.height,
       });
@@ -120,6 +125,11 @@ export function DesignHtmlPreview({
   taskId,
   workspaceSlug,
   commentMode = false,
+  onCommentModeChange,
+  previewSource,
+  htmlEntries = [],
+  htmlLoading = false,
+  runtimeId,
   sendDisabled = false,
   onQueueComment,
   onSendToChat,
@@ -130,11 +140,24 @@ export function DesignHtmlPreview({
   onClearQueuedComments,
   onSendQueue,
   queueSending = false,
+  onTunnelConnect,
 }: {
   path: string;
   taskId: string;
   workspaceSlug: string;
   commentMode?: boolean;
+  onCommentModeChange?: (enabled: boolean) => void;
+  previewSource?: {
+    mode: DesignPreviewMode;
+    setMode: (mode: DesignPreviewMode) => void;
+    selectedHtmlPath: string | null;
+    setSelectedHtmlPath: (path: string) => void;
+    selectedPort: number | null;
+    setSelectedPort: (port: number | null) => void;
+  };
+  htmlEntries?: { path: string; name: string }[];
+  htmlLoading?: boolean;
+  runtimeId?: string;
   sendDisabled?: boolean;
   onComment?: PreviewCommentHandler;
   onQueueComment?: PreviewCommentHandler;
@@ -151,12 +174,14 @@ export function DesignHtmlPreview({
   onClearQueuedComments?: () => void;
   onSendQueue?: () => void;
   queueSending?: boolean;
+  onTunnelConnect?: () => void;
 }) {
   const { t } = useT("design");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const selectedNodeRef = useRef<HTMLElement | null>(null);
+  const hoverNodeRef = useRef<HTMLElement | null>(null);
   const propertyBaselineRef = useRef<ElementPropertyDraft | null>(null);
 
   const [viewport, setViewport] = useState<DesignViewport>("desktop");
@@ -201,6 +226,7 @@ export function DesignHtmlPreview({
   const clearSelection = useCallback(() => {
     selectedNodeRef.current = null;
     setSelectedElement(null);
+    clearPreviewIframeSelectionOverlay(iframeRef.current);
     setInspectorNote("");
     setPendingImages([]);
     setInspectorPos(null);
@@ -208,18 +234,33 @@ export function DesignHtmlPreview({
     propertyBaselineRef.current = null;
   }, []);
 
+  const syncOverlayRects = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const selectedNode = selectedNodeRef.current;
+    const hoverNode = hoverNodeRef.current;
+
+    syncPreviewIframeSelectionOverlay(iframe, {
+      selected:
+        markActive || propertyEditorOpenRef.current ? null : selectedNode,
+      hover: hoverNode,
+      showHover: commentActive && !markActive && !propertyEditorOpenRef.current,
+    });
+  }, [commentActive, markActive]);
+
   const updateInspectorPosition = useCallback(() => {
     const node = selectedNodeRef.current;
-    const container = overlayRef.current;
-    if (!node || !container || propertyEditorOpen || markActive) {
+    const iframe = iframeRef.current;
+    if (!node || !iframe || propertyEditorOpen || markActive) {
       setInspectorPos(null);
       return;
     }
-    const elRect = node.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const top = elRect.bottom - containerRect.top + 8;
-    const left = Math.max(8, Math.min(elRect.left - containerRect.left, containerRect.width - 368));
-    setInspectorPos({ top, left });
+    const rect = elementVisualViewportRect(node, iframe);
+    setInspectorPos({
+      top: rect.top + rect.height + 8,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - 368)),
+    });
   }, [markActive, propertyEditorOpen]);
 
   const openPropertyEditorFor = useCallback(
@@ -231,20 +272,18 @@ export function DesignHtmlPreview({
       propertyBaselineRef.current = propertyDraftFromElement(snapshot);
       setPropertyEditorOpen(true);
       setInspectorPos(null);
+      requestAnimationFrame(() => syncOverlayRects());
     },
-    [],
+    [syncOverlayRects],
   );
 
-  const buildSnapshot = useCallback(
-    (el: HTMLElement): SelectedPreviewElement | null => {
-      const stage = stageRef.current;
-      if (!stage) return null;
-      const snapshot = extractSelectedElement(el);
-      snapshot.rect = stageRectForElement(el, stage, scale);
-      return snapshot;
-    },
-    [scale],
-  );
+  const buildSnapshot = useCallback((el: HTMLElement): SelectedPreviewElement | null => {
+    const container = overlayRef.current;
+    if (!container) return null;
+    const snapshot = extractSelectedElement(el);
+    snapshot.rect = overlayRectForContainer(el, container, iframeRef.current);
+    return snapshot;
+  }, []);
 
   const selectElementForComment = useCallback(
     (el: HTMLElement) => {
@@ -257,9 +296,12 @@ export function DesignHtmlPreview({
       setInspectorNote("");
       setPendingImages([]);
       setPropertyEditorOpen(false);
-      requestAnimationFrame(updateInspectorPosition);
+      requestAnimationFrame(() => {
+        updateInspectorPosition();
+        syncOverlayRects();
+      });
     },
-    [buildSnapshot, updateInspectorPosition],
+    [buildSnapshot, syncOverlayRects, updateInspectorPosition],
   );
 
   const attachPreviewHandlers = useCallback(() => {
@@ -302,33 +344,52 @@ export function DesignHtmlPreview({
         propertyEditorOpenRef.current ||
         selectedNodeRef.current
       ) {
+        hoverNodeRef.current = null;
         setHoveredElement(null);
         setHoverCardPos(null);
+        syncPreviewIframeSelectionOverlay(iframeRef.current, {
+          selected: null,
+          hover: null,
+          showHover: false,
+        });
         return;
       }
       if (!isPreviewTarget(event.target, doc)) {
+        hoverNodeRef.current = null;
         setHoveredElement(null);
         setHoverCardPos(null);
+        syncPreviewIframeSelectionOverlay(iframeRef.current, {
+          selected: null,
+          hover: null,
+          showHover: false,
+        });
         return;
       }
       const el = resolveTarget(event.target as HTMLElement);
+      hoverNodeRef.current = el;
       const snapshot = buildSnapshot(el);
       if (!snapshot) return;
       setHoveredElement(snapshot);
-      const container = overlayRef.current;
-      if (container) {
-        const elRect = el.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
+      const iframe = iframeRef.current;
+      if (iframe) {
+        const rect = elementVisualViewportRect(el, iframe);
         setHoverCardPos({
-          top: elRect.bottom - containerRect.top + 8,
-          left: Math.max(8, elRect.left - containerRect.left),
+          top: rect.top + rect.height + 8,
+          left: Math.max(8, rect.left),
         });
+        syncOverlayRects();
       }
     };
 
     const onLeave = () => {
+      hoverNodeRef.current = null;
       setHoveredElement(null);
       setHoverCardPos(null);
+      syncPreviewIframeSelectionOverlay(iframeRef.current, {
+        selected: selectedNodeRef.current,
+        hover: null,
+        showHover: false,
+      });
     };
 
     doc.addEventListener("click", onClick as EventListener, true);
@@ -346,6 +407,7 @@ export function DesignHtmlPreview({
     markActive,
     openPropertyEditorFor,
     selectElementForComment,
+    syncOverlayRects,
     tool,
   ]);
 
@@ -414,14 +476,47 @@ export function DesignHtmlPreview({
     if (!commentMode || !selectedElement) return;
     const container = overlayRef.current;
     if (!container) return;
-    const onScroll = () => updateInspectorPosition();
+    const onScroll = () => {
+      updateInspectorPosition();
+      syncOverlayRects();
+    };
     container.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    const iframeDoc = iframeRef.current?.contentDocument;
+    iframeDoc?.addEventListener("scroll", onScroll, { passive: true, capture: true });
     return () => {
       container.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      iframeDoc?.removeEventListener("scroll", onScroll, { capture: true });
     };
-  }, [commentMode, selectedElement, updateInspectorPosition]);
+  }, [commentMode, loading, selectedElement, syncOverlayRects, updateInspectorPosition]);
+
+  useEffect(() => {
+    if (!commentMode || loading) return;
+    const onScroll = () => syncOverlayRects();
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    const iframeDoc = iframeRef.current?.contentDocument;
+    iframeDoc?.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      iframeDoc?.removeEventListener("scroll", onScroll, { capture: true });
+    };
+  }, [commentMode, loading, previewURL, syncOverlayRects]);
+
+  useEffect(() => {
+    if (!commentMode) {
+      clearPreviewIframeSelectionOverlay(iframeRef.current);
+      return;
+    }
+    syncOverlayRects();
+  }, [commentMode, syncOverlayRects]);
+
+  useEffect(() => {
+    if (!commentMode) return;
+    syncOverlayRects();
+  }, [commentMode, scale, viewport, syncOverlayRects]);
 
   useEffect(() => {
     if (!toast) return;
@@ -517,6 +612,70 @@ export function DesignHtmlPreview({
     }
   };
 
+  const handleRefresh = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    setLoading(true);
+    clearSelection();
+    try {
+      iframe.contentWindow?.location.reload();
+    } catch {
+      iframe.src = iframe.src;
+    }
+  }, [clearSelection]);
+
+  const addressText = formatPreviewAddressLabel({
+    mode: previewSource?.mode ?? "file",
+    htmlPath: path,
+    port: previewSource?.selectedPort,
+  });
+
+  const sourcePanel =
+    previewSource && htmlEntries.length > 0
+      ? (close: () => void) => (
+          <DesignPreviewSourcePanel
+            htmlEntries={htmlEntries}
+            htmlLoading={htmlLoading}
+            runtimeId={runtimeId}
+            commentMode={commentMode}
+            mode={previewSource.mode}
+            onModeChange={previewSource.setMode}
+            selectedHtmlPath={previewSource.selectedHtmlPath}
+            onHtmlPathChange={previewSource.setSelectedHtmlPath}
+            selectedPort={previewSource.selectedPort}
+            onPortChange={previewSource.setSelectedPort}
+            onAfterSelect={close}
+            onTunnelConnect={onTunnelConnect}
+          />
+        )
+      : undefined;
+
+  const overflowMenu = (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>{t(($) => $.preview.chrome.viewport_label)}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={viewport}
+          onValueChange={(value) => setViewport(value as DesignViewport)}
+        >
+          {(
+            [
+              ["desktop", Monitor, t(($) => $.preview.viewport.desktop)],
+              ["tablet", Tablet, t(($) => $.preview.viewport.tablet)],
+              ["mobile", Smartphone, t(($) => $.preview.viewport.mobile)],
+            ] as const
+          ).map(([id, Icon, label]) => (
+            <DropdownMenuRadioItem key={id} value={id} className="gap-2 text-xs">
+              <Icon className="size-3.5" />
+              {label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+    </>
+  );
+
   const showInspector =
     selectedElement &&
     commentActive &&
@@ -524,52 +683,18 @@ export function DesignHtmlPreview({
     !markActive &&
     inspectorPos;
 
-  const overlayTarget =
-    !markActive &&
-    !propertyEditorOpen &&
-    (selectedElement ?? (hoveredElement && commentActive ? hoveredElement : null));
-
-  const selectionOverlayVariant =
-    selectedElement && (commentActive || editActive) ? "selected" : "hover";
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-2 py-1.5">
-        <div className="flex items-center gap-0.5 rounded-md border p-0.5">
-          {(
-            [
-              ["desktop", Monitor],
-              ["tablet", Tablet],
-              ["mobile", Smartphone],
-            ] as const
-          ).map(([id, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setViewport(id)}
-              className={cn(
-                "rounded px-2 py-1 text-muted-foreground transition-colors hover:text-foreground",
-                viewport === id && "bg-accent text-foreground",
-              )}
-              title={t(($) => $.preview.viewport[id])}
-            >
-              <Icon className="size-3.5" />
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1">
-          <a
-            href={previewURL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            title={t(($) => $.preview.open_external)}
-            aria-label={t(($) => $.preview.open_external)}
-          >
-            <ExternalLink className="size-3.5" />
-          </a>
-        </div>
-      </div>
+      <DesignPreviewBrowserChrome
+        addressText={addressText}
+        externalHref={previewURL}
+        onRefresh={handleRefresh}
+        commentMode={commentMode}
+        onCommentModeChange={onCommentModeChange}
+        designEnabled={!!onCommentModeChange}
+        sourcePanel={sourcePanel}
+        overflowMenu={overflowMenu}
+      />
 
       <div ref={overlayRef} className="relative min-h-0 flex-1 overflow-auto bg-muted/30 p-2">
         {loading && (
@@ -601,15 +726,6 @@ export function DesignHtmlPreview({
             )}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
           />
-
-          {commentMode && !loading && overlayTarget ? (
-            <DesignSelectionOverlay
-              element={overlayTarget}
-              scale={1}
-              offset={{ x: 0, y: 0 }}
-              variant={selectionOverlayVariant}
-            />
-          ) : null}
         </div>
 
         {commentMode && !loading && markActive && stageBounds ? (
@@ -672,13 +788,13 @@ export function DesignHtmlPreview({
                 onSendToChat={handleSendToChat}
                 onAttachImages={(files) => setPendingImages((prev) => [...prev, ...files])}
                 attachmentCount={pendingImages.length}
-                style={{ top: inspectorPos.top, left: inspectorPos.left }}
+                style={{ position: "fixed", top: inspectorPos.top, left: inspectorPos.left }}
               />
             ) : null}
 
             {hoveredElement && hoverCardPos && !selectedElement && commentActive && !markActive ? (
               <div
-                className="pointer-events-none absolute z-[25] max-w-[280px] rounded-lg border border-white/10 bg-[#141418]/90 px-2.5 py-2 text-[10px] text-white shadow-lg backdrop-blur-md"
+                className="pointer-events-none fixed z-[25] max-w-[280px] rounded-lg border border-white/10 bg-[#141418]/90 px-2.5 py-2 text-[10px] text-white shadow-lg backdrop-blur-md"
                 style={{
                   top: hoverCardPos.top,
                   left: hoverCardPos.left,
