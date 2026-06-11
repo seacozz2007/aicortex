@@ -36,6 +36,7 @@ import { api } from "@aicortex/core/api";
 import type { DevSession } from "@aicortex/core/dev-studio";
 import type { Agent, ChatMessage, ChatPendingTask } from "@aicortex/core/types";
 import { cn } from "@aicortex/ui/lib/utils";
+import { toast } from "sonner";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -58,6 +59,7 @@ import { DevProjectSessionSidebar } from "./dev-project-session-sidebar";
 import { DevToolsSidebar, type DevToolsTab } from "./dev-tools-sidebar";
 import { DevProjectPicker } from "./dev-project-picker";
 import { DevAgentPicker } from "./dev-agent-picker";
+import type { QueuedPreviewComment } from "../../design-studio/components/design-comment-queue-panel";
 
 function devOpenedProjectsKey(wsId: string) {
   return `aicortex:dev:opened-projects:${wsId}`;
@@ -69,6 +71,7 @@ function devSessionLayoutKey(wsId: string) {
 
 export function DevStudioShell() {
   const { t } = useT("dev-studio");
+  const { t: tDesign } = useT("design");
   const wsId = useWorkspaceId();
   const p = useWorkspacePaths();
   const qc = useQueryClient();
@@ -206,6 +209,11 @@ export function DevStudioShell() {
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [openedProjectsHydrated, setOpenedProjectsHydrated] = useState(false);
   const [sessionLayoutHydrated, setSessionLayoutHydrated] = useState(false);
+  const [commentMode, setCommentMode] = useState(false);
+  const [commentNote, setCommentNote] = useState<string | null>(null);
+  const [previewAttachmentIds, setPreviewAttachmentIds] = useState<string[]>([]);
+  const [queuedComments, setQueuedComments] = useState<QueuedPreviewComment[]>([]);
+  const [queueSending, setQueueSending] = useState(false);
 
   useEffect(() => {
     if (!wsId) return;
@@ -340,6 +348,85 @@ export function DevStudioShell() {
     }
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps -- once per session open, like design studio
 
+  const mergePreviewComments = useCallback(
+    (content: string, attachmentIds?: string[]) => {
+      const commentBlocks = [
+        commentNote ? `[Comment on element]\n${commentNote}` : null,
+        queuedComments.length
+          ? `[Comment queue]\n${queuedComments.map((item) => `[${item.elementId}] ${item.note}`).join("\n\n")}`
+          : null,
+      ].filter(Boolean);
+      const finalContent =
+        commentBlocks.length > 0
+          ? `${content}\n\n${commentBlocks.join("\n\n")}`
+          : content;
+      const mergedAttachmentIds = [
+        ...(attachmentIds ?? []),
+        ...previewAttachmentIds,
+      ];
+      return {
+        finalContent,
+        mergedAttachmentIds:
+          mergedAttachmentIds.length > 0 ? mergedAttachmentIds : undefined,
+      };
+    },
+    [commentNote, previewAttachmentIds, queuedComments],
+  );
+
+  const clearPreviewComments = useCallback(() => {
+    setCommentNote(null);
+    setPreviewAttachmentIds([]);
+    setQueuedComments([]);
+  }, []);
+
+  const handleCommentModeChange = useCallback(
+    (next: boolean) => {
+      setCommentMode(next);
+      if (next) {
+        setToolsOpen(true);
+        setToolsTab("preview");
+      }
+    },
+    [setToolsOpen, setToolsTab],
+  );
+
+  const formatPreviewComment = useCallback(
+    (element: { id: string }, note: string) => `[${element.id}] ${note}`,
+    [],
+  );
+
+  const handleSendToChatComment = useCallback(
+    async (element: { id: string }, note: string, images?: File[]) => {
+      if (!sessionId) return;
+      setCommentNote(formatPreviewComment(element, note));
+      if (images?.length) {
+        const uploaded = await Promise.all(
+          images.map((file) =>
+            api.uploadFile(file, { chatSessionId: sessionId }).catch(() => null),
+          ),
+        );
+        const ids = uploaded.flatMap((item) => (item ? [item.id] : []));
+        if (ids.length > 0) {
+          setPreviewAttachmentIds((prev) => [...prev, ...ids]);
+        }
+      }
+    },
+    [formatPreviewComment, sessionId],
+  );
+
+  const uploadPreviewFiles = useCallback(
+    async (files: File[]) => {
+      if (!sessionId || files.length === 0) return [] as Awaited<ReturnType<typeof api.uploadFile>>[];
+      const uploaded = await Promise.all(
+        files.map((file) =>
+          api.uploadFile(file, { chatSessionId: sessionId }).catch(() => null),
+        ),
+      );
+      return uploaded.filter((item): item is NonNullable<typeof item> => !!item);
+    },
+    [sessionId],
+  );
+
   const performSend = useCallback(
     async (targetSessionId: string, content: string, attachmentIds?: string[]) => {
       if (!activeAgent) return;
@@ -373,23 +460,142 @@ export function DevStudioShell() {
     [activeAgent, qc, wsId],
   );
 
+  const handleMarkAnnotation = useCallback(
+    async (payload: {
+      action: "draft" | "queue" | "send";
+      note: string;
+      imageFile?: File;
+      extraFiles?: File[];
+    }) => {
+      const files = [payload.imageFile, ...(payload.extraFiles ?? [])].filter(
+        (file): file is File => !!file,
+      );
+      const attachments = await uploadPreviewFiles(files);
+      if (files.length > 0 && attachments.length === 0) {
+        toast.error(tDesign(($) => $.session.mark_upload_failed));
+      }
+      const attachmentIds = attachments.map((item) => item.id).filter(Boolean);
+      const imageMarkdown = attachments
+        .filter(
+          (item) =>
+            item.id &&
+            (item.content_type?.startsWith("image/") ||
+              /\.(png|jpe?g|webp|gif)$/i.test(item.filename)),
+        )
+        .map((item) => {
+          const src = item.url || item.download_url;
+          return src ? `![${item.filename || "mark"}](${src})` : null;
+        })
+        .filter((line): line is string => !!line)
+        .join("\n");
+      const noteBlock = payload.note.trim()
+        ? `[Mark annotation]\n${payload.note.trim()}`
+        : "[Mark annotation]";
+      const annotationBody = imageMarkdown
+        ? `${noteBlock}\n\n${imageMarkdown}`
+        : noteBlock;
+
+      if (payload.action === "draft") {
+        setCommentNote(annotationBody);
+        if (attachmentIds.length > 0) {
+          setPreviewAttachmentIds((prev) => [...prev, ...attachmentIds]);
+        }
+        return;
+      }
+
+      const message =
+        payload.action === "queue"
+          ? tDesign(($) => $.session.mark_queue_message)
+          : tDesign(($) => $.session.mark_send_message);
+      const content = payload.note.trim()
+        ? `${message}\n\n${annotationBody}`
+        : imageMarkdown
+          ? `${message}\n\n${imageMarkdown}`
+          : message;
+
+      if (payload.action === "send" || payload.action === "queue") {
+        if (!sessionId) return;
+        const { finalContent, mergedAttachmentIds } = mergePreviewComments(
+          content,
+          attachmentIds.length > 0 ? attachmentIds : undefined,
+        );
+        clearPreviewComments();
+        await performSend(sessionId, finalContent, mergedAttachmentIds);
+      }
+    },
+    [
+      clearPreviewComments,
+      mergePreviewComments,
+      performSend,
+      sessionId,
+      tDesign,
+      uploadPreviewFiles,
+    ],
+  );
+
+  const handleQueuePreviewComment = useCallback(
+    (element: { id: string }, note: string) => {
+      setQueuedComments((prev) => [
+        ...prev,
+        {
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          elementId: element.id,
+          note: note.trim(),
+        },
+      ]);
+    },
+    [],
+  );
+
+  const handlePropertySave = useCallback((_element: { id: string }, patch: string) => {
+    setCommentNote(patch);
+  }, []);
+
+  const handleSendQueue = useCallback(async () => {
+    if (!sessionId || queuedComments.length === 0 || queueSending) return;
+    setQueueSending(true);
+    try {
+      const { finalContent, mergedAttachmentIds } = mergePreviewComments(
+        tDesign(($) => $.session.queue_send_message),
+      );
+      clearPreviewComments();
+      await performSend(sessionId, finalContent, mergedAttachmentIds);
+    } finally {
+      setQueueSending(false);
+    }
+  }, [
+    clearPreviewComments,
+    mergePreviewComments,
+    performSend,
+    queueSending,
+    queuedComments.length,
+    sessionId,
+    tDesign,
+  ]);
+
   const handleSend = useCallback(
     async (content: string, attachmentIds?: string[]) => {
       if (!activeAgent) return;
 
+      const { finalContent, mergedAttachmentIds } = mergePreviewComments(
+        content,
+        attachmentIds,
+      );
+
       if (!sessionId) {
-        if (!projectId || !content.trim()) return;
+        if (!projectId || !finalContent.trim()) return;
         setCreating(true);
         try {
           const session = await createSession.mutateAsync({
-            title: content.trim().slice(0, 80),
-            brief: content.trim(),
+            title: finalContent.trim().slice(0, 80),
+            brief: finalContent.trim(),
             agent_id: draftAgentId ?? undefined,
           });
           upsertDevSessionInCache(qc, wsId, session);
           navigateTo(projectId, session.id);
           setComposer("");
-          await performSend(session.id, content.trim(), attachmentIds);
+          clearPreviewComments();
+          await performSend(session.id, finalContent.trim(), mergedAttachmentIds);
         } finally {
           setCreating(false);
         }
@@ -400,9 +606,22 @@ export function DevStudioShell() {
       if (shouldEnqueueOutbound(existingPending, 0)) {
         return;
       }
-      await performSend(sessionId, content, attachmentIds);
+      clearPreviewComments();
+      await performSend(sessionId, finalContent, mergedAttachmentIds);
     },
-    [createSession, activeAgent, draftAgentId, navigateTo, performSend, projectId, qc, sessionId],
+    [
+      activeAgent,
+      clearPreviewComments,
+      createSession,
+      draftAgentId,
+      mergePreviewComments,
+      navigateTo,
+      performSend,
+      projectId,
+      qc,
+      sessionId,
+      wsId,
+    ],
   );
 
   useFlushOutboundQueue({
@@ -611,6 +830,24 @@ export function DevStudioShell() {
                 activeTab={toolsTab}
                 onTabChange={(tab: DevToolsTab) => setToolsTab(tab)}
                 lastTaskId={lastTaskId}
+                commentMode={commentMode}
+                onCommentModeChange={sessionId ? handleCommentModeChange : undefined}
+                sendDisabled={
+                  !!pendingTask &&
+                  !!pendingTask.task_id &&
+                  !pendingTask.task_id.startsWith("optimistic-")
+                }
+                onSendToChat={sessionId ? handleSendToChatComment : undefined}
+                onQueueComment={sessionId ? handleQueuePreviewComment : undefined}
+                onPropertySave={sessionId ? handlePropertySave : undefined}
+                onMarkAnnotation={sessionId ? handleMarkAnnotation : undefined}
+                queuedComments={queuedComments}
+                onRemoveQueuedComment={(id) =>
+                  setQueuedComments((prev) => prev.filter((item) => item.id !== id))
+                }
+                onClearQueuedComments={() => setQueuedComments([])}
+                onSendQueue={() => void handleSendQueue()}
+                queueSending={queueSending}
               />
             </ResizablePanel>
           </ResizablePanelGroup>

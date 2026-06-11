@@ -56,8 +56,8 @@ function resolveDefaultHtmlPath(
   return htmlFiles[0]!.path;
 }
 
-function storageKey(sessionId: string, suffix: string) {
-  return `design-preview:${sessionId}:${suffix}`;
+function storageKey(sessionId: string, suffix: string, prefix = "design-preview") {
+  return `${prefix}:${sessionId}:${suffix}`;
 }
 
 function ModeToggle({
@@ -339,6 +339,7 @@ export function useDesignPreviewSource({
   htmlLoading = false,
   runtimeId,
   commentMode = false,
+  storagePrefix = "design-preview",
 }: {
   sessionId: string;
   artifactEntry: string;
@@ -346,6 +347,8 @@ export function useDesignPreviewSource({
   htmlLoading?: boolean;
   runtimeId?: string;
   commentMode?: boolean;
+  /** sessionStorage key prefix; use `dev-preview` for Dev Studio */
+  storagePrefix?: string;
 }) {
   const tunnelEnabled = useRuntimeTunnelFeature();
   const canTunnel = tunnelEnabled && !!runtimeId;
@@ -368,14 +371,14 @@ export function useDesignPreviewSource({
 
   const [selectedHtmlPath, setSelectedHtmlPath] = useState<string | null>(() => {
     if (typeof window === "undefined") return defaultHtmlPath;
-    const saved = window.sessionStorage.getItem(storageKey(sessionId, "html"));
+    const saved = window.sessionStorage.getItem(storageKey(sessionId, "html", storagePrefix));
     if (saved && htmlEntries.some((e) => e.path === saved)) return saved;
     return defaultHtmlPath;
   });
 
   const [selectedPort, setSelectedPort] = useState<number | null>(() => {
     if (typeof window === "undefined") return null;
-    const saved = window.sessionStorage.getItem(storageKey(sessionId, "port"));
+    const saved = window.sessionStorage.getItem(storageKey(sessionId, "port", storagePrefix));
     if (!saved) return null;
     const parsed = Number.parseInt(saved, 10);
     return Number.isFinite(parsed) ? parsed : null;
@@ -385,7 +388,7 @@ export function useDesignPreviewSource({
     modeUserSelectedRef.current = false;
     setModeState("file");
     if (typeof window === "undefined") return;
-    const saved = window.sessionStorage.getItem(storageKey(sessionId, "mode"));
+    const saved = window.sessionStorage.getItem(storageKey(sessionId, "mode", storagePrefix));
     if (saved === "tunnel" && !htmlLoading && !canFile && canTunnel) {
       modeUserSelectedRef.current = true;
       setModeState("tunnel");
@@ -395,9 +398,9 @@ export function useDesignPreviewSource({
   useEffect(() => {
     if (htmlLoading) return;
     if (typeof window !== "undefined") {
-      const saved = window.sessionStorage.getItem(storageKey(sessionId, "mode"));
+      const saved = window.sessionStorage.getItem(storageKey(sessionId, "mode", storagePrefix));
       if (saved === "tunnel" && canFile) {
-        window.sessionStorage.removeItem(storageKey(sessionId, "mode"));
+        window.sessionStorage.removeItem(storageKey(sessionId, "mode", storagePrefix));
       }
     }
     if (commentMode && canFile) {
@@ -428,21 +431,21 @@ export function useDesignPreviewSource({
 
   useEffect(() => {
     if (typeof window === "undefined" || !modeUserSelectedRef.current) return;
-    window.sessionStorage.setItem(storageKey(sessionId, "mode"), mode);
+    window.sessionStorage.setItem(storageKey(sessionId, "mode", storagePrefix), mode);
   }, [mode, sessionId]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !selectedHtmlPath) return;
-    window.sessionStorage.setItem(storageKey(sessionId, "html"), selectedHtmlPath);
+    window.sessionStorage.setItem(storageKey(sessionId, "html", storagePrefix), selectedHtmlPath);
   }, [selectedHtmlPath, sessionId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (selectedPort == null) {
-      window.sessionStorage.removeItem(storageKey(sessionId, "port"));
+      window.sessionStorage.removeItem(storageKey(sessionId, "port", storagePrefix));
       return;
     }
-    window.sessionStorage.setItem(storageKey(sessionId, "port"), String(selectedPort));
+    window.sessionStorage.setItem(storageKey(sessionId, "port", storagePrefix), String(selectedPort));
   }, [selectedPort, sessionId]);
 
   return {

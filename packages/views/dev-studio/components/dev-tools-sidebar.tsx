@@ -10,9 +10,13 @@ import { cn } from "@aicortex/ui/lib/utils";
 import type { DevSession } from "@aicortex/core/dev-studio";
 import { useT } from "../../i18n";
 import { isHtmlArtifact } from "../../chat/components/chat-artifact-url";
-import { ArtifactHtmlPreview } from "../../shared/artifact-preview";
 import { ChatTerminalPanel } from "../../chat/components/chat-terminal-panel";
 import { ChatArtifactPanel } from "../../chat/components/chat-artifact-panel";
+import type { MarkAnnotationAction, SelectedPreviewElement } from "../../design-studio/lib/preview-element";
+import type { QueuedPreviewComment } from "../../design-studio/components/design-comment-queue-panel";
+import { type PreviewCommentHandler } from "../../design-studio/components/design-html-preview";
+import { useDesignPreviewSource } from "../../design-studio/components/design-preview-source-bar";
+import { DesignToolsPreviewPanel } from "../../design-studio/components/design-tools-preview-panel";
 
 export type DevToolsTab = "terminal" | "files" | "preview";
 
@@ -21,24 +25,54 @@ export function DevToolsSidebar({
   activeTab,
   onTabChange,
   lastTaskId,
+  commentMode = false,
+  onCommentModeChange,
+  onSendToChat,
+  onQueueComment,
+  onPropertySave,
+  onMarkAnnotation,
+  sendDisabled = false,
+  queuedComments = [],
+  onRemoveQueuedComment,
+  onClearQueuedComments,
+  onSendQueue,
+  queueSending = false,
 }: {
   session: DevSession | null;
   activeTab: DevToolsTab;
   onTabChange: (tab: DevToolsTab) => void;
   lastTaskId: string | null;
+  commentMode?: boolean;
+  onCommentModeChange?: (enabled: boolean) => void;
+  onSendToChat?: PreviewCommentHandler;
+  onQueueComment?: PreviewCommentHandler;
+  onPropertySave?: (element: SelectedPreviewElement, patch: string) => void;
+  onMarkAnnotation?: (payload: {
+    action: MarkAnnotationAction;
+    note: string;
+    imageFile?: File;
+    extraFiles?: File[];
+  }) => Promise<void>;
+  sendDisabled?: boolean;
+  queuedComments?: QueuedPreviewComment[];
+  onRemoveQueuedComment?: (id: string) => void;
+  onClearQueuedComments?: () => void;
+  onSendQueue?: () => void;
+  queueSending?: boolean;
 }) {
   const { t } = useT("dev-studio");
   const workspaceSlug = useWorkspaceSlug() ?? "";
   const exploreEnabled = useWorkspaceExploreEnabled();
   const artifactBrowseEnabled = useArtifactBrowseFeature();
 
-  const runtimeId = session?.runtime_id ?? null;
+  const runtimeId = session?.runtime_id ?? undefined;
   const workDir = session?.work_dir ?? null;
+  const taskId = lastTaskId;
 
-  const { data: rootListing } = useTaskArtifacts(
-    lastTaskId,
+  const { data: rootListing, isLoading: rootListingLoading } = useTaskArtifacts(
+    taskId,
     "",
-    artifactBrowseEnabled && !!lastTaskId,
+    artifactBrowseEnabled && !!taskId,
   );
 
   const htmlEntries = useMemo(
@@ -50,19 +84,28 @@ export function DevToolsSidebar({
     [rootListing?.entries],
   );
 
-  const previewHtmlPath = htmlEntries.length > 0 ? htmlEntries[0]!.path : null;
-  const showPreview = artifactBrowseEnabled && !!lastTaskId && !!workspaceSlug;
+  const previewSource = useDesignPreviewSource({
+    sessionId: session?.id ?? "unknown",
+    artifactEntry: "index.html",
+    htmlEntries,
+    htmlLoading: rootListingLoading,
+    runtimeId,
+    commentMode,
+    storagePrefix: "dev-preview",
+  });
+
+  const canPreview = artifactBrowseEnabled && !!taskId && !!workspaceSlug && !!session;
 
   const tabs = useMemo(() => {
     const items: { id: DevToolsTab; label: string; icon: typeof Terminal }[] = [];
-    if (showPreview && previewHtmlPath) {
+    if (canPreview) {
       items.push({
         id: "preview",
         label: t(($) => $.session.tabs_preview),
         icon: Globe,
       });
     }
-    if (artifactBrowseEnabled && lastTaskId) {
+    if (artifactBrowseEnabled && taskId) {
       items.push({
         id: "files",
         label: t(($) => $.session.tabs_files),
@@ -77,15 +120,7 @@ export function DevToolsSidebar({
       });
     }
     return items;
-  }, [
-    artifactBrowseEnabled,
-    exploreEnabled,
-    lastTaskId,
-    previewHtmlPath,
-    runtimeId,
-    showPreview,
-    t,
-  ]);
+  }, [artifactBrowseEnabled, canPreview, exploreEnabled, runtimeId, taskId, t]);
 
   if (tabs.length === 0) {
     return (
@@ -102,7 +137,7 @@ export function DevToolsSidebar({
   const tab = tabs.some((item) => item.id === activeTab) ? activeTab : tabs[0]!.id;
 
   return (
-    <aside className="flex h-full min-h-0 min-w-0 flex-col border-l bg-sidebar">
+    <aside className="flex h-full min-h-0 min-w-0 flex-col border-l border-border bg-sidebar">
       <div className="flex h-10 shrink-0 items-center border-b px-2">
         <div className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
           {tabs.map((item) => {
@@ -138,22 +173,33 @@ export function DevToolsSidebar({
             />
           </div>
         )}
-        {tab === "files" && lastTaskId && (
+        {tab === "files" && taskId && (
           <div className="min-h-0 flex-1">
-            <ChatArtifactPanel
-              taskId={lastTaskId}
-              hasWorkDir={!!workDir || !!lastTaskId}
-            />
+            <ChatArtifactPanel taskId={taskId} hasWorkDir={!!workDir || !!taskId} />
           </div>
         )}
-        {tab === "preview" && showPreview && previewHtmlPath && lastTaskId && (
-          <div className="min-h-0 flex-1">
-            <ArtifactHtmlPreview
-              taskId={lastTaskId}
-              path={previewHtmlPath}
-              workspaceSlug={workspaceSlug}
-            />
-          </div>
+        {tab === "preview" && canPreview && taskId && session && (
+          <DesignToolsPreviewPanel
+            taskId={taskId}
+            workspaceSlug={workspaceSlug}
+            runtimeId={runtimeId}
+            htmlEntries={htmlEntries}
+            htmlLoading={rootListingLoading}
+            previewSource={previewSource}
+            designEnabled={!!onCommentModeChange}
+            commentMode={commentMode}
+            onCommentModeChange={onCommentModeChange}
+            sendDisabled={sendDisabled}
+            onSendToChat={onSendToChat}
+            onQueueComment={onQueueComment}
+            onPropertySave={onPropertySave}
+            onMarkAnnotation={onMarkAnnotation}
+            queuedComments={queuedComments}
+            onRemoveQueuedComment={onRemoveQueuedComment}
+            onClearQueuedComments={onClearQueuedComments}
+            onSendQueue={onSendQueue}
+            queueSending={queueSending}
+          />
         )}
       </div>
     </aside>

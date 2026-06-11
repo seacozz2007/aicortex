@@ -631,7 +631,7 @@ export function DesignHtmlPreview({
   });
 
   const sourcePanel =
-    previewSource && htmlEntries.length > 0
+    previewSource && (htmlEntries.length > 0 || runtimeId)
       ? (close: () => void) => (
           <DesignPreviewSourcePanel
             htmlEntries={htmlEntries}

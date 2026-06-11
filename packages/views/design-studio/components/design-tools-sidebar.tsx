@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, ExternalLink, FileText, Globe, Gavel, Terminal } from "lucide-react";
+import { Download, FileText, Globe, Gavel, MessageSquare, Terminal } from "lucide-react";
 import {
   useArtifactBrowseFeature,
   useDesignExportFeature,
@@ -19,18 +19,13 @@ import { ChatArtifactPanel } from "../../chat/components/chat-artifact-panel";
 import { ChatTerminalPanel } from "../../chat/components/chat-terminal-panel";
 import type { MarkAnnotationAction, SelectedPreviewElement } from "../lib/preview-element";
 import type { QueuedPreviewComment } from "./design-comment-queue-panel";
-import { DesignHtmlPreview, type PreviewCommentHandler } from "./design-html-preview";
+import { type PreviewCommentHandler } from "./design-html-preview";
 import { isHtmlArtifact } from "../../chat/components/chat-artifact-url";
 import { DesignQuestionsPanel } from "./design-questions-panel";
 import type { QuestionForm } from "../../chat/lib/question-form-parser";
-import {
-  buildTunnelPreviewURL,
-  DesignPreviewSourcePanel,
-  formatPreviewAddressLabel,
-  useDesignPreviewSource,
-} from "./design-preview-source-bar";
-import { DesignPreviewBrowserChrome } from "./design-preview-browser-chrome";
+import { useDesignPreviewSource } from "./design-preview-source-bar";
 import { DesignGenerationPreview } from "./design-generation-preview";
+import { DesignToolsPreviewPanel } from "./design-tools-preview-panel";
 
 export type DesignToolsTab = "questions" | "preview" | "files" | "terminal" | "export";
 
@@ -131,7 +126,6 @@ export function DesignToolsSidebar({
   const artifactEntry = (session as { artifact_entry?: string })?.artifact_entry ?? "index.html";
 
   const [tab, setTab] = useState<DesignToolsTab>("preview");
-  const [tunnelReloadKey, setTunnelReloadKey] = useState(0);
   const tabUserSelectedRef = useRef(false);
   const sessionId = session?.id;
 
@@ -321,116 +315,27 @@ export function DesignToolsSidebar({
           <DesignQuestionsPanel form={pendingQuestionForm} onSubmit={onFormSubmit} />
         )}
         {tab === "preview" && canDesignPreview && taskId && session && (
-          <>
-            {previewSource.mode === "file" && previewSource.effectiveHtmlPath ? (
-              <div className="min-h-0 flex-1">
-                <DesignHtmlPreview
-                  path={previewSource.effectiveHtmlPath}
-                  taskId={taskId}
-                  workspaceSlug={workspaceSlug}
-                  commentMode={commentMode}
-                  onCommentModeChange={onCommentModeChange}
-                  previewSource={{
-                    mode: previewSource.mode,
-                    setMode: previewSource.setMode,
-                    selectedHtmlPath: previewSource.selectedHtmlPath,
-                    setSelectedHtmlPath: previewSource.setSelectedHtmlPath,
-                    selectedPort: previewSource.selectedPort,
-                    setSelectedPort: previewSource.setSelectedPort,
-                  }}
-                  htmlEntries={htmlEntries}
-                  htmlLoading={rootListingLoading}
-                  runtimeId={runtimeId}
-                  sendDisabled={sendDisabled}
-                  onSendToChat={onSendToChat}
-                  onQueueComment={onQueueComment}
-                  onPropertySave={onPropertySave}
-                  onMarkAnnotation={onMarkAnnotation}
-                  queuedComments={queuedComments}
-                  onRemoveQueuedComment={onRemoveQueuedComment}
-                  onClearQueuedComments={onClearQueuedComments}
-                  onSendQueue={onSendQueue}
-                  queueSending={queueSending}
-                  onTunnelConnect={() => setTunnelReloadKey((key) => key + 1)}
-                />
-              </div>
-            ) : previewSource.mode === "tunnel" &&
-              runtimeId &&
-              previewSource.selectedPort != null ? (
-              <div className="flex min-h-0 flex-1 flex-col bg-muted/20">
-                <DesignPreviewBrowserChrome
-                  addressText={formatPreviewAddressLabel({
-                    mode: "tunnel",
-                    port: previewSource.selectedPort,
-                  })}
-                  externalHref={buildTunnelPreviewURL(
-                    runtimeId,
-                    previewSource.selectedPort,
-                    workspaceSlug,
-                  )}
-                  onRefresh={() => setTunnelReloadKey((key) => key + 1)}
-                  designEnabled={false}
-                  sourcePanel={(close) => (
-                    <DesignPreviewSourcePanel
-                      htmlEntries={htmlEntries}
-                      htmlLoading={rootListingLoading}
-                      runtimeId={runtimeId}
-                      commentMode={commentMode}
-                      mode={previewSource.mode}
-                      onModeChange={previewSource.setMode}
-                      selectedHtmlPath={previewSource.selectedHtmlPath}
-                      onHtmlPathChange={previewSource.setSelectedHtmlPath}
-                      selectedPort={previewSource.selectedPort}
-                      onPortChange={previewSource.setSelectedPort}
-                      onAfterSelect={close}
-                      onTunnelConnect={() => setTunnelReloadKey((key) => key + 1)}
-                    />
-                  )}
-                />
-                <iframe
-                  key={`${buildTunnelPreviewURL(runtimeId, previewSource.selectedPort, workspaceSlug)}-${tunnelReloadKey}`}
-                  title={t(($) => $.preview.frame_title)}
-                  src={buildTunnelPreviewURL(
-                    runtimeId,
-                    previewSource.selectedPort,
-                    workspaceSlug,
-                  )}
-                  className="min-h-0 flex-1 bg-background"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                />
-              </div>
-            ) : (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <DesignPreviewBrowserChrome
-                  addressText={formatPreviewAddressLabel({ mode: previewSource.mode, htmlPath: null })}
-                  designEnabled={false}
-                  sourcePanel={(close) =>
-                    htmlEntries.length > 0 || runtimeId ? (
-                      <DesignPreviewSourcePanel
-                        htmlEntries={htmlEntries}
-                        htmlLoading={rootListingLoading}
-                        runtimeId={runtimeId}
-                        commentMode={commentMode}
-                        mode={previewSource.mode}
-                        onModeChange={previewSource.setMode}
-                        selectedHtmlPath={previewSource.selectedHtmlPath}
-                        onHtmlPathChange={previewSource.setSelectedHtmlPath}
-                        selectedPort={previewSource.selectedPort}
-                        onPortChange={previewSource.setSelectedPort}
-                        onAfterSelect={close}
-                        onTunnelConnect={() => setTunnelReloadKey((key) => key + 1)}
-                      />
-                    ) : undefined
-                  }
-                />
-                <p className="p-4 text-xs text-muted-foreground">
-                  {previewSource.mode === "tunnel"
-                    ? t(($) => $.preview.no_ports)
-                    : t(($) => $.preview.no_html)}
-                </p>
-              </div>
-            )}
-          </>
+          <DesignToolsPreviewPanel
+            taskId={taskId}
+            workspaceSlug={workspaceSlug}
+            runtimeId={runtimeId}
+            htmlEntries={htmlEntries}
+            htmlLoading={rootListingLoading}
+            previewSource={previewSource}
+            designEnabled
+            commentMode={commentMode}
+            onCommentModeChange={onCommentModeChange}
+            sendDisabled={sendDisabled}
+            onSendToChat={onSendToChat}
+            onQueueComment={onQueueComment}
+            onPropertySave={onPropertySave}
+            onMarkAnnotation={onMarkAnnotation}
+            queuedComments={queuedComments}
+            onRemoveQueuedComment={onRemoveQueuedComment}
+            onClearQueuedComments={onClearQueuedComments}
+            onSendQueue={onSendQueue}
+            queueSending={queueSending}
+          />
         )}
         {tab === "preview" && !canDesignPreview && (
           <p className="p-4 text-xs text-muted-foreground">

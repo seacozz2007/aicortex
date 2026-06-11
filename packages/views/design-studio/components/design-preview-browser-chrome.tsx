@@ -64,15 +64,17 @@ export function DesignPreviewBrowserChrome({
 
         {resolvedSourcePanel ? (
           <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-border/60 bg-muted/40 px-2.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-                title={t(($) => $.preview.chrome.address)}
-              >
-                <span className="truncate font-mono">{addressText}</span>
-              </button>
-            </PopoverTrigger>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-border/60 bg-muted/40 px-2.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                  title={t(($) => $.preview.chrome.address)}
+                >
+                  <span className="truncate font-mono">{addressText}</span>
+                </button>
+              }
+            />
             <PopoverContent align="start" className="w-80 p-3">
               {resolvedSourcePanel}
             </PopoverContent>
@@ -105,38 +107,39 @@ export function DesignPreviewBrowserChrome({
 
         {externalHref ? (
           <Button
-            type="button"
             variant="ghost"
             size="icon-sm"
             className="size-7 shrink-0 text-muted-foreground"
-            asChild
+            render={
+              <a
+                href={externalHref}
+                target="_blank"
+                rel="noreferrer"
+                title={t(($) => $.preview.open_external)}
+                aria-label={t(($) => $.preview.open_external)}
+              />
+            }
           >
-            <a
-              href={externalHref}
-              target="_blank"
-              rel="noreferrer"
-              title={t(($) => $.preview.open_external)}
-              aria-label={t(($) => $.preview.open_external)}
-            >
-              <ExternalLink className="size-3.5" />
-            </a>
+            <ExternalLink className="size-3.5" />
           </Button>
         ) : null}
 
         {overflowMenu ? (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="size-7 shrink-0 text-muted-foreground"
-                title={t(($) => $.preview.chrome.more)}
-                aria-label={t(($) => $.preview.chrome.more)}
-              >
-                <MoreHorizontal className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7 shrink-0 text-muted-foreground"
+                  title={t(($) => $.preview.chrome.more)}
+                  aria-label={t(($) => $.preview.chrome.more)}
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </Button>
+              }
+            />
             <DropdownMenuContent align="end" className="w-44">
               {overflowMenu}
             </DropdownMenuContent>
