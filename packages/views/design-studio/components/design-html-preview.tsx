@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Loader2, Monitor, Smartphone, Tablet } from "lucide-react";
 import { cn } from "@aicortex/ui/lib/utils";
+import {
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+} from "@aicortex/ui/components/ui/dropdown-menu";
 import { useT } from "../../i18n";
 import { buildArtifactRawURL } from "../../chat/components/chat-artifact-url";
 import { applyPropertyDraft } from "../lib/apply-element-styles";
@@ -22,7 +28,13 @@ import { DesignCommentToolbar } from "./design-comment-toolbar";
 import { DesignElementInspector } from "./design-element-inspector";
 import { DesignMarkOverlay } from "./design-mark-overlay";
 import { DesignPropertyEditorModal } from "./design-property-editor-modal";
+import { DesignPreviewBrowserChrome } from "./design-preview-browser-chrome";
 import { DesignPreviewCommentHint } from "./design-preview-comment-hint";
+import {
+  DesignPreviewSourcePanel,
+  formatPreviewAddressLabel,
+  type DesignPreviewMode,
+} from "./design-preview-source-bar";
 import { DesignSelectionOverlay } from "./design-selection-overlay";
 
 export type DesignViewport = "desktop" | "tablet" | "mobile";
@@ -120,6 +132,11 @@ export function DesignHtmlPreview({
   taskId,
   workspaceSlug,
   commentMode = false,
+  onCommentModeChange,
+  previewSource,
+  htmlEntries = [],
+  htmlLoading = false,
+  runtimeId,
   sendDisabled = false,
   onQueueComment,
   onSendToChat,
@@ -130,11 +147,24 @@ export function DesignHtmlPreview({
   onClearQueuedComments,
   onSendQueue,
   queueSending = false,
+  onTunnelConnect,
 }: {
   path: string;
   taskId: string;
   workspaceSlug: string;
   commentMode?: boolean;
+  onCommentModeChange?: (enabled: boolean) => void;
+  previewSource?: {
+    mode: DesignPreviewMode;
+    setMode: (mode: DesignPreviewMode) => void;
+    selectedHtmlPath: string | null;
+    setSelectedHtmlPath: (path: string) => void;
+    selectedPort: number | null;
+    setSelectedPort: (port: number | null) => void;
+  };
+  htmlEntries?: { path: string; name: string }[];
+  htmlLoading?: boolean;
+  runtimeId?: string;
   sendDisabled?: boolean;
   onComment?: PreviewCommentHandler;
   onQueueComment?: PreviewCommentHandler;
@@ -151,6 +181,7 @@ export function DesignHtmlPreview({
   onClearQueuedComments?: () => void;
   onSendQueue?: () => void;
   queueSending?: boolean;
+  onTunnelConnect?: () => void;
 }) {
   const { t } = useT("design");
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -517,6 +548,68 @@ export function DesignHtmlPreview({
     }
   };
 
+  const handleRefresh = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    setLoading(true);
+    clearSelection();
+    try {
+      iframe.contentWindow?.location.reload();
+    } catch {
+      iframe.src = iframe.src;
+    }
+  }, [clearSelection]);
+
+  const addressText = formatPreviewAddressLabel({
+    mode: previewSource?.mode ?? "file",
+    htmlPath: path,
+    port: previewSource?.selectedPort,
+  });
+
+  const sourcePanel =
+    previewSource && htmlEntries.length > 0
+      ? (close: () => void) => (
+          <DesignPreviewSourcePanel
+            htmlEntries={htmlEntries}
+            htmlLoading={htmlLoading}
+            runtimeId={runtimeId}
+            commentMode={commentMode}
+            mode={previewSource.mode}
+            onModeChange={previewSource.setMode}
+            selectedHtmlPath={previewSource.selectedHtmlPath}
+            onHtmlPathChange={previewSource.setSelectedHtmlPath}
+            selectedPort={previewSource.selectedPort}
+            onPortChange={previewSource.setSelectedPort}
+            onAfterSelect={close}
+            onTunnelConnect={onTunnelConnect}
+          />
+        )
+      : undefined;
+
+  const overflowMenu = (
+    <>
+      <DropdownMenuLabel>{t(($) => $.preview.chrome.viewport_label)}</DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        value={viewport}
+        onValueChange={(value) => setViewport(value as DesignViewport)}
+      >
+        {(
+          [
+            ["desktop", Monitor, t(($) => $.preview.viewport.desktop)],
+            ["tablet", Tablet, t(($) => $.preview.viewport.tablet)],
+            ["mobile", Smartphone, t(($) => $.preview.viewport.mobile)],
+          ] as const
+        ).map(([id, Icon, label]) => (
+          <DropdownMenuRadioItem key={id} value={id} className="gap-2 text-xs">
+            <Icon className="size-3.5" />
+            {label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+      <DropdownMenuSeparator />
+    </>
+  );
+
   const showInspector =
     selectedElement &&
     commentActive &&
@@ -534,42 +627,28 @@ export function DesignHtmlPreview({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-2 py-1.5">
-        <div className="flex items-center gap-0.5 rounded-md border p-0.5">
-          {(
-            [
-              ["desktop", Monitor],
-              ["tablet", Tablet],
-              ["mobile", Smartphone],
-            ] as const
-          ).map(([id, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setViewport(id)}
-              className={cn(
-                "rounded px-2 py-1 text-muted-foreground transition-colors hover:text-foreground",
-                viewport === id && "bg-accent text-foreground",
-              )}
-              title={t(($) => $.preview.viewport[id])}
-            >
-              <Icon className="size-3.5" />
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1">
-          <a
-            href={previewURL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            title={t(($) => $.preview.open_external)}
-            aria-label={t(($) => $.preview.open_external)}
-          >
-            <ExternalLink className="size-3.5" />
-          </a>
-        </div>
-      </div>
+      <DesignPreviewBrowserChrome
+        addressText={addressText}
+        externalHref={previewURL}
+        onRefresh={handleRefresh}
+        commentMode={commentMode}
+        onCommentModeChange={onCommentModeChange}
+        designEnabled={!!onCommentModeChange}
+        sourcePanel={sourcePanel}
+        overflowMenu={overflowMenu}
+        extension={
+          <DesignCommentToolbar
+            variant="strip"
+            tool={tool}
+            onToolChange={handleToolChange}
+            queueCount={queuedComments.length}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            onScreenshot={() => void handleScreenshot()}
+            screenshotPending={screenshotPending}
+          />
+        }
+      />
 
       <div ref={overlayRef} className="relative min-h-0 flex-1 overflow-auto bg-muted/30 p-2">
         {loading && (
@@ -637,16 +716,6 @@ export function DesignHtmlPreview({
 
         {commentMode && !loading ? (
           <>
-            <DesignCommentToolbar
-              tool={tool}
-              onToolChange={handleToolChange}
-              queueCount={queuedComments.length}
-              zoom={zoom}
-              onZoomChange={setZoom}
-              onScreenshot={() => void handleScreenshot()}
-              screenshotPending={screenshotPending}
-            />
-
             <DesignCommentQueuePanel
               items={queuedComments}
               onRemove={(id) => onRemoveQueuedComment?.(id)}

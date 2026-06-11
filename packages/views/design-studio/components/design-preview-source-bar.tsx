@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTunnelScanPorts } from "@aicortex/core/config";
 import {
   useRuntimeTunnelFeature,
 } from "@aicortex/core/config/features";
 import {
+  runtimeTunnelKeys,
   useCreateRuntimeTunnel,
   useDeleteRuntimeTunnel,
   useRuntimeTunnels,
@@ -15,6 +18,21 @@ import { cn } from "@aicortex/ui/lib/utils";
 import { useT } from "../../i18n";
 
 export type DesignPreviewMode = "file" | "tunnel";
+
+export function formatPreviewAddressLabel(input: {
+  mode: DesignPreviewMode;
+  htmlPath?: string | null;
+  port?: number | null;
+}): string {
+  if (input.mode === "tunnel" && input.port != null) {
+    return `localhost:${input.port}`;
+  }
+  const fileName =
+    input.htmlPath?.split("/").pop() ||
+    input.htmlPath ||
+    "index.html";
+  return `file:${fileName}`;
+}
 
 function buildTunnelPreviewURL(
   runtimeId: string,
@@ -41,8 +59,6 @@ function resolveDefaultHtmlPath(
 function storageKey(sessionId: string, suffix: string) {
   return `design-preview:${sessionId}:${suffix}`;
 }
-
-const QUICK_TUNNEL_PORTS = [5173, 3000, 8080, 4173] as const;
 
 function ModeToggle({
   mode,
@@ -83,13 +99,10 @@ function ModeToggle({
   );
 }
 
-export function DesignPreviewSourceBar({
-  sessionId: _sessionId,
-  artifactEntry: _artifactEntry,
+export function DesignPreviewSourcePanel({
   htmlEntries,
   htmlLoading,
   runtimeId,
-  workspaceSlug,
   commentMode = false,
   mode,
   onModeChange,
@@ -97,13 +110,12 @@ export function DesignPreviewSourceBar({
   onHtmlPathChange,
   selectedPort,
   onPortChange,
+  onAfterSelect,
+  onTunnelConnect,
 }: {
-  sessionId: string;
-  artifactEntry: string;
   htmlEntries: { path: string; name: string }[];
   htmlLoading: boolean;
   runtimeId?: string;
-  workspaceSlug: string;
   commentMode?: boolean;
   mode: DesignPreviewMode;
   onModeChange: (mode: DesignPreviewMode) => void;
@@ -111,9 +123,13 @@ export function DesignPreviewSourceBar({
   onHtmlPathChange: (path: string) => void;
   selectedPort: number | null;
   onPortChange: (port: number | null) => void;
+  onAfterSelect?: () => void;
+  onTunnelConnect?: () => void;
 }) {
   const { t } = useT("design");
   const { t: tRuntimes } = useT("runtimes");
+  const queryClient = useQueryClient();
+  const configuredScanPorts = useTunnelScanPorts();
   const tunnelEnabled = useRuntimeTunnelFeature();
   const canTunnel = tunnelEnabled && !!runtimeId;
   const canFile = htmlEntries.length > 0;
@@ -125,7 +141,12 @@ export function DesignPreviewSourceBar({
   );
   const createMutation = useCreateRuntimeTunnel(runtimeId ?? "");
   const deleteMutation = useDeleteRuntimeTunnel(runtimeId ?? "");
-  const [portSelectKey, setPortSelectKey] = useState(0);
+  const [panelTab, setPanelTab] = useState<DesignPreviewMode>(mode);
+  const [portActionPending, setPortActionPending] = useState(false);
+
+  useEffect(() => {
+    setPanelTab(mode);
+  }, [mode]);
 
   const activeTunnels = useMemo(
     () => tunnels.filter((tunnel) => tunnel.status === "active"),
@@ -134,8 +155,8 @@ export function DesignPreviewSourceBar({
 
   const quickAddPorts = useMemo(() => {
     const used = new Set(tunnels.map((tunnel) => tunnel.port));
-    return QUICK_TUNNEL_PORTS.filter((port) => !used.has(port));
-  }, [tunnels]);
+    return configuredScanPorts.filter((port) => !used.has(port));
+  }, [configuredScanPorts, tunnels]);
 
   useEffect(() => {
     if (commentMode && mode !== "file" && canFile) {
@@ -143,162 +164,170 @@ export function DesignPreviewSourceBar({
     }
   }, [canFile, commentMode, mode, onModeChange]);
 
-  useEffect(() => {
-    if (mode === "file" || !canTunnel) return;
-    if (selectedPort != null) return;
-    if (activeTunnels.length > 0) {
-      onPortChange(activeTunnels[0]!.port);
+  const handleConnectPort = async (port: number) => {
+    if (!runtimeId || portActionPending) return;
+    setPortActionPending(true);
+    try {
+      const existing = activeTunnels.some((tunnel) => tunnel.port === port);
+      if (!existing) {
+        await createMutation.mutateAsync({ port });
+      }
+      await queryClient.invalidateQueries({ queryKey: runtimeTunnelKeys.all(runtimeId) });
+      await queryClient.refetchQueries({ queryKey: runtimeTunnelKeys.all(runtimeId) });
+      onPortChange(port);
+      onModeChange("tunnel");
+      onTunnelConnect?.();
+      onAfterSelect?.();
+    } finally {
+      setPortActionPending(false);
     }
-  }, [activeTunnels, canTunnel, mode, onPortChange, selectedPort]);
+  };
 
-  const handlePortSelect = (value: string) => {
-    if (!runtimeId) return;
-    if (value.startsWith("__delete:")) {
-      const tunnelId = value.slice("__delete:".length);
-      const tunnel = tunnels.find((item) => item.id === tunnelId);
-      deleteMutation.mutate(tunnelId, {
-        onSuccess: () => {
-          if (tunnel && selectedPort === tunnel.port) {
-            onPortChange(null);
-          }
-          setPortSelectKey((key) => key + 1);
-        },
-      });
-      return;
+  const handleDisconnectPort = async (tunnel: RuntimeTunnel) => {
+    if (!runtimeId || portActionPending) return;
+    setPortActionPending(true);
+    try {
+      await deleteMutation.mutateAsync(tunnel.id);
+      await queryClient.invalidateQueries({ queryKey: runtimeTunnelKeys.all(runtimeId) });
+      await queryClient.refetchQueries({ queryKey: runtimeTunnelKeys.all(runtimeId) });
+      if (selectedPort === tunnel.port) {
+        onPortChange(null);
+        if (canFile) {
+          onModeChange("file");
+        }
+      }
+    } finally {
+      setPortActionPending(false);
     }
-    if (value.startsWith("__create:")) {
-      const parsed = Number.parseInt(value.slice("__create:".length), 10);
-      if (!Number.isFinite(parsed)) return;
-      createMutation.mutate(
-        { port: parsed },
-        {
-          onSuccess: (tunnel: RuntimeTunnel) => {
-            onPortChange(tunnel.port);
-            onModeChange("tunnel");
-          },
-        },
-      );
-      return;
-    }
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isFinite(parsed)) onPortChange(parsed);
   };
 
   if (!canFile && !canTunnel) {
-    return null;
+    return (
+      <p className="text-xs text-muted-foreground">{t(($) => $.preview.no_html)}</p>
+    );
   }
 
   return (
-    <div className="shrink-0 border-b bg-sidebar px-2 py-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
-          {(mode === "file" || !canTunnel) && canFile && (
-            <>
-              <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {t(($) => $.preview.select_html)}
-              </label>
-              {htmlLoading ? (
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <Loader2 className="size-3 animate-spin" />
-                  {t(($) => $.preview.loading_files)}
-                </div>
-              ) : htmlEntries.length === 1 ? (
-                <p className="truncate font-mono text-[11px] text-foreground">
-                  {htmlEntries[0]!.name}
-                </p>
-              ) : (
-                <select
-                  value={selectedHtmlPath ?? ""}
-                  onChange={(e) => onHtmlPathChange(e.target.value)}
-                  className="h-8 w-full max-w-md rounded-md border bg-background px-2 font-mono text-[11px] outline-none focus:ring-1 focus:ring-ring"
-                >
-                  {htmlEntries.map((entry) => (
-                    <option key={entry.path} value={entry.path}>
-                      {entry.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </>
-          )}
+    <div className="space-y-3">
+      {showModeToggle ? (
+        <div className="flex justify-end">
+          <ModeToggle mode={panelTab} onModeChange={setPanelTab} />
+        </div>
+      ) : null}
 
-          {mode === "tunnel" && canTunnel && runtimeId && (
-            <>
-              <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {t(($) => $.preview.select_port)}
-              </label>
-              {tunnelsLoading ? (
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <Loader2 className="size-3 animate-spin" />
-                  {tRuntimes(($) => $.tunnels.loading)}
-                </div>
-              ) : (
-                <div className="flex max-w-md items-center gap-2">
-                  <select
-                    key={portSelectKey}
-                    value={
-                      selectedPort != null && activeTunnels.some((t) => t.port === selectedPort)
-                        ? String(selectedPort)
-                        : ""
-                    }
-                    onChange={(e) => handlePortSelect(e.target.value)}
-                    disabled={createMutation.isPending || deleteMutation.isPending}
-                    className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 font-mono text-[11px] outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
-                  >
-                    <option value="" disabled>
-                      {activeTunnels.length > 0
-                        ? t(($) => $.preview.select_port)
-                        : t(($) => $.preview.no_ports)}
-                    </option>
-                    {activeTunnels.length > 0 ? (
-                      <optgroup label={t(($) => $.preview.port_group_active)}>
-                        {activeTunnels.map((tunnel) => (
-                          <option key={tunnel.id} value={tunnel.port}>
-                            {tunnel.title} :{tunnel.port}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null}
-                    {activeTunnels.length > 0 ? (
-                      <optgroup label={t(($) => $.preview.port_group_disconnect)}>
-                        {activeTunnels.map((tunnel) => (
-                          <option key={`delete-${tunnel.id}`} value={`__delete:${tunnel.id}`}>
-                            {t(($) => $.preview.disconnect_port, { port: tunnel.port })}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null}
-                    {quickAddPorts.length > 0 ? (
-                      <optgroup label={tRuntimes(($) => $.tunnels.add_action)}>
-                        {quickAddPorts.map((port) => (
-                          <option key={port} value={`__create:${port}`}>
-                            :{port}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null}
-                  </select>
-                  {selectedPort != null &&
-                  workspaceSlug &&
-                  activeTunnels.some((tunnel) => tunnel.port === selectedPort) ? (
-                    <a
-                      href={buildTunnelPreviewURL(runtimeId, selectedPort, workspaceSlug)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-accent hover:text-foreground"
-                      aria-label={tRuntimes(($) => $.tunnels.open_external)}
+      {(panelTab === "file" || !canTunnel) && canFile && (
+        <div className="space-y-1">
+          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {t(($) => $.preview.select_html)}
+          </label>
+          {htmlLoading ? (
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              {t(($) => $.preview.loading_files)}
+            </div>
+          ) : (
+            <ul className="max-h-48 space-y-0.5 overflow-auto">
+              {htmlEntries.map((entry) => {
+                const selected = selectedHtmlPath === entry.path;
+                return (
+                  <li key={entry.path}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onHtmlPathChange(entry.path);
+                        onModeChange("file");
+                        onAfterSelect?.();
+                      }}
+                      className={cn(
+                        "flex w-full items-center rounded-md px-2 py-1.5 text-left font-mono text-[11px] transition-colors hover:bg-accent hover:text-foreground",
+                        selected && "bg-accent font-medium text-foreground",
+                      )}
+                      aria-current={selected ? "true" : undefined}
                     >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  ) : null}
-                </div>
-              )}
-            </>
+                      {entry.name}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
+      )}
 
-        {showModeToggle ? <ModeToggle mode={mode} onModeChange={onModeChange} /> : null}
-      </div>
+      {panelTab === "tunnel" && canTunnel && runtimeId && (
+        <div className="space-y-1">
+          <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {t(($) => $.preview.select_port)}
+          </label>
+          {tunnelsLoading ? (
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              {tRuntimes(($) => $.tunnels.loading)}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activeTunnels.length > 0 ? (
+                <ul className="max-h-36 space-y-0.5 overflow-auto">
+                  {activeTunnels.map((tunnel) => {
+                    const selected =
+                      mode === "tunnel" && selectedPort === tunnel.port;
+                    return (
+                      <li key={tunnel.id} className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={portActionPending}
+                          onClick={() => void handleConnectPort(tunnel.port)}
+                          className={cn(
+                            "min-w-0 flex-1 rounded-md px-2 py-1.5 text-left font-mono text-[11px] transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60",
+                            selected && "bg-accent font-medium text-foreground",
+                          )}
+                          aria-current={selected ? "true" : undefined}
+                        >
+                          {tunnel.title} :{tunnel.port}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={portActionPending}
+                          onClick={() => void handleDisconnectPort(tunnel)}
+                          className="shrink-0 rounded-md px-2 py-1.5 text-[10px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-60"
+                        >
+                          {t(($) => $.preview.disconnect_port, { port: tunnel.port })}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  {t(($) => $.preview.no_ports)}
+                </p>
+              )}
+
+              {quickAddPorts.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {tRuntimes(($) => $.tunnels.add_action)}
+                  </p>
+                  <ul className="flex flex-wrap gap-1">
+                    {quickAddPorts.map((port) => (
+                      <li key={port}>
+                        <button
+                          type="button"
+                          disabled={portActionPending}
+                          onClick={() => void handleConnectPort(port)}
+                          className="rounded-md border px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60"
+                        >
+                          :{port}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

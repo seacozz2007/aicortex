@@ -33,6 +33,9 @@ type AppConfig struct {
 
 	// Feature flags exposed to authenticated clients after bootstrap.
 	Features AppFeatureFlags `json:"features"`
+
+	// Dev-server ports shown as design preview "Add" shortcuts (comma-separated env).
+	TunnelScanPorts []int `json:"tunnel_scan_ports,omitempty"`
 }
 
 type AppFeatureFlags struct {
@@ -80,6 +83,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		DesignExport:   design.FeatureDesignExport(),
 		DesignJury:     design.FeatureDesignJury(),
 	}
+	config.TunnelScanPorts = tunnel.ScanPortsFromEnv()
 
 	writeJSON(w, http.StatusOK, config)
 }

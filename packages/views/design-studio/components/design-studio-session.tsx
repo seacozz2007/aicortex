@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, ChevronRight, MessageSquare, PanelRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, PanelRight } from "lucide-react";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useWorkspacePaths, useWorkspaceSlug } from "@aicortex/core/paths";
 import { api } from "@aicortex/core/api";
@@ -207,17 +207,19 @@ export function DesignStudioSession({
     setPreferredToolsTab("questions");
   }, [pendingQuestionForm?.form.id]);
 
-  useEffect(() => {
-    if (!commentMode) return;
-    setToolsOpen(true);
-    localStorage.setItem(toolsSidebarStorageKey(), "true");
-    setPreferredToolsTab("preview");
-  }, [commentMode]);
-
   const openQuestionsPanel = useCallback(() => {
     setToolsOpen(true);
     localStorage.setItem(toolsSidebarStorageKey(), "true");
     setPreferredToolsTab("questions");
+  }, []);
+
+  const handleCommentModeChange = useCallback((next: boolean) => {
+    setCommentMode(next);
+    if (next) {
+      setToolsOpen(true);
+      localStorage.setItem(toolsSidebarStorageKey(), "true");
+      setPreferredToolsTab("preview");
+    }
   }, []);
 
   const performSend = useCallback(
@@ -463,12 +465,6 @@ export function DesignStudioSession({
     }
   }, [handleSend, queueSending, queuedComments.length, t]);
 
-  const openStudioPreview = useCallback(() => {
-    setToolsOpen(true);
-    localStorage.setItem(toolsSidebarStorageKey(), "true");
-    setPreferredToolsTab("preview");
-  }, []);
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center gap-2 border-b px-4 py-2">
@@ -482,52 +478,26 @@ export function DesignStudioSession({
         <span className="text-sm font-medium truncate">{currentSession?.title}</span>
         <div className="ml-auto flex items-center gap-2">
           {(canUseTools || pendingQuestionForm) && (
-            <>
-              <button
-                type="button"
-                onClick={() => setCommentMode((v) => !v)}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent",
-                  commentMode && "bg-brand/15 text-brand border-brand/40",
-                )}
-              >
-                <MessageSquare className="size-3.5" />
-                {t(($) => $.session.comment_mode)}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setToolsOpen((v) => {
-                    const next = !v;
-                    localStorage.setItem(toolsSidebarStorageKey(), String(next));
-                    return next;
-                  });
-                }}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent",
-                  toolsOpen && "bg-accent",
-                )}
-              >
-                <PanelRight className="size-3.5" />
-                {t(($) => $.session.studio_panel)}
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => {
+                setToolsOpen((v) => {
+                  const next = !v;
+                  localStorage.setItem(toolsSidebarStorageKey(), String(next));
+                  return next;
+                });
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent",
+                toolsOpen && "bg-accent",
+              )}
+            >
+              <PanelRight className="size-3.5" />
+              {t(($) => $.session.studio_panel)}
+            </button>
           )}
         </div>
       </header>
-
-      {commentMode && !showToolsSidebar ? (
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-brand/10 px-4 py-2 text-xs">
-          <span>{t(($) => $.session.comment_preview_hint)}</span>
-          <button
-            type="button"
-            onClick={openStudioPreview}
-            className="shrink-0 rounded-md border border-brand/40 bg-background px-2 py-1 text-xs hover:bg-accent"
-          >
-            {t(($) => $.session.open_preview_panel)}
-          </button>
-        </div>
-      ) : null}
 
       <div className="flex min-h-0 flex-1">
         <aside
@@ -660,6 +630,7 @@ export function DesignStudioSession({
                   taskMessages={designTaskMessages ?? liveTaskMessages ?? []}
                   hasPriorCompletedRun={hasPriorCompletedRun}
                   commentMode={commentMode}
+                  onCommentModeChange={handleCommentModeChange}
                   sendDisabled={
                     !!pendingTask &&
                     !!pendingTask.task_id &&

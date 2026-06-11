@@ -31,6 +31,7 @@ export function DesignCommentToolbar({
   onZoomChange,
   onScreenshot,
   screenshotPending = false,
+  variant = "floating",
 }: {
   tool: PreviewToolMode | null;
   onToolChange: (tool: PreviewToolMode) => void;
@@ -39,10 +40,12 @@ export function DesignCommentToolbar({
   onZoomChange: (zoom: number) => void;
   onScreenshot?: () => void;
   screenshotPending?: boolean;
+  variant?: "floating" | "strip";
 }) {
   const { t } = useT("design");
   const [zoomOpen, setZoomOpen] = useState(false);
   const zoomRef = useRef<HTMLDivElement>(null);
+  const isStrip = variant === "strip";
 
   useEffect(() => {
     if (!zoomOpen) return;
@@ -53,13 +56,30 @@ export function DesignCommentToolbar({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [zoomOpen]);
 
+  const iconBtnClass = isStrip
+    ? "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    : "inline-flex size-8 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/8 hover:text-white";
+
+  const activeClass = isStrip
+    ? "bg-brand/15 text-brand hover:bg-brand/20 hover:text-brand"
+    : "bg-[#c96442]/25 text-[#e8926f]";
+
+  const queueHintClass = isStrip ? "text-foreground" : "text-white/80";
+
   return (
-    <div className="pointer-events-auto absolute left-1/2 top-3 z-[60] flex -translate-x-1/2 items-center gap-0.5 rounded-xl border border-white/10 bg-[#141418]/92 px-1.5 py-1 shadow-2xl backdrop-blur-md">
+    <div
+      className={cn(
+        "flex items-center gap-0.5",
+        isStrip
+          ? "min-w-0 flex-1"
+          : "pointer-events-auto absolute left-1/2 top-3 z-[60] -translate-x-1/2 rounded-xl border border-white/10 bg-[#141418]/92 px-1.5 py-1 shadow-2xl backdrop-blur-md",
+      )}
+    >
       <button
         type="button"
         onClick={() => onScreenshot?.()}
         disabled={screenshotPending}
-        className="inline-flex size-8 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/8 hover:text-white disabled:opacity-40"
+        className={cn(iconBtnClass, "disabled:opacity-40")}
         title={t(($) => $.preview.toolbar.screenshot)}
         aria-label={t(($) => $.preview.toolbar.screenshot)}
       >
@@ -72,9 +92,10 @@ export function DesignCommentToolbar({
           type="button"
           onClick={() => onToolChange(id)}
           className={cn(
-            "relative inline-flex size-8 items-center justify-center rounded-lg text-white/55 transition-colors hover:bg-white/8 hover:text-white",
-            tool === id && "bg-[#c96442]/25 text-[#e8926f]",
-            id === "comment" && tool !== id && queueCount > 0 && "text-white/80",
+            "relative",
+            iconBtnClass,
+            tool === id && activeClass,
+            id === "comment" && tool !== id && queueCount > 0 && queueHintClass,
           )}
           title={t(($) => $.preview.toolbar[labelKey])}
           aria-label={t(($) => $.preview.toolbar[labelKey])}
@@ -89,13 +110,21 @@ export function DesignCommentToolbar({
         </button>
       ))}
 
-      <span className="mx-1 h-5 w-px bg-white/10" aria-hidden />
+      <span
+        className={cn("mx-1 h-5 w-px", isStrip ? "bg-border" : "bg-white/10")}
+        aria-hidden
+      />
 
       <div ref={zoomRef} className="relative">
         <button
           type="button"
           onClick={() => setZoomOpen((v) => !v)}
-          className="min-w-[52px] rounded-md px-2 py-1 text-[11px] tabular-nums text-white/75 hover:bg-white/8"
+          className={cn(
+            "min-w-[52px] rounded-md px-2 py-1 text-[11px] tabular-nums",
+            isStrip
+              ? "text-muted-foreground hover:bg-accent hover:text-foreground"
+              : "text-white/75 hover:bg-white/8",
+          )}
           aria-haspopup="listbox"
           aria-expanded={zoomOpen}
         >
@@ -103,7 +132,12 @@ export function DesignCommentToolbar({
         </button>
         {zoomOpen ? (
           <div
-            className="absolute left-1/2 top-full z-40 mt-1 min-w-[72px] -translate-x-1/2 overflow-hidden rounded-lg border border-white/10 bg-[#141418] py-1 shadow-xl"
+            className={cn(
+              "absolute left-1/2 top-full z-40 mt-1 min-w-[72px] -translate-x-1/2 overflow-hidden rounded-lg border py-1 shadow-xl",
+              isStrip
+                ? "border-border bg-popover"
+                : "border-white/10 bg-[#141418]",
+            )}
             role="listbox"
           >
             {ZOOM_STEPS.map((step) => (
@@ -117,8 +151,12 @@ export function DesignCommentToolbar({
                   setZoomOpen(false);
                 }}
                 className={cn(
-                  "block w-full px-3 py-1 text-left text-[11px] tabular-nums text-white/75 hover:bg-white/8",
-                  zoom === step && "bg-white/10 text-white",
+                  "block w-full px-3 py-1 text-left text-[11px] tabular-nums",
+                  isStrip
+                    ? "text-foreground hover:bg-accent"
+                    : "text-white/75 hover:bg-white/8",
+                  zoom === step &&
+                    (isStrip ? "bg-accent font-medium" : "bg-white/10 text-white"),
                 )}
               >
                 {step}%

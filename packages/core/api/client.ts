@@ -1132,6 +1132,7 @@ export class ApiClient {
     posthog_key?: string;
     posthog_host?: string;
     analytics_environment?: string;
+    tunnel_scan_ports?: number[];
     features?: {
       runtime_tunnel?: boolean;
       artifact_browse?: boolean;
