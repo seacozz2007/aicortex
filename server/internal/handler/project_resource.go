@@ -119,11 +119,28 @@ func validateLocalPathRef(ref json.RawMessage) (json.RawMessage, error) {
 	if payload.Path == "" {
 		return nil, errors.New("local_path: path is required")
 	}
+	if isRemoteResourcePath(payload.Path) {
+		return nil, errors.New("local_path: must be a local filesystem directory, not a git/http URL (use github_repo for remote repos)")
+	}
 	out, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+// isRemoteResourcePath reports paths that belong on github_repo, not local_path.
+func isRemoteResourcePath(p string) bool {
+	p = strings.TrimSpace(strings.ToLower(p))
+	if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") ||
+		strings.HasPrefix(p, "git://") || strings.HasPrefix(p, "ssh://") {
+		return true
+	}
+	// scp-like git shorthand: git@host:owner/repo.git
+	if strings.Contains(p, "@") && strings.Contains(p, ":") && !strings.Contains(p, ":\\") {
+		return true
+	}
+	return false
 }
 
 func validateGithubRepoRef(ref json.RawMessage) (json.RawMessage, error) {

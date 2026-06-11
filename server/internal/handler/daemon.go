@@ -1297,8 +1297,10 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 					resp.ProjectResources = out
 				}
 			}
-			if cs.SessionKind == "design" || task.DesignMode.Valid {
+			if cs.SessionKind == "design" || cs.SessionKind == "dev" || task.DesignMode.Valid {
 				resp.SessionKind = cs.SessionKind
+			}
+			if cs.SessionKind == "design" || task.DesignMode.Valid {
 				if cs.DesignMode.Valid {
 					resp.DesignMode = cs.DesignMode.String
 				} else if task.DesignMode.Valid {

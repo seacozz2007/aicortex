@@ -3,14 +3,12 @@ package daemon
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
-	"os"
-	"os/exec"
 	"sync"
 	"time"
 
-	"github.com/creack/pty"
 	"github.com/aicortex/aicortex/server/pkg/protocol"
 )
 
@@ -19,6 +17,8 @@ const (
 	terminalMaxSessions    = 5
 	terminalIdleTimeout    = 24 * time.Hour
 )
+
+var errTerminalMaxSessions = errors.New("max sessions reached")
 
 // TerminalManager manages PTY sessions on the daemon.
 type TerminalManager struct {
@@ -32,8 +32,7 @@ type TerminalManager struct {
 // TerminalSession represents a single PTY session.
 type TerminalSession struct {
 	id         string
-	ptmx       *os.File
-	cmd        *exec.Cmd
+	pty        platformPTY
 	scrollback *ringBuffer
 	attached   bool
 	done       chan struct{}
@@ -102,40 +101,30 @@ func (tm *TerminalManager) send(msg protocol.Message) {
 	}
 }
 
-func (tm *TerminalManager) HandleOpen(payload protocol.TerminalOpenPayload) {
+func (tm *TerminalManager) getOrOpenSession(sessionID, shell string, rows, cols int) (*TerminalSession, error) {
 	tm.mu.Lock()
+	if sess, ok := tm.sessions[sessionID]; ok {
+		tm.mu.Unlock()
+		return sess, nil
+	}
 	if len(tm.sessions) >= terminalMaxSessions {
 		tm.mu.Unlock()
-		tm.sendError(payload.SessionID, "max sessions reached")
-		return
+		return nil, errTerminalMaxSessions
 	}
 	tm.mu.Unlock()
 
-	shell := payload.Shell
 	if shell == "" {
-		shell = os.Getenv("SHELL")
-		if shell == "" {
-			shell = "/bin/sh"
-		}
+		shell = defaultTerminalShell()
 	}
 
-	cmd := exec.Command(shell)
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "LANG=C.UTF-8")
-	setProcessGroupAttr(cmd)
-
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
-		Rows: uint16(payload.Rows),
-		Cols: uint16(payload.Cols),
-	})
+	ptyHandle, err := openPlatformPTY(shell, rows, cols)
 	if err != nil {
-		tm.sendError(payload.SessionID, "failed to start pty: "+err.Error())
-		return
+		return nil, err
 	}
 
 	sess := &TerminalSession{
-		id:         payload.SessionID,
-		ptmx:       ptmx,
-		cmd:        cmd,
+		id:         sessionID,
+		pty:        ptyHandle,
 		scrollback: newRingBuffer(terminalScrollbackSize),
 		attached:   true,
 		done:       make(chan struct{}),
@@ -143,34 +132,59 @@ func (tm *TerminalManager) HandleOpen(payload protocol.TerminalOpenPayload) {
 	}
 
 	tm.mu.Lock()
-	tm.sessions[payload.SessionID] = sess
+	if existing, ok := tm.sessions[sessionID]; ok {
+		tm.mu.Unlock()
+		_ = ptyHandle.Close()
+		return existing, nil
+	}
+	tm.sessions[sessionID] = sess
 	tm.mu.Unlock()
 
-	tm.logger.Info("terminal session opened", "session_id", payload.SessionID)
-
-	// Read PTY output
+	tm.logger.Info("terminal session opened", "session_id", sessionID)
 	go tm.readLoop(sess)
-
-	// Wait for process exit
 	go tm.waitLoop(sess)
+	return sess, nil
+}
+
+func (tm *TerminalManager) HandleOpen(payload protocol.TerminalOpenPayload) {
+	rows, cols := payload.Rows, payload.Cols
+	if rows <= 0 {
+		rows = 30
+	}
+	if cols <= 0 {
+		cols = 120
+	}
+
+	if _, err := tm.getOrOpenSession(payload.SessionID, payload.Shell, rows, cols); err != nil {
+		if errors.Is(err, errTerminalMaxSessions) {
+			tm.sendError(payload.SessionID, err.Error())
+			return
+		}
+		tm.sendError(payload.SessionID, "failed to start pty: "+err.Error())
+	}
 }
 
 func (tm *TerminalManager) HandleAttach(payload protocol.TerminalAttachPayload) {
-	tm.mu.Lock()
-	sess, ok := tm.sessions[payload.SessionID]
-	tm.mu.Unlock()
-	if !ok {
-		tm.sendError(payload.SessionID, "session not found")
+	rows, cols := payload.Rows, payload.Cols
+	if rows <= 0 {
+		rows = 30
+	}
+	if cols <= 0 {
+		cols = 120
+	}
+
+	sess, err := tm.getOrOpenSession(payload.SessionID, "", rows, cols)
+	if err != nil {
+		if errors.Is(err, errTerminalMaxSessions) {
+			tm.sendError(payload.SessionID, err.Error())
+			return
+		}
+		tm.sendError(payload.SessionID, "failed to start pty: "+err.Error())
 		return
 	}
 
-	// Resize
-	_ = pty.Setsize(sess.ptmx, &pty.Winsize{
-		Rows: uint16(payload.Rows),
-		Cols: uint16(payload.Cols),
-	})
+	_ = sess.pty.Resize(uint16(rows), uint16(cols))
 
-	// Send scrollback
 	scrollback := sess.scrollback.Bytes()
 	if len(scrollback) > 0 {
 		tm.sendData(payload.SessionID, scrollback)
@@ -193,7 +207,7 @@ func (tm *TerminalManager) HandleData(payload protocol.TerminalDataPayload) {
 	if err != nil {
 		return
 	}
-	_, _ = sess.ptmx.Write(data)
+	_, _ = sess.pty.Write(data)
 }
 
 func (tm *TerminalManager) HandleResize(payload protocol.TerminalResizePayload) {
@@ -203,10 +217,7 @@ func (tm *TerminalManager) HandleResize(payload protocol.TerminalResizePayload) 
 	if !ok {
 		return
 	}
-	_ = pty.Setsize(sess.ptmx, &pty.Winsize{
-		Rows: uint16(payload.Rows),
-		Cols: uint16(payload.Cols),
-	})
+	_ = sess.pty.Resize(uint16(payload.Rows), uint16(payload.Cols))
 }
 
 func (tm *TerminalManager) HandleDetach(sessionID string) {
@@ -233,10 +244,7 @@ func (tm *TerminalManager) HandleClose(payload protocol.TerminalClosePayload) {
 func (tm *TerminalManager) closeSession(sess *TerminalSession) {
 	sess.closeOnce.Do(func() {
 		close(sess.done)
-		_ = sess.ptmx.Close()
-		if sess.cmd.Process != nil {
-			_ = killProcessGroup(sess)
-		}
+		_ = sess.pty.Close()
 		tm.mu.Lock()
 		delete(tm.sessions, sess.id)
 		tm.mu.Unlock()
@@ -251,7 +259,7 @@ func (tm *TerminalManager) closeSession(sess *TerminalSession) {
 func (tm *TerminalManager) readLoop(sess *TerminalSession) {
 	buf := make([]byte, 4096)
 	for {
-		n, err := sess.ptmx.Read(buf)
+		n, err := sess.pty.Read(buf)
 		if n > 0 {
 			data := buf[:n]
 			sess.scrollback.Write(data)
@@ -273,7 +281,7 @@ func (tm *TerminalManager) readLoop(sess *TerminalSession) {
 }
 
 func (tm *TerminalManager) waitLoop(sess *TerminalSession) {
-	_ = sess.cmd.Wait()
+	_ = sess.pty.Wait()
 	tm.closeSession(sess)
 }
 

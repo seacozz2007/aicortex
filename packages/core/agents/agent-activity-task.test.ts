@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isAgentActivityTask, isDesignStudioTask } from "./agent-activity-task";
+import {
+  isAgentActivityTask,
+  isDesignStudioTask,
+  isDevStudioTask,
+} from "./agent-activity-task";
 import type { AgentTask } from "../types";
 
 function task(partial: Partial<AgentTask>): AgentTask {
@@ -28,12 +32,22 @@ describe("isDesignStudioTask", () => {
   });
 });
 
+describe("isDevStudioTask", () => {
+  it("detects dev kind", () => {
+    expect(isDevStudioTask(task({ kind: "dev" }))).toBe(true);
+    expect(isDevStudioTask(task({ chat_session_id: "s1", kind: "chat" }))).toBe(false);
+  });
+});
+
 describe("isAgentActivityTask", () => {
   it("includes design studio chat tasks but hides regular chat tasks", () => {
     expect(
       isAgentActivityTask(
         task({ chat_session_id: "s1", kind: "design", design_mode: "prototype" }),
       ),
+    ).toBe(true);
+    expect(
+      isAgentActivityTask(task({ chat_session_id: "s1", kind: "dev" })),
     ).toBe(true);
     expect(isAgentActivityTask(task({ chat_session_id: "s1", kind: "chat" }))).toBe(false);
     expect(isAgentActivityTask(task({ issue_id: "i1" }))).toBe(true);

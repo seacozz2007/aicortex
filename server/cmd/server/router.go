@@ -480,6 +480,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 							r.Post("/jury", h.StartDesignJury)
 						})
 					})
+					r.Route("/dev", func(r chi.Router) {
+						r.Get("/sessions", h.ListProjectDevSessions)
+						r.Post("/sessions", h.CreateDevSession)
+						r.Route("/sessions/{sessionId}", func(r chi.Router) {
+							r.Get("/", h.GetDevSession)
+						})
+					})
 				})
 			})
 
@@ -489,6 +496,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Put("/settings", h.UpdateDesignSettings)
 				r.Get("/templates", h.ListDesignTemplates)
 				r.Get("/plugins", h.ListDesignPlugins)
+			})
+
+			r.Route("/api/dev", func(r chi.Router) {
+				r.Get("/sessions", h.ListDevSessions)
+				r.Get("/settings", h.GetDevSettings)
+				r.Put("/settings", h.UpdateDevSettings)
 			})
 
 			// Squads

@@ -2239,8 +2239,11 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 
 	// Priority 1: local_path project resource — use the specified path directly.
 	// No git sync, no auto-commit. The user manages the directory themselves.
-	localPath := extractLocalPath(task.ProjectResources)
+	localPath := normalizeWorkdirPath(extractLocalPath(task.ProjectResources))
 	if localPath != "" {
+		if err := ensureWorkdirAccessible(localPath); err != nil {
+			return TaskResult{}, fmt.Errorf("project local_path: %w", err)
+		}
 		taskLog.Info("using local_path project resource as workdir", "path", localPath)
 		env = execenv.Reuse(execenv.ReuseParams{
 			WorkDir:      localPath,
@@ -2250,11 +2253,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 			Task:         taskCtx,
 		}, d.logger)
 		if env == nil {
-			// Directory might not have been used before — wrap it as a fresh env.
-			env = &execenv.Environment{
-				RootDir: localPath,
-				WorkDir: localPath,
-			}
+			return TaskResult{}, fmt.Errorf("failed to initialize local_path workdir %q", localPath)
 		}
 	}
 
@@ -2297,13 +2296,18 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		}
 		taskLog.Info("using pinned project workdir", "dir", pinnedDir, "project", task.ProjectID)
 	} else if task.PriorWorkDir != "" {
-		env = execenv.Reuse(execenv.ReuseParams{
-			WorkDir:      task.PriorWorkDir,
-			Provider:     provider,
-			CodexVersion: codexVersion,
-			OpenclawBin:  openclawBin,
-			Task:         taskCtx,
-		}, d.logger)
+		priorWorkDir := normalizeWorkdirPath(task.PriorWorkDir)
+		if err := ensureWorkdirAccessible(priorWorkDir); err != nil {
+			taskLog.Warn("prior workdir unavailable, preparing fresh env", "path", priorWorkDir, "error", err)
+		} else {
+			env = execenv.Reuse(execenv.ReuseParams{
+				WorkDir:      priorWorkDir,
+				Provider:     provider,
+				CodexVersion: codexVersion,
+				OpenclawBin:  openclawBin,
+				Task:         taskCtx,
+			}, d.logger)
+		}
 	}
 	if env == nil {
 		var err error
@@ -2472,6 +2476,9 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	}
 	if model == "" {
 		model = entry.Model
+	}
+	if err := ensureWorkdirAccessible(env.WorkDir); err != nil {
+		return TaskResult{}, err
 	}
 	execOpts := agent.ExecOptions{
 		Cwd:                       env.WorkDir,

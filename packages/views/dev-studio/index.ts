@@ -1,1 +1,1 @@
-export { DevStudioHub, DevStudioSession, DevProjectPicker } from "./components";
+export { DevStudioShell, DevProjectPicker } from "./components";

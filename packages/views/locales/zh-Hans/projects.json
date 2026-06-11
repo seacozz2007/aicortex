@@ -60,7 +60,8 @@
     "toast_link_copied": "已复制链接",
     "toast_project_deleted": "已删除项目",
     "toast_move_issue_failed": "移动 issue 失败",
-    "design_studio_action": "设计工作室"
+    "design_studio_action": "设计工作室",
+    "dev_studio_action": "开发工作室"
   },
   "workdir": {
     "section_header": "Agent 工作目录",
@@ -77,7 +78,7 @@
     "remove_tooltip": "移除",
     "url_placeholder": "https://github.com/owner/repo 或 git@github.com:owner/repo.git",
     "url_submit": "添加",
-    "local_path_placeholder": "/home/user/code/project",
+    "local_path_placeholder": "D:\\CODE\\my-project",
     "toast_attached": "已关联仓库",
     "toast_attach_failed": "关联失败",
     "toast_removed": "已移除资源",

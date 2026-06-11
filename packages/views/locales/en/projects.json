@@ -60,7 +60,8 @@
     "toast_link_copied": "Link copied",
     "toast_project_deleted": "Project deleted",
     "toast_move_issue_failed": "Failed to move issue",
-    "design_studio_action": "Design Studio"
+    "design_studio_action": "Design Studio",
+    "dev_studio_action": "Dev Studio"
   },
   "workdir": {
     "section_header": "Agent workdir",
@@ -77,7 +78,7 @@
     "remove_tooltip": "Remove",
     "url_placeholder": "https://github.com/owner/repo or git@github.com:owner/repo.git",
     "url_submit": "Add",
-    "local_path_placeholder": "/home/user/code/project",
+    "local_path_placeholder": "D:\\CODE\\my-project",
     "toast_attached": "Repository attached",
     "toast_attach_failed": "Failed to attach",
     "toast_removed": "Resource removed",

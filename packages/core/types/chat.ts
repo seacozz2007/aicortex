@@ -16,7 +16,7 @@ export interface ChatSession {
   /** Latest task in this session that has a work_dir — used for artifact browse. */
   last_task_id?: string;
   /** Design Studio fields — present when session_kind=design. */
-  session_kind?: "chat" | "design";
+  session_kind?: "chat" | "design" | "dev";
   design_mode?: "prototype" | "deck" | "template" | "design_system" | "hyperframes";
   design_skill_id?: string;
   design_system_resource_id?: string;

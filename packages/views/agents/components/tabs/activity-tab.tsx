@@ -8,6 +8,7 @@ import {
   CircleHelp,
   Hash,
   MessageSquare,
+  Terminal,
   Workflow,
   X,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import {
   agentTasksOptions,
   isAgentActivityTask,
   isDesignStudioTask,
+  isDevStudioTask,
   summarizeActivityWindow,
   useWorkspaceActivityMap,
 } from "@aicortex/core/agents";
@@ -394,6 +396,7 @@ function TaskRow({
     task.status === "failed" ||
     task.status === "cancelled";
   const isDesignTask = isDesignStudioTask(task);
+  const isDevTask = isDevStudioTask(task);
   const sourceFallback = !hasIssue
     ? task.kind === "quick_create"
       ? isTerminalStatus
@@ -401,31 +404,37 @@ function TaskRow({
         : t(($) => $.tab_body.activity.source_creating_issue)
       : isDesignTask
         ? task.chat_session_title || t(($) => $.tab_body.activity.source_design_session)
-        : task.chat_session_id
-          ? t(($) => $.tab_body.activity.source_chat_session)
-          : task.autopilot_run_id
-            ? t(($) => $.tab_body.activity.source_autopilot_run)
-            : t(($) => $.tab_body.activity.source_untracked)
+        : isDevTask
+          ? task.chat_session_title || t(($) => $.tab_body.activity.source_dev_session)
+          : task.chat_session_id
+            ? t(($) => $.tab_body.activity.source_chat_session)
+            : task.autopilot_run_id
+              ? t(($) => $.tab_body.activity.source_autopilot_run)
+              : t(($) => $.tab_body.activity.source_untracked)
     : null;
 
   const SourceIcon = hasIssue
     ? Hash
     : isDesignTask
       ? Brush
-      : task.chat_session_id
-        ? MessageSquare
-        : task.autopilot_run_id
-          ? Workflow
-          : CircleHelp;
+      : isDevTask
+        ? Terminal
+        : task.chat_session_id
+          ? MessageSquare
+          : task.autopilot_run_id
+            ? Workflow
+            : CircleHelp;
   const sourceLabel = hasIssue
     ? t(($) => $.tab_body.activity.source_issue)
     : isDesignTask
       ? t(($) => $.tab_body.activity.source_design)
-      : task.chat_session_id
-        ? t(($) => $.tab_body.activity.source_chat)
-        : task.autopilot_run_id
-          ? t(($) => $.tab_body.activity.source_autopilot)
-          : t(($) => $.tab_body.activity.source_untracked);
+      : isDevTask
+        ? t(($) => $.tab_body.activity.source_dev)
+        : task.chat_session_id
+          ? t(($) => $.tab_body.activity.source_chat)
+          : task.autopilot_run_id
+            ? t(($) => $.tab_body.activity.source_autopilot)
+            : t(($) => $.tab_body.activity.source_untracked);
 
   const timeText =
     timeMode === "active"
@@ -558,6 +567,22 @@ function TaskRow({
               <ArrowUpRight className="h-3.5 w-3.5" />
             </TooltipTrigger>
             <TooltipContent>{t(($) => $.tab_body.activity.open_design_tooltip)}</TooltipContent>
+          </Tooltip>
+        )}
+        {isDevTask && task.project_id && task.chat_session_id && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <AppLink
+                  href={paths.projectDevSession(task.project_id, task.chat_session_id)}
+                />
+              }
+              aria-label={t(($) => $.tab_body.activity.open_dev_aria)}
+              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>{t(($) => $.tab_body.activity.open_dev_tooltip)}</TooltipContent>
           </Tooltip>
         )}
         {showTranscript && (

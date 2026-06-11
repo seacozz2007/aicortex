@@ -75,6 +75,7 @@ export type {
   DesignPluginEntry,
   DesignParameterDef,
 } from "./design";
+export type { DevSession, CreateDevSessionRequest, DevSettings } from "./dev";
 export type {
   ChatShareLink,
   ChatSharePublicInfo,

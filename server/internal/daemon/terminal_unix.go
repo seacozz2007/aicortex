@@ -13,9 +13,3 @@ import (
 func setProcessGroupAttr(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
-
-// killProcessGroup kills the entire process group for the terminal session.
-// On Unix we send SIGKILL to the negated PID (the process group leader).
-func killProcessGroup(sess *TerminalSession) error {
-	return syscall.Kill(-sess.cmd.Process.Pid, syscall.SIGKILL)
-}

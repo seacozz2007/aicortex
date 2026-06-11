@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { useWorkspaceId } from "../hooks";
+import { devKeys } from "../dev-studio/queries";
 import { chatKeys } from "./queries";
 import { createLogger } from "../logger";
 import type { ChatSession } from "../types";
@@ -45,21 +46,22 @@ export function useMarkChatSessionRead() {
     },
     onMutate: async (sessionId) => {
       await qc.cancelQueries({ queryKey: chatKeys.sessions(wsId) });
+      await qc.cancelQueries({ queryKey: devKeys.sessions(wsId) });
 
       const prevSessions = qc.getQueryData<ChatSession[]>(chatKeys.sessions(wsId));
+      const prevDevSessions = qc.getQueryData<ChatSession[]>(devKeys.sessions(wsId));
 
       const clear = (old?: ChatSession[]) =>
         old?.map((s) => (s.id === sessionId ? { ...s, has_unread: false } : s));
       qc.setQueryData<ChatSession[]>(chatKeys.sessions(wsId), clear);
+      qc.setQueryData<ChatSession[]>(devKeys.sessions(wsId), clear);
 
-      return { prevSessions };
+      return { prevSessions, prevDevSessions };
     },
     onError: (err, sessionId, ctx) => {
       logger.error("markChatSessionRead.error.rollback", { sessionId, err });
       if (ctx?.prevSessions) qc.setQueryData(chatKeys.sessions(wsId), ctx.prevSessions);
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: chatKeys.sessions(wsId) });
+      if (ctx?.prevDevSessions) qc.setQueryData(devKeys.sessions(wsId), ctx.prevDevSessions);
     },
   });
 }

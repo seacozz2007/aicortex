@@ -32,6 +32,7 @@ import { inboxKeys } from "../inbox/queries";
 import { notificationPreferenceOptions } from "../notification-preferences/queries";
 import { workspaceKeys, workspaceListOptions } from "../workspace/queries";
 import { chatKeys } from "../chat/queries";
+import { devKeys } from "../dev-studio/queries";
 import { mergePendingTaskOnEnqueue } from "../chat/pending-task";
 import { useChatStore } from "../chat";
 import { resolvePostAuthDestination, useHasOnboarded } from "../paths";
@@ -642,6 +643,30 @@ export function useRealtimeSync(
         });
       }
     };
+    const invalidateDevSessions = (chatSessionId?: string) => {
+      const id = getCurrentWsId();
+      if (!id) return;
+      // Only refetch session lists — dev settings are workspace config and
+      // must not reload on every chat lifecycle event.
+      qc.invalidateQueries({ queryKey: devKeys.sessions(id) });
+      if (chatSessionId) {
+        qc.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === "dev" &&
+            query.queryKey.includes(chatSessionId),
+        });
+      }
+    };
+
+    const patchSessionUnread = (chatSessionId: string, hasUnread: boolean) => {
+      const id = getCurrentWsId();
+      if (!id) return;
+      const patch = <T extends { id: string; has_unread?: boolean }>(old?: T[]) =>
+        old?.map((s) => (s.id === chatSessionId ? { ...s, has_unread: hasUnread } : s));
+      qc.setQueryData(chatKeys.sessions(id), patch);
+      qc.setQueryData(devKeys.sessions(id), patch);
+    };
 
     const unsubChatMessage = ws.on("chat:message", (p) => {
       const payload = p as { chat_session_id: string };
@@ -675,6 +700,7 @@ export function useRealtimeSync(
       // Assistant message just landed → has_unread may have flipped to true.
       invalidateSessionLists();
       invalidateDesignSessions(payload.chat_session_id);
+      invalidateDevSessions(payload.chat_session_id);
     });
 
     // Chat task lifecycle writethrough: keep `chatKeys.pendingTask(sessionId)`
@@ -776,12 +802,13 @@ export function useRealtimeSync(
       // FailTask may still persist work_dir — refresh last_task_id for the tools sidebar.
       invalidateSessionLists();
       invalidateDesignSessions(payload.chat_session_id);
+      invalidateDevSessions(payload.chat_session_id);
     });
 
     const unsubChatSessionRead = ws.on("chat:session_read", (p) => {
       const payload = p as { chat_session_id: string };
       chatWsLogger.info("chat:session_read (global)", payload);
-      invalidateSessionLists();
+      patchSessionUnread(payload.chat_session_id, false);
     });
 
     // chat:session_updated fires after the creator renames a session in
@@ -809,6 +836,7 @@ export function useRealtimeSync(
             : s,
         );
       qc.setQueryData(chatKeys.sessions(id), patch);
+      qc.setQueryData(devKeys.sessions(id), patch);
     });
 
     // chat:session_deleted fires after a hard delete. The originating tab has
@@ -824,6 +852,7 @@ export function useRealtimeSync(
         const drop = (old?: { id: string }[]) =>
           old?.filter((s) => s.id !== payload.chat_session_id);
         qc.setQueryData(chatKeys.sessions(id), drop);
+        qc.setQueryData(devKeys.sessions(id), drop);
       }
       qc.removeQueries({ queryKey: chatKeys.messages(payload.chat_session_id) });
       qc.removeQueries({ queryKey: chatKeys.pendingTask(payload.chat_session_id) });

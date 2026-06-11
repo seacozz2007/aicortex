@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, FolderSync, Link2, ListTodo, MoreHorizontal, Palette, PanelRight, Pin, PinOff, Plus, Trash2, UserMinus } from "lucide-react";
+import { Check, ChevronRight, FolderSync, Link2, ListTodo, MoreHorizontal, Palette, PanelRight, Pin, PinOff, Plus, Terminal, Trash2, UserMinus } from "lucide-react";
 import { useQuery, type QueryKey } from "@tanstack/react-query";
 import { cn } from "@aicortex/ui/lib/utils";
 import { toast } from "sonner";
@@ -656,6 +656,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                   {t(($) => $.detail.design_studio_action)}
                 </AppLink>
               )}
+              <AppLink
+                href={`${wsPaths.dev()}?project=${encodeURIComponent(projectId)}`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 gap-1.5 text-xs")}
+              >
+                <Terminal className="size-3.5" />
+                {t(($) => $.detail.dev_studio_action)}
+              </AppLink>
               <Button
                 variant="ghost"
                 size="icon-sm"

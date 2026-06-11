@@ -191,7 +191,7 @@ type AgentTaskResponse struct {
 	ArtifactEntry           string                `json:"artifact_entry,omitempty"`
 	ChatSessionTitle        string                `json:"chat_session_title,omitempty"` // design session title when kind=design
 	SessionKind             string                `json:"session_kind,omitempty"`
-	Kind                    string                `json:"kind"`                                // discriminator: "comment" | "autopilot" | "chat" | "design" | "quick_create" | "direct" — used by the activity row to label tasks that have no linked issue
+	Kind                    string                `json:"kind"`                                // discriminator: "comment" | "autopilot" | "chat" | "design" | "dev" | "quick_create" | "direct" — used by the activity row to label tasks that have no linked issue
 }
 
 // DesignExampleBundle is a server-resolved copy instruction for template seeding.
@@ -271,9 +271,12 @@ func taskToResponse(t db.AgentTaskQueue) AgentTaskResponse {
 	return resp
 }
 
-func (h *Handler) enrichDesignTasksFromChatSessions(ctx context.Context, resp []AgentTaskResponse) {
+// enrichStudioTasksFromChatSessions resolves chat_session_id into studio
+// metadata. Dev and Design Studio tasks are chat-backed but should surface
+// on agent activity views with kind=dev/design, project_id, and session title.
+func (h *Handler) enrichStudioTasksFromChatSessions(ctx context.Context, resp []AgentTaskResponse) {
 	for i := range resp {
-		if resp[i].Kind != "design" || resp[i].ChatSessionID == "" {
+		if resp[i].ChatSessionID == "" {
 			continue
 		}
 		csID, err := parseUUIDLoose(resp[i].ChatSessionID)
@@ -284,8 +287,15 @@ func (h *Handler) enrichDesignTasksFromChatSessions(ctx context.Context, resp []
 		if err != nil {
 			continue
 		}
+		resp[i].SessionKind = cs.SessionKind
 		resp[i].ProjectID = uuidToString(cs.ProjectID)
 		resp[i].ChatSessionTitle = cs.Title
+		switch cs.SessionKind {
+		case "design":
+			resp[i].Kind = "design"
+		case "dev":
+			resp[i].Kind = "dev"
+		}
 	}
 }
 
@@ -932,7 +942,7 @@ func (h *Handler) ListAgentTasks(w http.ResponseWriter, r *http.Request) {
 	for i, t := range tasks {
 		resp[i] = taskToResponse(t)
 	}
-	h.enrichDesignTasksFromChatSessions(r.Context(), resp)
+	h.enrichStudioTasksFromChatSessions(r.Context(), resp)
 
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -1070,7 +1080,7 @@ func (h *Handler) ListWorkspaceAgentTaskSnapshot(w http.ResponseWriter, r *http.
 		}
 		resp = append(resp, taskToResponse(t))
 	}
-	h.enrichDesignTasksFromChatSessions(r.Context(), resp)
+	h.enrichStudioTasksFromChatSessions(r.Context(), resp)
 
 	writeJSON(w, http.StatusOK, resp)
 }

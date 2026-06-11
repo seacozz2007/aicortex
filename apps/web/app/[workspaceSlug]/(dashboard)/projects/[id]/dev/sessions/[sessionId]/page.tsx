@@ -1,13 +1,25 @@
 "use client";
 
-import { use } from "react";
-import { DevStudioSession } from "@aicortex/views/dev-studio";
+import { use, useEffect } from "react";
+import { useWorkspacePaths } from "@aicortex/core/paths";
+import { useNavigation } from "@aicortex/views/navigation";
 
-export default function ProjectDevSessionPage({
+export default function ProjectDevSessionRedirectPage({
   params,
 }: {
   params: Promise<{ id: string; sessionId: string }>;
 }) {
   const { id, sessionId } = use(params);
-  return <DevStudioSession projectId={id} sessionId={sessionId} />;
+  const p = useWorkspacePaths();
+  const { replace } = useNavigation();
+
+  useEffect(() => {
+    const qs = new URLSearchParams({
+      project: id,
+      session: sessionId,
+    });
+    replace(`${p.dev()}?${qs.toString()}`);
+  }, [id, sessionId, p, replace]);
+
+  return null;
 }

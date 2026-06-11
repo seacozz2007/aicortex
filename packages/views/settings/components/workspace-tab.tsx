@@ -26,6 +26,7 @@ import { useWorkspaceId } from "@aicortex/core/hooks";
 import { useDesignStudioFeature } from "@aicortex/core/config/features";
 import { isWorkspaceExploreEnabled } from "@aicortex/core/workspace/settings";
 import { designSettingsOptions, useUpdateDesignSettings } from "@aicortex/core/design";
+import { devSettingsOptions, useUpdateDevSettings } from "@aicortex/core/dev-studio";
 import {
   memberListOptions,
   workspaceKeys,
@@ -55,11 +56,10 @@ export function WorkspaceTab() {
     ...designSettingsOptions(wsId),
     enabled: designStudioEnabled,
   });
-  const { data: agents = [] } = useQuery({
-    ...agentListOptions(wsId),
-    enabled: designStudioEnabled,
-  });
+  const { data: devSettings } = useQuery(devSettingsOptions(wsId));
+  const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const updateDesignSettings = useUpdateDesignSettings(wsId);
+  const updateDevSettings = useUpdateDevSettings(wsId);
   const qc = useQueryClient();
   const leaveWorkspace = useLeaveWorkspace();
   const deleteWorkspace = useDeleteWorkspace();
@@ -114,6 +114,7 @@ export function WorkspaceTab() {
   const [description, setDescription] = useState(workspace?.description ?? "");
   const [context, setContext] = useState(workspace?.context ?? "");
   const [designAgentId, setDesignAgentId] = useState("");
+  const [devAgentId, setDevAgentId] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -148,6 +149,10 @@ export function WorkspaceTab() {
   useEffect(() => {
     setDesignAgentId(designSettings?.default_design_agent_id ?? "");
   }, [designSettings?.default_design_agent_id]);
+
+  useEffect(() => {
+    setDevAgentId(devSettings?.default_dev_agent_id ?? "");
+  }, [devSettings?.default_dev_agent_id]);
 
   const handleSave = async () => {
     if (!workspace) return;
@@ -372,6 +377,57 @@ export function WorkspaceTab() {
           </Card>
         </section>
       )}
+
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">{t(($) => $.workspace.dev_studio_section)}</h2>
+        <Card>
+          <CardContent className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                {t(($) => $.workspace.dev_agent_label)}
+              </Label>
+              <select
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={devAgentId}
+                disabled={!canManageWorkspace || updateDevSettings.isPending}
+                onChange={(e) => setDevAgentId(e.target.value)}
+              >
+                <option value="">{t(($) => $.workspace.dev_agent_default)}</option>
+                {agents
+                  .filter((a) => !a.archived_at)
+                  .map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(($) => $.workspace.dev_agent_hint)}
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                disabled={!canManageWorkspace || updateDevSettings.isPending}
+                onClick={() => {
+                  updateDevSettings.mutate(
+                    { default_dev_agent_id: devAgentId },
+                    {
+                      onSuccess: () => toast.success(t(($) => $.workspace.dev_agent_saved)),
+                      onError: (e) =>
+                        toast.error(
+                          e instanceof Error ? e.message : t(($) => $.workspace.toast_save_failed),
+                        ),
+                    },
+                  );
+                }}
+              >
+                {t(($) => $.workspace.dev_agent_save)}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Danger Zone — gated on the member query settling so the owner-only
           Delete button and the sole-owner Leave guidance don't flash in

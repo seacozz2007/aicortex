@@ -6,19 +6,17 @@ test.describe("Design Studio navigation", () => {
     await loginAsDefault(page);
   });
 
-  test("Create menu exposes Chat entry", async ({ page }) => {
-    await page.getByRole("button", { name: "Create" }).click();
-    await expect(page.getByRole("menuitem", { name: "Chat" })).toBeVisible();
+  test("More menu exposes Chat entry", async ({ page }) => {
+    await page.getByRole("button", { name: /More|更多/ }).click();
+    await expect(page.getByRole("menuitem", { name: /Chat|会话/ })).toBeVisible();
   });
 
-  test("Create menu exposes Design Studio entry", async ({ page }) => {
-    await page.getByRole("button", { name: "Create" }).click();
-    await expect(page.getByRole("menuitem", { name: /Design Studio|设计工作室/ })).toBeVisible();
+  test("top nav exposes Design Studio entry", async ({ page }) => {
+    await expect(page.getByRole("link", { name: /Design Studio|设计工作室/ })).toBeVisible();
   });
 
   test("design project picker is reachable", async ({ page }) => {
-    await page.getByRole("button", { name: "Create" }).click();
-    await page.getByRole("menuitem", { name: /Design Studio|设计工作室/ }).click();
+    await page.getByRole("link", { name: /Design Studio|设计工作室/ }).click();
     await page.waitForURL("**/design");
     await expect(page).toHaveURL(/\/design$/);
   });

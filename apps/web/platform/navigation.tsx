@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   NavigationProvider,
@@ -15,22 +15,23 @@ function NavigationProviderInner({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const search = searchParams.toString();
 
-  const adapter: NavigationAdapter = {
-    push: router.push,
-    replace: router.replace,
-    back: router.back,
-    pathname,
-    searchParams: new URLSearchParams(searchParams.toString()),
-    getShareableUrl: (path: string) =>
-      typeof window === "undefined" ? path : window.location.origin + path,
-    // router.prefetch is a no-op in dev mode by Next.js design; in production
-    // it warms the RSC payload + route chunk so the next push() commits with
-    // no network round-trip. Safe to call repeatedly — Next dedupes internally.
-    prefetch: (path: string) => {
-      router.prefetch(path);
-    },
-  };
+  const adapter: NavigationAdapter = useMemo(
+    () => ({
+      push: router.push,
+      replace: router.replace,
+      back: router.back,
+      pathname,
+      searchParams: new URLSearchParams(search),
+      getShareableUrl: (path: string) =>
+        typeof window === "undefined" ? path : window.location.origin + path,
+      prefetch: (path: string) => {
+        router.prefetch(path);
+      },
+    }),
+    [router, pathname, search],
+  );
 
   return <NavigationProvider value={adapter}>{children}</NavigationProvider>;
 }

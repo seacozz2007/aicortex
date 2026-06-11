@@ -721,6 +721,7 @@ type Workspace struct {
 	IssuePrefix          string             `json:"issue_prefix"`
 	IssueCounter         int32              `json:"issue_counter"`
 	DefaultDesignAgentID pgtype.UUID        `json:"default_design_agent_id"`
+	DefaultDevAgentID    pgtype.UUID        `json:"default_dev_agent_id"`
 }
 
 type WorkspaceInvitation struct {

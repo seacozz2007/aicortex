@@ -1,7 +1,7 @@
 "use client";
 
-import { DevProjectPicker } from "@aicortex/views/dev-studio";
+import { DevStudioShell } from "@aicortex/views/dev-studio";
 
 export default function Page() {
-  return <DevProjectPicker />;
+  return <DevStudioShell />;
 }

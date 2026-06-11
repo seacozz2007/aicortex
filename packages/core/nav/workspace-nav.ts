@@ -99,20 +99,24 @@ export const WORKSPACE_NAV_GROUPS: NavGroupDef[] = [
     ],
   },
   {
-    id: "create",
-    groupLabelKey: "create",
+    id: "designStudio",
+    direct: true,
     items: [
-      item("chat", (p) => p.chat(), MessageSquare, "chat"),
       item("designStudio", (p) => p.design(), Palette, "design_studio", {
         requiresDesignStudio: true,
       }),
-      item("dev", (p) => p.dev(), Terminal, "dev_studio"),
     ],
+  },
+  {
+    id: "dev",
+    direct: true,
+    items: [item("dev", (p) => p.dev(), Terminal, "dev_studio")],
   },
   {
     id: "more",
     groupLabelKey: "more",
     items: [
+      item("chat", (p) => p.chat(), MessageSquare, "chat"),
       item("meetings", (p) => p.meetings(), Video, "meetings"),
       item("office", (p) => p.office(), Building2, "office"),
       item("forum", (p) => p.forum(), MessageSquare, "forum", { requiresForum: true }),

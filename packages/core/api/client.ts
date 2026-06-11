@@ -65,6 +65,9 @@ import type {
   CreateDesignSessionRequest,
   DesignExportResponse,
   DesignSession,
+  DevSession,
+  CreateDevSessionRequest,
+  DevSettings,
   ChatMessage,
   ChatPendingTask,
   PendingChatTasksResponse,
@@ -1470,6 +1473,43 @@ export class ApiClient {
     default_design_agent_id: string;
   }): Promise<{ default_design_agent_id?: string }> {
     return this.fetch("/api/design/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ── Dev Studio ──────────────────────────────────────────────────
+
+  async listDevSessions(): Promise<DevSession[]> {
+    return this.fetch("/api/dev/sessions");
+  }
+
+  async listProjectDevSessions(projectId: string): Promise<DevSession[]> {
+    return this.fetch(`/api/projects/${projectId}/dev/sessions`);
+  }
+
+  async getDevSession(projectId: string, sessionId: string): Promise<DevSession> {
+    return this.fetch(`/api/projects/${projectId}/dev/sessions/${sessionId}`);
+  }
+
+  async createDevSession(
+    projectId: string,
+    data: CreateDevSessionRequest,
+  ): Promise<DevSession> {
+    return this.fetch(`/api/projects/${projectId}/dev/sessions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getDevSettings(): Promise<DevSettings> {
+    return this.fetch("/api/dev/settings");
+  }
+
+  async updateDevSettings(data: {
+    default_dev_agent_id: string;
+  }): Promise<DevSettings> {
+    return this.fetch("/api/dev/settings", {
       method: "PUT",
       body: JSON.stringify(data),
     });

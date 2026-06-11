@@ -7,14 +7,14 @@
     "empty": "Create a project first, then return here to open Dev Studio.",
     "no_results": "No projects match your search.",
     "create_first": "Create project",
-    "open_studio": "Open Dev Studio"
+    "open_studio": "Add to workspace"
   },
   "hub": {
     "title": "Dev Studio",
     "back_to_project": "Back to project",
     "brand_name": "Dev Studio",
     "hero_title": "What do you want to build?",
-    "hero_subtitle": "Select a project, choose an agent, and start building with a terminal-connected runtime.",
+    "hero_subtitle": "Pick a project and describe what you want to build. Sessions use the workspace Dev Agent and a terminal-connected runtime.",
     "composer_placeholder": "Describe what you want to build…",
     "select_agent": "Select agent…",
     "agent_online": "Online",
@@ -22,9 +22,40 @@
     "start_session": "Start",
     "start_session_short": "Go"
   },
+  "shell": {
+    "title": "Dev Studio",
+    "projects_title": "Projects",
+    "expand_sidebar": "Show sidebar",
+    "collapse_sidebar": "Hide sidebar",
+    "new_session": "New session",
+    "open_project": "Add project",
+    "no_sessions": "No dev sessions yet",
+    "project_empty": "No sessions in this project",
+    "untitled_session": "Untitled session",
+    "empty_title": "Open a project to start building",
+    "empty_subtitle": "Dev sessions are grouped by project, like Cursor workspaces.",
+    "empty_project_title": "What do you want to build?",
+    "empty_project_subtitle": "Your first message creates a dev session bound to this project.",
+    "toggle_tools": "Toggle tools panel",
+    "no_dev_agent": "Configure a Dev Agent in workspace settings",
+    "session_drag_aria": "Drag to reorder",
+    "session_pin_aria": "Pin session",
+    "session_unpin_aria": "Unpin session",
+    "session_archive_aria": "Archive session",
+    "session_archive_title": "Archive this session?",
+    "session_archive_description": "\"{title}\" will be removed from the list. This cannot be undone.",
+    "session_archive_cancel": "Cancel",
+    "session_archive_confirm": "Archive",
+    "session_archive_pending": "Archiving…"
+  },
+  "tools": {
+    "unavailable_explore": "Enable Explore in workspace settings to use the terminal.",
+    "unavailable_no_runtime": "Start a session and connect a runtime to use tools."
+  },
   "session": {
     "back": "Back to Dev Studio",
     "sessions": "Sessions",
+    "tabs_terminal": "Terminal",
     "terminal_hint": "Terminal connected to agent runtime — run commands and see real-time output.",
     "terminal_connecting": "Connecting to runtime…",
     "terminal_connected": "Runtime connected",

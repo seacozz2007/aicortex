@@ -16,7 +16,13 @@ import { ProjectIcon } from "../../projects/components/project-icon";
 import { useT } from "../../i18n";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 
-export function DevProjectPicker() {
+export function DevProjectPicker({
+  embedded = false,
+  onSelectProject,
+}: {
+  embedded?: boolean;
+  onSelectProject?: (projectId: string) => void;
+} = {}) {
   const { t } = useT("dev-studio");
   const wsId = useWorkspaceId();
   const p = useWorkspacePaths();
@@ -33,6 +39,82 @@ export function DevProjectPicker() {
         matchesPinyin(project.title, q),
     );
   }, [projects, query]);
+
+  const list = (
+    <div className={embedded ? "flex min-h-0 flex-1 flex-col gap-4 p-4" : "flex min-h-0 flex-1 flex-col gap-4 p-6"}>
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t(($) => $.picker.search_placeholder)}
+          className="h-9 pl-8 text-sm"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+          <FolderKanban className="size-10 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">
+            {projects.length === 0
+              ? t(($) => $.picker.empty)
+              : t(($) => $.picker.no_results)}
+          </p>
+          {projects.length === 0 && (
+            <Button size="sm" onClick={() => openModal("create-project")}>
+              <Plus className="size-3.5" />
+              {t(($) => $.picker.create_first)}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((project) => (
+            <li key={project.id}>
+              {onSelectProject ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectProject(project.id)}
+                  className="flex w-full items-center gap-3 rounded-lg border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                >
+                  <ProjectIcon project={project} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{project.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {t(($) => $.picker.open_studio)}
+                    </p>
+                  </div>
+                </button>
+              ) : (
+                <AppLink
+                  href={`${p.dev()}?project=${encodeURIComponent(project.id)}`}
+                  className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:bg-accent/50"
+                >
+                  <ProjectIcon project={project} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{project.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {t(($) => $.picker.open_studio)}
+                    </p>
+                  </div>
+                </AppLink>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return list;
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -56,60 +138,7 @@ export function DevProjectPicker() {
           {t(($) => $.picker.new_project)}
         </Button>
       </PageHeader>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
-        <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t(($) => $.picker.search_placeholder)}
-            className="h-9 pl-8 text-sm"
-          />
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <FolderKanban className="size-10 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              {projects.length === 0
-                ? t(($) => $.picker.empty)
-                : t(($) => $.picker.no_results)}
-            </p>
-            {projects.length === 0 && (
-              <Button size="sm" onClick={() => openModal("create-project")}>
-                <Plus className="size-3.5" />
-                {t(($) => $.picker.create_first)}
-              </Button>
-            )}
-          </div>
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((project) => (
-              <li key={project.id}>
-                <AppLink
-                  href={p.projectDev(project.id)}
-                  className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:bg-accent/50"
-                >
-                  <ProjectIcon project={project} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{project.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {t(($) => $.picker.open_studio)}
-                    </p>
-                  </div>
-                </AppLink>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {list}
     </div>
   );
 }

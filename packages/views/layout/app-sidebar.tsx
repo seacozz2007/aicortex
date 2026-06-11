@@ -389,10 +389,14 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const settings = (workspace?.settings as Record<string, unknown>) ?? {};
   const forumEnabled = settings.forum_enabled === true;
   const navFilterOpts = { designStudio: designStudioEnabled, forumEnabled, exploreEnabled };
-  const createNavItems =
-    WORKSPACE_NAV_GROUPS.find((group) => group.id === "create")?.items.filter((item) =>
-      filterNavItem(item, navFilterOpts),
-    ) ?? [];
+  const studioNavItems = [
+    ...(WORKSPACE_NAV_GROUPS.find((group) => group.id === "more")?.items.filter(
+      (item) => item.key === "chat" && filterNavItem(item, navFilterOpts),
+    ) ?? []),
+    ...WORKSPACE_NAV_GROUPS.filter((group) => group.direct && group.id !== "home").flatMap((group) =>
+      group.items.filter((item) => filterNavItem(item, navFilterOpts)),
+    ),
+  ];
   const p = useWorkspacePaths();
   const { data: workspaces = EMPTY_WORKSPACES } = useQuery(workspaceListOptions());
   const { data: myInvitations = EMPTY_INVITATIONS } = useQuery(myInvitationListOptions());
@@ -681,31 +685,32 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
             </SidebarGroupContent>
           </SidebarGroup>
 
-          <SidebarGroup>
-            <SidebarGroupLabel>{t(($) => $.nav.group.create)}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
-                {createNavItems.map((item) => {
-                  const href = resolveNavHref(item, p);
-                  const isActive = isNavItemActive(pathname, item, href);
-                  return (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        render={<AppLink href={href} />}
-                        className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
-                      >
-                        <item.icon />
-                        <span>
-                          {t(($) => $.nav[item.labelKey as keyof typeof $.nav] as string)}
-                        </span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {studioNavItems.length > 0 && (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-0.5">
+                  {studioNavItems.map((item) => {
+                    const href = resolveNavHref(item, p);
+                    const isActive = isNavItemActive(pathname, item, href);
+                    return (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          render={<AppLink href={href} />}
+                          className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                        >
+                          <item.icon />
+                          <span>
+                            {t(($) => $.nav[item.labelKey as keyof typeof $.nav] as string)}
+                          </span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
 
           {localPinned.length > 0 && (
             <Collapsible defaultOpen>

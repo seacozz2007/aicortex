@@ -29,9 +29,7 @@ import {
   Check,
   Plus,
   Users,
-  Palette,
   MessageSquarePlus,
-  Terminal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -235,16 +233,6 @@ export function TopNav({ className }: TopNavProps) {
             <DropdownMenuItem render={<AppLink href={p.chat()} />}>
               <MessageSquarePlus className="size-4" />
               {t(($) => $.topnav.new_chat)}
-            </DropdownMenuItem>
-            {designStudioEnabled && (
-              <DropdownMenuItem render={<AppLink href={p.design()} />}>
-                <Palette className="size-4" />
-                {t(($) => $.nav.design_studio)}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem render={<AppLink href={p.dev()} />}>
-              <Terminal className="size-4" />
-              {t(($) => $.nav.dev_studio)}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

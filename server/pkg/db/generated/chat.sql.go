@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countQueuedChatTasksForSession = `-- name: CountQueuedChatTasksForSession :one
+SELECT COUNT(*)::int FROM agent_task_queue
+WHERE chat_session_id = $1 AND status = 'queued'
+`
+
+func (q *Queries) CountQueuedChatTasksForSession(ctx context.Context, chatSessionID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countQueuedChatTasksForSession, chatSessionID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createChatMessage = `-- name: CreateChatMessage :one
 INSERT INTO chat_message (chat_session_id, role, content, task_id, failure_reason, elapsed_ms)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -350,18 +362,6 @@ func (q *Queries) GetPendingChatTask(ctx context.Context, chatSessionID pgtype.U
 	var i GetPendingChatTaskRow
 	err := row.Scan(&i.ID, &i.Status, &i.CreatedAt)
 	return i, err
-}
-
-const countQueuedChatTasksForSession = `-- name: CountQueuedChatTasksForSession :one
-SELECT COUNT(*)::int FROM agent_task_queue
-WHERE chat_session_id = $1 AND status = 'queued'
-`
-
-func (q *Queries) CountQueuedChatTasksForSession(ctx context.Context, chatSessionID pgtype.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, countQueuedChatTasksForSession, chatSessionID)
-	var count int32
-	err := row.Scan(&count)
-	return count, err
 }
 
 const listAllChatSessionsByCreator = `-- name: ListAllChatSessionsByCreator :many
