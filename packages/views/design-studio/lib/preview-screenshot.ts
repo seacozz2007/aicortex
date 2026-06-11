@@ -1,4 +1,6 @@
-const SNAPSHOT_BRIDGE_FLAG = "__aicortexSnapshotBridgeV2";
+import { toCanvas } from "html-to-image";
+
+const SNAPSHOT_BRIDGE_FLAG = "__aicortexSnapshotBridgeV3";
 
 export type PreviewSnapshot = { dataUrl: string; w: number; h: number };
 
@@ -10,6 +12,89 @@ type SnapshotResultMessage = {
   h?: number;
   error?: string;
 };
+
+function shouldExcludeSnapshotNode(node: Node): boolean {
+  if (!(node instanceof HTMLElement)) return false;
+  if (node.tagName === "SCRIPT") return true;
+  if (node.tagName === "STYLE" && node.id === "aicortex-preview-comment-style") return true;
+  if (node.id === "aicortex-preview-selection-root") return true;
+  if (node.id === "aicortex-preview-deck-fix") return true;
+  if (node.hasAttribute("data-aicortex-snapshot-bridge")) return true;
+  if (node.hasAttribute("data-aicortex-preview-bridge")) return true;
+  return false;
+}
+
+function canvasElementLooksBlank(canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return true;
+  try {
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const step = Math.max(4, Math.floor((canvas.width * canvas.height) / 4096)) * 4;
+    let first: [number, number, number, number] | null = null;
+    let samples = 0;
+    for (let i = 0; i + 3 < data.length; i += step) {
+      samples++;
+      const sample: [number, number, number, number] = [
+        data[i]!,
+        data[i + 1]!,
+        data[i + 2]!,
+        data[i + 3]!,
+      ];
+      if (!first) {
+        first = sample;
+        continue;
+      }
+      if (
+        Math.abs(sample[0] - first[0]) > 6 ||
+        Math.abs(sample[1] - first[1]) > 6 ||
+        Math.abs(sample[2] - first[2]) > 6 ||
+        Math.abs(sample[3] - first[3]) > 6
+      ) {
+        return false;
+      }
+    }
+    return samples > 8;
+  } catch {
+    return false;
+  }
+}
+
+/** Capture the visible iframe viewport by cloning live DOM (works with Tailwind/CDN CSS). */
+export async function captureIframeDomSnapshot(
+  iframe: HTMLIFrameElement,
+): Promise<PreviewSnapshot | null> {
+  const doc = iframe.contentDocument;
+  const win = iframe.contentWindow;
+  if (!doc?.documentElement || !win) return null;
+
+  const width = Math.max(1, win.innerWidth || iframe.clientWidth);
+  const height = Math.max(1, win.innerHeight || iframe.clientHeight);
+  const dpr = window.devicePixelRatio || 1;
+
+  try {
+    const canvas = await toCanvas(doc.body, {
+      width,
+      height,
+      canvasWidth: Math.max(1, Math.round(width * dpr)),
+      canvasHeight: Math.max(1, Math.round(height * dpr)),
+      pixelRatio: dpr,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+      skipAutoScale: true,
+      filter: (node) => !shouldExcludeSnapshotNode(node),
+    });
+
+    if (canvasElementLooksBlank(canvas)) return null;
+
+    return {
+      dataUrl: canvas.toDataURL("image/png"),
+      w: canvas.width,
+      h: canvas.height,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function snapshotBridgeScript(): string {
   return `(function(){
@@ -135,30 +220,56 @@ function snapshotBridgeScript(): string {
       return samples > 8;
     } catch (_) { return false; }
   }
-  function renderSnapshot(id){
-    var w = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
-    var h = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
-    var dpr = window.devicePixelRatio || 1;
-    var bgColor = snapshotBackgroundColor();
-    var docW = Math.max(w, document.documentElement.scrollWidth || 0, document.body ? document.body.scrollWidth : 0);
-    var docH = Math.max(h, document.documentElement.scrollHeight || 0, document.body ? document.body.scrollHeight : 0);
-    var clone = document.documentElement.cloneNode(true);
-    clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    inlineSnapshotStyles(document.documentElement, clone);
-    pruneHiddenSnapshotNodes(document.documentElement, clone);
-    var scroll = scrollOffset();
-    var cloneBody = clone.querySelector('body');
-    var rootStyle = clone.getAttribute('style') || '';
-    var bodyStyle = cloneBody ? cloneBody.getAttribute('style') || '' : '';
-    var bodyContent = cloneBody ? cloneBody.innerHTML : clone.innerHTML;
-    var wrapperStyle = rootStyle + bodyStyle +
-      'margin:0;position:relative;left:' + (-scroll.x) + 'px;top:' + (-scroll.y) + 'px;' +
-      'width:' + docW + 'px;height:' + docH + 'px;overflow:visible;';
-    var html = '<div xmlns="http://www.w3.org/1999/xhtml" style="' + escapeAttribute(wrapperStyle) + '">' + bodyContent + '</div>';
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
-      '<foreignObject x="0" y="0" width="' + docW + '" height="' + docH + '">' +
-      html +
-      '</foreignObject></svg>';
+  function collectStylesheetCssText(){
+    var chunks = [];
+    var styleTags = document.querySelectorAll('style');
+    for (var i = 0; i < styleTags.length; i++) {
+      var text = styleTags[i].textContent || '';
+      if (text) chunks.push(text);
+    }
+    try {
+      for (var s = 0; s < document.styleSheets.length; s++) {
+        var sheet = document.styleSheets[s];
+        try {
+          var rules = sheet.cssRules;
+          if (!rules) continue;
+          for (var r = 0; r < rules.length; r++) chunks.push(rules[r].cssText);
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return chunks.join('\\n');
+  }
+  function injectStylesIntoClone(cloneRoot, cssText){
+    if (!cssText) return;
+    var style = document.createElement('style');
+    style.setAttribute('data-aicortex-snapshot', '1');
+    style.textContent = cssText;
+    var head = cloneRoot.querySelector('head');
+    if (head) head.insertBefore(style, head.firstChild);
+    else cloneRoot.insertBefore(style, cloneRoot.firstChild);
+  }
+  function finishSnapshotCanvas(id, canvas, useFallback){
+    try {
+      var ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no 2d context');
+      if (canvasLooksBlank(ctx, canvas.width, canvas.height)) {
+        if (!useFallback) {
+          renderSnapshot(id, true);
+          return;
+        }
+        window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, error: 'empty-render' }, '*');
+        return;
+      }
+      window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height }, '*');
+    } catch (err) {
+      if (!useFallback) {
+        renderSnapshot(id, true);
+        return;
+      }
+      window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, error: String(err && err.message || err) }, '*');
+    }
+  }
+  function drawSvgSnapshot(id, svg, w, h, dpr, bgColor, useFallback){
     var img = new Image();
     img.onload = function(){
       try {
@@ -171,19 +282,84 @@ function snapshotBridgeScript(): string {
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-        if (canvasLooksBlank(ctx, canvas.width, canvas.height)) {
-          window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, error: 'empty-render' }, '*');
+        finishSnapshotCanvas(id, canvas, useFallback);
+      } catch (err) {
+        if (!useFallback) {
+          renderSnapshot(id, true);
           return;
         }
-        window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height }, '*');
-      } catch (err) {
         window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, error: String(err && err.message || err) }, '*');
       }
     };
     img.onerror = function(){
+      if (!useFallback) {
+        renderSnapshot(id, true);
+        return;
+      }
       window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, error: 'snapshot image failed' }, '*');
     };
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  function renderSnapshotFallback(id){
+    var w = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    var h = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+    var dpr = window.devicePixelRatio || 1;
+    var bgColor = snapshotBackgroundColor();
+    var scroll = scrollOffset();
+    var body = document.body;
+    if (!body) {
+      window.parent.postMessage({ type: 'aicortex:snapshot:result', id: id, error: 'missing-body' }, '*');
+      return;
+    }
+    var cssText = collectStylesheetCssText();
+    var clone = body.cloneNode(true);
+    inlineSnapshotStyles(body, clone);
+    if (cssText) {
+      var style = document.createElement('style');
+      style.setAttribute('data-aicortex-snapshot', '1');
+      style.textContent = cssText;
+      clone.insertBefore(style, clone.firstChild);
+    }
+    var contentW = Math.max(w, body.scrollWidth || 0);
+    var contentH = Math.max(h, body.scrollHeight || 0);
+    var viewportStyle = 'margin:0;padding:0;width:' + w + 'px;height:' + h + 'px;overflow:hidden;position:relative;background-color:' + bgColor + ';';
+    var innerStyle = 'margin:0;padding:0;position:absolute;left:' + (-scroll.x) + 'px;top:' + (-scroll.y) + 'px;width:' + contentW + 'px;min-height:' + contentH + 'px;box-sizing:border-box;';
+    var html = '<div xmlns="http://www.w3.org/1999/xhtml" style="' + escapeAttribute(viewportStyle) + '">' +
+      '<div style="' + escapeAttribute(innerStyle) + '">' + clone.innerHTML + '</div></div>';
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' +
+      html +
+      '</foreignObject></svg>';
+    drawSvgSnapshot(id, svg, w, h, dpr, bgColor, true);
+  }
+  function renderSnapshot(id, useFallback){
+    if (useFallback) {
+      renderSnapshotFallback(id);
+      return;
+    }
+    var w = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    var h = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+    var dpr = window.devicePixelRatio || 1;
+    var bgColor = snapshotBackgroundColor();
+    var scroll = scrollOffset();
+    var contentW = Math.max(w, document.documentElement.scrollWidth || 0, document.body ? document.body.scrollWidth : 0);
+    var contentH = Math.max(h, document.documentElement.scrollHeight || 0, document.body ? document.body.scrollHeight : 0);
+    var clone = document.documentElement.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    injectStylesIntoClone(clone, collectStylesheetCssText());
+    inlineSnapshotStyles(document.documentElement, clone);
+    pruneHiddenSnapshotNodes(document.documentElement, clone);
+    var cloneBody = clone.querySelector('body');
+    var bodyContent = cloneBody ? cloneBody.innerHTML : clone.innerHTML;
+    var viewportStyle = 'margin:0;padding:0;width:' + w + 'px;height:' + h + 'px;overflow:hidden;position:relative;background-color:' + bgColor + ';';
+    var innerStyle = 'margin:0;padding:0;position:absolute;left:' + (-scroll.x) + 'px;top:' + (-scroll.y) + 'px;width:' + contentW + 'px;min-height:' + contentH + 'px;box-sizing:border-box;';
+    var html = '<div xmlns="http://www.w3.org/1999/xhtml" style="' + escapeAttribute(viewportStyle) + '">' +
+      '<div style="' + escapeAttribute(innerStyle) + '">' + bodyContent + '</div></div>';
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' +
+      html +
+      '</foreignObject></svg>';
+    drawSvgSnapshot(id, svg, w, h, dpr, bgColor, false);
   }
   window.addEventListener('message', function(ev){
     var data = ev && ev.data;
@@ -198,8 +374,9 @@ export function injectSnapshotBridge(iframe: HTMLIFrameElement): boolean {
   const doc = iframe.contentDocument;
   if (!doc?.documentElement) return false;
   const win = iframe.contentWindow as Window & Record<string, boolean | undefined>;
-  if (win?.[SNAPSHOT_BRIDGE_FLAG]) return true;
   doc.querySelectorAll("script[data-aicortex-snapshot-bridge]").forEach((el) => el.remove());
+  delete win?.__aicortexSnapshotBridgeV2;
+  delete win?.[SNAPSHOT_BRIDGE_FLAG];
   const script = doc.createElement("script");
   script.setAttribute("data-aicortex-snapshot-bridge", "1");
   script.textContent = snapshotBridgeScript();
@@ -238,6 +415,9 @@ export async function requestPreviewSnapshotWithRetry(
   iframe: HTMLIFrameElement,
   timeouts: number[] = [1500, 3000, 6000],
 ): Promise<PreviewSnapshot | null> {
+  const domSnap = await captureIframeDomSnapshot(iframe);
+  if (domSnap) return domSnap;
+
   await waitForSnapshotBridge(iframe);
   for (const timeout of timeouts) {
     const snap = await requestPreviewSnapshot(iframe, timeout);
