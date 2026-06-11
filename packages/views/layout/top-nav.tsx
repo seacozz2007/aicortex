@@ -31,6 +31,7 @@ import {
   Users,
   Palette,
   MessageSquarePlus,
+  Terminal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -118,7 +119,12 @@ export function TopNav({ className }: TopNavProps) {
               </SheetHeader>
               <nav className="flex flex-col gap-1 pt-6">
                 {mobileNavItems.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/") || (item.key === "designStudio" && pathname.includes("/design"));
+                  const isActive =
+                    item.key === "designStudio"
+                      ? pathname.includes("/design")
+                      : item.key === "dev"
+                        ? pathname === item.href || pathname.includes("/dev")
+                        : pathname === item.href || pathname.startsWith(`${item.href}/`);
                   return (
                     <AppLink
                       key={item.key}
@@ -218,7 +224,7 @@ export function TopNav({ className }: TopNavProps) {
                 className="inline-flex items-center gap-1 rounded-md bg-brand px-2.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand/90"
               >
                 <SquarePen className="size-3.5" />
-                <span className="hidden sm:inline">{t(($) => $.topnav.new_issue)}</span>
+                <span className="hidden sm:inline">{t(($) => $.topnav.new)}</span>
                 <ChevronDown className="size-3 opacity-80" />
               </button>
             }
@@ -238,6 +244,10 @@ export function TopNav({ className }: TopNavProps) {
                 {t(($) => $.nav.design_studio)}
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem render={<AppLink href={p.dev()} />}>
+              <Terminal className="size-4" />
+              {t(($) => $.nav.dev_studio)}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

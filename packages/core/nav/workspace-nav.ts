@@ -14,7 +14,6 @@ import {
   Video,
   Building2,
   Clock,
-  Palette,
 } from "lucide-react";
 import type { WorkspacePaths } from "../paths/paths";
 
@@ -32,6 +31,7 @@ export type NavKey =
   | "usage"
   | "chat"
   | "designStudio"
+  | "dev"
   | "meetings"
   | "office"
   | "forum";
@@ -98,16 +98,6 @@ export const WORKSPACE_NAV_GROUPS: NavGroupDef[] = [
     ],
   },
   {
-    id: "create",
-    groupLabelKey: "create",
-    items: [
-      item("chat", (p) => p.chat(), MessageSquare, "chat"),
-      item("designStudio", (p) => p.design(), Palette, "design_studio", {
-        requiresDesignStudio: true,
-      }),
-    ],
-  },
-  {
     id: "more",
     groupLabelKey: "more",
     items: [
@@ -135,6 +125,9 @@ export function resolveNavHref(item: NavItemDef, p: WorkspacePaths): string {
 export function isNavItemActive(pathname: string, item: NavItemDef, href: string): boolean {
   if (item.key === "designStudio") {
     return pathname.includes("/design");
+  }
+  if (item.key === "dev") {
+    return pathname === href || pathname.includes("/dev");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

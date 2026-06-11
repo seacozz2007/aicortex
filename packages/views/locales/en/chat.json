@@ -108,11 +108,11 @@
     "files": {
       "hint": "Browse files from the latest task work directory in this chat.",
       "empty": "No work directory yet. Send a message and wait for the agent to finish a task.",
-      "select_file": "Select a text file to preview.",
+      "select_file": "Select a file to preview.",
       "loading_content": "Loading file…",
       "load_error": "Could not load this file.",
       "too_large": "File is too large to preview (max 512 KB).",
-      "binary_unsupported": "Only text files can be previewed.",
+      "binary_unsupported": "This file type cannot be previewed.",
       "save": "Save",
       "saving": "Saving…",
       "save_error": "Could not save file.",

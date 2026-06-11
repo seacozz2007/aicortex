@@ -105,11 +105,11 @@
     "files": {
       "hint": "浏览本会话最近一次任务的工作目录文件。",
       "empty": "尚无工作目录。发送消息并等待 Agent 完成任务后即可浏览文件。",
-      "select_file": "选择一个文本文件进行预览。",
+      "select_file": "选择一个文件进行预览。",
       "loading_content": "正在加载文件…",
       "load_error": "无法加载此文件。",
       "too_large": "文件过大，无法预览（上限 512 KB）。",
-      "binary_unsupported": "仅支持预览文本文件。",
+      "binary_unsupported": "暂不支持预览此文件类型。",
       "save": "保存",
       "saving": "保存中…",
       "save_error": "无法保存文件。",

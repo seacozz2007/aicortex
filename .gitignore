@@ -64,3 +64,4 @@ demo/
 
 # Build artifacts
 release/
+.release-repo/

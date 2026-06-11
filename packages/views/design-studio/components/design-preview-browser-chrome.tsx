@@ -29,7 +29,6 @@ export function DesignPreviewBrowserChrome({
   onCommentModeChange,
   designEnabled = true,
   sourcePanel,
-  extension,
   overflowMenu,
 }: {
   addressText: string;
@@ -39,7 +38,6 @@ export function DesignPreviewBrowserChrome({
   onCommentModeChange?: (enabled: boolean) => void;
   designEnabled?: boolean;
   sourcePanel?: ReactNode | ((close: () => void) => ReactNode);
-  extension?: ReactNode;
   overflowMenu?: ReactNode;
 }) {
   const { t } = useT("design");
@@ -145,12 +143,6 @@ export function DesignPreviewBrowserChrome({
           </DropdownMenu>
         ) : null}
       </div>
-
-      {commentMode && extension ? (
-        <div className="flex items-center gap-1 border-t border-border/60 bg-muted/20 px-2 py-1.5">
-          {extension}
-        </div>
-      ) : null}
     </div>
   );
 }
