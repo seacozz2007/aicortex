@@ -67,6 +67,8 @@
     "section_header": "Agent 工作目录",
     "pinned_label": "固定 Agent 工作目录",
     "pinned_description": "每个 Agent 在本项目中使用固定的工作目录。任务完成后自动 commit 并 push，下次任务开始前自动 pull 最新代码。支持多 Agent 协作同一代码库。",
+    "cli_all_permissions_label": "CLI 全权限",
+    "cli_all_permissions_description": "开启后，开发工作室启动 Agent CLI 时会附加信任/跳过权限参数（如 kiro-cli --trust-all-tools、claude --dangerously-skip-permissions）。",
     "toast_update_failed": "更新工作目录设置失败"
   },
   "resources": {

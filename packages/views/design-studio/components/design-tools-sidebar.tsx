@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, FileText, Globe, Gavel, MessageSquare, Terminal } from "lucide-react";
+import { buildShellCdCommand } from "@aicortex/core/agents";
 import {
   useArtifactBrowseFeature,
   useDesignExportFeature,
@@ -357,7 +358,7 @@ export function DesignToolsSidebar({
             runtimeId={runtimeId}
             workDir={workDir}
             sessionTitle={session.title}
-            bootstrapCommand={workDir ? `cd ${JSON.stringify(workDir)}` : undefined}
+            bootstrapCommand={workDir ? buildShellCdCommand(workDir) : undefined}
           />
         )}
         {tab === "export" && (

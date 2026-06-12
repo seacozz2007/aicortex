@@ -14,7 +14,7 @@ import (
 
 const (
 	terminalScrollbackSize = 50 * 1024 // 50KB ring buffer
-	terminalMaxSessions    = 5
+	terminalMaxSessions    = 10
 	terminalIdleTimeout    = 24 * time.Hour
 )
 
@@ -78,10 +78,12 @@ func (r *ringBuffer) Bytes() []byte {
 }
 
 func NewTerminalManager(logger *slog.Logger) *TerminalManager {
-	return &TerminalManager{
+	tm := &TerminalManager{
 		sessions: make(map[string]*TerminalSession),
 		logger:   logger,
 	}
+	go tm.idleReaper()
+	return tm
 }
 
 // SetSendFunc sets the function used to send messages back to the server.
@@ -101,15 +103,40 @@ func (tm *TerminalManager) send(msg protocol.Message) {
 	}
 }
 
+func (tm *TerminalManager) oldestDetachedSessionLocked() *TerminalSession {
+	var oldest *TerminalSession
+	for _, sess := range tm.sessions {
+		if sess.attached {
+			continue
+		}
+		if oldest == nil || sess.lastAttach.Before(oldest.lastAttach) {
+			oldest = sess
+		}
+	}
+	return oldest
+}
+
 func (tm *TerminalManager) getOrOpenSession(sessionID, shell string, rows, cols int) (*TerminalSession, error) {
 	tm.mu.Lock()
 	if sess, ok := tm.sessions[sessionID]; ok {
 		tm.mu.Unlock()
 		return sess, nil
 	}
-	if len(tm.sessions) >= terminalMaxSessions {
+	for len(tm.sessions) >= terminalMaxSessions {
+		victim := tm.oldestDetachedSessionLocked()
+		if victim == nil {
+			tm.mu.Unlock()
+			return nil, errTerminalMaxSessions
+		}
+		victimID := victim.id
 		tm.mu.Unlock()
-		return nil, errTerminalMaxSessions
+		tm.logger.Info("terminal evicting detached session for capacity", "session_id", victimID)
+		tm.closeSession(victim)
+		tm.mu.Lock()
+		if sess, ok := tm.sessions[sessionID]; ok {
+			tm.mu.Unlock()
+			return sess, nil
+		}
 	}
 	tm.mu.Unlock()
 
@@ -228,7 +255,28 @@ func (tm *TerminalManager) HandleDetach(sessionID string) {
 		return
 	}
 	sess.attached = false
+	sess.lastAttach = time.Now()
 	tm.logger.Info("terminal session detached", "session_id", sessionID)
+}
+
+func (tm *TerminalManager) idleReaper() {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now()
+		tm.mu.Lock()
+		toClose := make([]*TerminalSession, 0)
+		for _, sess := range tm.sessions {
+			if !sess.attached && now.Sub(sess.lastAttach) >= terminalIdleTimeout {
+				toClose = append(toClose, sess)
+			}
+		}
+		tm.mu.Unlock()
+		for _, sess := range toClose {
+			tm.logger.Info("terminal session idle timeout", "session_id", sess.id)
+			tm.closeSession(sess)
+		}
+	}
 }
 
 func (tm *TerminalManager) HandleClose(payload protocol.TerminalClosePayload) {

@@ -163,7 +163,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 
 	// Wire terminal relay: daemon → server → browser.
 	daemonHub.SetTerminalHandler(func(msg protocol.Message) {
-		// Relay terminal messages to all workspace subscribers via realtime hub.
+		if msg.Type == protocol.EventTerminalClose {
+			var payload protocol.TerminalClosePayload
+			if err := json.Unmarshal(msg.Payload, &payload); err == nil && payload.SessionID != "" {
+				h.HandleTerminalLifecycleEvent(context.Background(), msg.Type, payload.SessionID)
+			}
+		}
 		frame, err := json.Marshal(msg)
 		if err != nil {
 			return
@@ -189,6 +194,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		if err := json.Unmarshal(raw, &p); err != nil || p.SessionID == "" {
 			return
 		}
+		h.HandleTerminalLifecycleEvent(context.Background(), msgType, p.SessionID)
 		var rtID pgtype.UUID
 		row := pool.QueryRow(context.Background(),
 			`SELECT runtime_id FROM terminal_sessions WHERE id = $1`, p.SessionID)
@@ -199,6 +205,15 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		msg := protocol.Message{Type: msgType, Payload: raw}
 		daemonHub.SendToRuntime(runtimeID, msg)
 	})
+
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			h.CloseIdleTerminalSessions(context.Background(), time.Now().Add(-24*time.Hour))
+		}
+	}()
+
 	health := newServerHealth(pool)
 
 	r := chi.NewRouter()

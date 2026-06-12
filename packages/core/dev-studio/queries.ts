@@ -16,8 +16,8 @@ export function devSessionsOptions(wsId: string) {
   return queryOptions({
     queryKey: devKeys.sessions(wsId),
     queryFn: () => api.listDevSessions() as Promise<DevSession[]>,
+    enabled: !!wsId,
     staleTime: 30_000,
-    refetchOnMount: false,
   });
 }
 

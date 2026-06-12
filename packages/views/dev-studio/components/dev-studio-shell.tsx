@@ -30,8 +30,15 @@ import {
 import { sendChatMessageWithRecovery } from "@aicortex/core/chat/send-message";
 import { shouldEnqueueOutbound, type OutboundQueuedMessage } from "@aicortex/core/chat/outbound-queue";
 import { useFlushOutboundQueue } from "@aicortex/core/chat/use-flush-outbound-queue";
-import { useAgentPresenceDetail } from "@aicortex/core/agents";
+import {
+  useAgentPresenceDetail,
+  buildAgentInteractiveCliLaunchSteps,
+  resolveAgentInteractiveCli,
+} from "@aicortex/core/agents";
+import { TERMINAL_SCOPES } from "@aicortex/core/terminal";
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
+import { runtimeListOptions } from "@aicortex/core/runtimes/queries";
+import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
 import { api } from "@aicortex/core/api";
 import type { DevSession } from "@aicortex/core/dev-studio";
 import type { Agent, ChatMessage, ChatPendingTask } from "@aicortex/core/types";
@@ -53,6 +60,7 @@ import { useNavigation } from "../../navigation";
 import { useT } from "../../i18n";
 import { ChatMessageList, ChatMessageSkeleton } from "../../chat/components/chat-message-list";
 import { ChatInput } from "../../chat/components/chat-input";
+import { ChatTerminalPanel } from "../../chat/components/chat-terminal-panel";
 import { OfflineBanner } from "../../chat/components/offline-banner";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { DevProjectSessionSidebar } from "./dev-project-session-sidebar";
@@ -65,6 +73,10 @@ function devOpenedProjectsKey(wsId: string) {
   return `aicortex:dev:opened-projects:${wsId}`;
 }
 
+function devCliMainViewKey(wsId: string) {
+  return `aicortex:dev:cli-main-view:${wsId}`;
+}
+
 function devSessionLayoutKey(wsId: string) {
   return `aicortex:dev:session-layout:${wsId}`;
 }
@@ -72,6 +84,7 @@ function devSessionLayoutKey(wsId: string) {
 export function DevStudioShell() {
   const { t } = useT("dev-studio");
   const { t: tDesign } = useT("design");
+  const exploreEnabled = useWorkspaceExploreEnabled();
   const wsId = useWorkspaceId();
   const p = useWorkspacePaths();
   const qc = useQueryClient();
@@ -92,6 +105,11 @@ export function DevStudioShell() {
   const setSidebarOpen = useDevStudioStore((s) => s.setSidebarOpen);
   const setToolsOpen = useDevStudioStore((s) => s.setToolsOpen);
   const setToolsTab = useDevStudioStore((s) => s.setToolsTab);
+  const mainView = useDevStudioStore((s) => s.mainView);
+  const setMainView = useDevStudioStore((s) => s.setMainView);
+  const cliMainViewBySessionId = useDevStudioStore((s) => s.cliMainViewBySessionId);
+  const setCliMainViewForSession = useDevStudioStore((s) => s.setCliMainViewForSession);
+  const setCliMainViewBySessionId = useDevStudioStore((s) => s.setCliMainViewBySessionId);
 
   const { data: sessions = [] } = useQuery(devSessionsOptions(wsId));
   const sessionMissingFromList =
@@ -109,6 +127,7 @@ export function DevStudioShell() {
   const { data: projects = [] } = useQuery(projectListOptions(wsId));
   const { data: devSettings } = useQuery(devSettingsOptions(wsId));
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
+  const { data: runtimes = [] } = useQuery(runtimeListOptions(wsId));
 
   const sessionFingerprint = useMemo(
     () =>
@@ -171,7 +190,65 @@ export function DevStudioShell() {
     [availableAgents, currentSession],
   );
 
+  const currentProject = useMemo(
+    () => (projectId ? projects.find((item) => item.id === projectId) ?? null : null),
+    [projectId, projects],
+  );
+
   const activeAgent: Agent | null = sessionId ? sessionAgent : draftAgent;
+
+  const activeRuntimeId = currentSession?.runtime_id ?? activeAgent?.runtime_id ?? null;
+  const activeRuntime = useMemo(
+    () => runtimes.find((runtime) => runtime.id === activeRuntimeId) ?? null,
+    [activeRuntimeId, runtimes],
+  );
+  const cliSpec = useMemo(
+    () => resolveAgentInteractiveCli(activeRuntime?.provider),
+    [activeRuntime?.provider],
+  );
+  const cliLaunchCommands = useMemo(
+    () =>
+      cliSpec
+        ? buildAgentInteractiveCliLaunchSteps({
+            provider: activeRuntime?.provider,
+            workDir: currentSession?.work_dir ?? null,
+            allPermissions: currentProject?.cli_all_permissions === true,
+          })
+        : null,
+    [
+      activeRuntime?.provider,
+      cliSpec,
+      currentProject?.cli_all_permissions,
+      currentSession?.work_dir,
+    ],
+  );
+  const canLaunchCli =
+    exploreEnabled && !!sessionId && !!activeRuntimeId && !!cliLaunchCommands?.length;
+  const cliLaunchDisabledReason = !cliSpec
+    ? t(($) => $.shell.cli_launch_disabled_provider)
+    : !exploreEnabled
+      ? t(($) => $.shell.cli_launch_disabled_explore)
+      : !sessionId || !activeRuntimeId
+        ? t(($) => $.shell.cli_launch_disabled_runtime)
+        : null;
+
+  const handleLaunchCli = useCallback(() => {
+    if (!sessionId) return;
+    if (mainView === "cli") {
+      setCliMainViewForSession(sessionId, false);
+      return;
+    }
+    if (!cliLaunchCommands?.length) return;
+    setCliMainViewForSession(sessionId, true);
+  }, [cliLaunchCommands, mainView, sessionId, setCliMainViewForSession]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setMainView("chat");
+      return;
+    }
+    setMainView(cliMainViewBySessionId[sessionId] ? "cli" : "chat");
+  }, [sessionId, cliMainViewBySessionId, setMainView]);
 
   const handleDraftAgentSelect = useCallback((agent: Agent) => {
     userPickedAgent.current = true;
@@ -209,6 +286,7 @@ export function DevStudioShell() {
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [openedProjectsHydrated, setOpenedProjectsHydrated] = useState(false);
   const [sessionLayoutHydrated, setSessionLayoutHydrated] = useState(false);
+  const [cliMainViewHydrated, setCliMainViewHydrated] = useState(false);
   const [commentMode, setCommentMode] = useState(false);
   const [commentNote, setCommentNote] = useState<string | null>(null);
   const [previewAttachmentIds, setPreviewAttachmentIds] = useState<string[]>([]);
@@ -219,6 +297,7 @@ export function DevStudioShell() {
     if (!wsId) return;
     setOpenedProjectsHydrated(false);
     setSessionLayoutHydrated(false);
+    setCliMainViewHydrated(false);
     try {
       const raw = localStorage.getItem(devOpenedProjectsKey(wsId));
       if (raw) {
@@ -234,12 +313,20 @@ export function DevStudioShell() {
           setSessionLayoutByProject(parsed as typeof sessionLayoutByProject);
         }
       }
+      const cliViewRaw = localStorage.getItem(devCliMainViewKey(wsId));
+      if (cliViewRaw) {
+        const parsed = JSON.parse(cliViewRaw) as unknown;
+        if (parsed && typeof parsed === "object") {
+          setCliMainViewBySessionId(parsed as Record<string, boolean>);
+        }
+      }
     } catch {
       // ignore corrupt storage
     }
     setOpenedProjectsHydrated(true);
     setSessionLayoutHydrated(true);
-  }, [wsId, setOpenedProjectIds, setSessionLayoutByProject]);
+    setCliMainViewHydrated(true);
+  }, [wsId, setOpenedProjectIds, setSessionLayoutByProject, setCliMainViewBySessionId]);
 
   useEffect(() => {
     if (!wsId || !openedProjectsHydrated) return;
@@ -250,6 +337,11 @@ export function DevStudioShell() {
     if (!wsId || !sessionLayoutHydrated) return;
     localStorage.setItem(devSessionLayoutKey(wsId), JSON.stringify(sessionLayoutByProject));
   }, [wsId, sessionLayoutByProject, sessionLayoutHydrated]);
+
+  useEffect(() => {
+    if (!wsId || !cliMainViewHydrated) return;
+    localStorage.setItem(devCliMainViewKey(wsId), JSON.stringify(cliMainViewBySessionId));
+  }, [wsId, cliMainViewBySessionId, cliMainViewHydrated]);
 
   useEffect(() => {
     if (sessions.length === 0) return;
@@ -665,20 +757,53 @@ export function DevStudioShell() {
                 : t(($) => $.shell.title))}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setToolsOpen(!toolsOpen)}
-          className={cn(
-            "rounded-md p-1.5 transition-colors hover:bg-accent hover:text-foreground",
-            toolsOpen ? "bg-accent text-foreground" : "text-muted-foreground",
-          )}
-          title={t(($) => $.shell.toggle_tools)}
-        >
-          <PanelRight className="size-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {cliSpec ? (
+            <Button
+              type="button"
+              variant={mainView === "cli" ? "secondary" : "outline"}
+              size="sm"
+              className="h-7 px-2.5 font-mono text-xs"
+              disabled={!canLaunchCli && mainView !== "cli"}
+              title={
+                mainView === "cli"
+                  ? t(($) => $.shell.cli_back_to_chat)
+                  : canLaunchCli
+                    ? t(($) => $.shell.cli_launch)
+                    : (cliLaunchDisabledReason ?? undefined)
+              }
+              onClick={handleLaunchCli}
+            >
+              {t(($) => $.shell.cli_launch_label)}
+            </Button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setToolsOpen(!toolsOpen)}
+            className={cn(
+              "rounded-md p-1.5 transition-colors hover:bg-accent hover:text-foreground",
+              toolsOpen ? "bg-accent text-foreground" : "text-muted-foreground",
+            )}
+            title={t(($) => $.shell.toggle_tools)}
+          >
+            <PanelRight className="size-4" />
+          </button>
+        </div>
       </div>
 
-      {showSkeleton ? (
+      {mainView === "cli" && sessionId && activeRuntimeId && cliLaunchCommands ? (
+        <div className="min-h-0 flex-1">
+          <ChatTerminalPanel
+            chatSessionId={sessionId}
+            runtimeId={activeRuntimeId}
+            workDir={currentSession?.work_dir ?? undefined}
+            sessionTitle={currentSession?.title}
+            terminalScope={TERMINAL_SCOPES.CLI_MAIN}
+            bootstrapCommands={cliLaunchCommands}
+            compactHeader
+          />
+        </div>
+      ) : showSkeleton ? (
         <ChatMessageSkeleton />
       ) : sessionId && hasMessages ? (
         <>

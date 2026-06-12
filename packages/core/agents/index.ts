@@ -8,3 +8,4 @@ export * from "./constants";
 export * from "./visibility-label";
 export * from "./use-workspace-agent-availability";
 export * from "./agent-activity-task";
+export * from "./interactive-cli";

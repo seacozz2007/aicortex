@@ -624,6 +624,27 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                 }}
               />
             </div>
+            <div className="mt-2 flex items-start justify-between gap-3 rounded-md border bg-muted/20 px-3 py-3">
+              <div className="flex min-w-0 items-start gap-2">
+                <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="space-y-1">
+                  <Label htmlFor={`cli-all-permissions-${projectId}`} className="text-xs font-medium">
+                    {t(($) => $.workdir.cli_all_permissions_label)}
+                  </Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t(($) => $.workdir.cli_all_permissions_description)}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id={`cli-all-permissions-${projectId}`}
+                checked={project.cli_all_permissions === true}
+                disabled={updateProject.isPending}
+                onCheckedChange={(checked) => {
+                  handleUpdateField({ cli_all_permissions: checked });
+                }}
+              />
+            </div>
           </div>
         )}
       </div>

@@ -507,6 +507,8 @@ type Project struct {
 	Prompt      string             `json:"prompt"`
 	// When true, agent tasks in this project reuse a fixed workdir per agent with auto git sync.
 	PinnedWorkdir bool `json:"pinned_workdir"`
+	// When true, Dev Studio CLI launch uses provider trust / bypass permission flags.
+	CliAllPermissions bool `json:"cli_all_permissions"`
 }
 
 type ProjectResource struct {
@@ -681,6 +683,9 @@ type TerminalSession struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	ClosedAt       pgtype.Timestamptz `json:"closed_at"`
 	LastAttachedAt pgtype.Timestamptz `json:"last_attached_at"`
+	ChatSessionID  pgtype.UUID        `json:"chat_session_id"`
+	Scope          string             `json:"scope"`
+	Bootstrapped   bool               `json:"bootstrapped"`
 }
 
 type User struct {

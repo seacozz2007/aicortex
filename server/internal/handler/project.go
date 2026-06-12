@@ -37,6 +37,7 @@ type ProjectResponse struct {
 	ResourceCount int64 `json:"resource_count"`
 	Prompt        string `json:"prompt"`
 	PinnedWorkdir bool   `json:"pinned_workdir"`
+	CliAllPermissions bool `json:"cli_all_permissions"`
 }
 
 func projectToResponse(p db.Project) ProjectResponse {
@@ -54,6 +55,7 @@ func projectToResponse(p db.Project) ProjectResponse {
 		UpdatedAt:   timestampToString(p.UpdatedAt),
 		Prompt:      p.Prompt,
 		PinnedWorkdir: p.PinnedWorkdir,
+		CliAllPermissions: p.CliAllPermissions,
 	}
 }
 
@@ -105,6 +107,7 @@ type UpdateProjectRequest struct {
 	LeadID      *string `json:"lead_id"`
 	Prompt      *string `json:"prompt"`
 	PinnedWorkdir *bool `json:"pinned_workdir"`
+	CliAllPermissions *bool `json:"cli_all_permissions"`
 }
 
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
@@ -440,6 +443,10 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	if _, ok := rawFields["pinned_workdir"]; ok {
 		enabled := req.PinnedWorkdir != nil && *req.PinnedWorkdir
 		params.PinnedWorkdir = pgtype.Bool{Bool: enabled, Valid: true}
+	}
+	if _, ok := rawFields["cli_all_permissions"]; ok {
+		enabled := req.CliAllPermissions != nil && *req.CliAllPermissions
+		params.CliAllPermissions = pgtype.Bool{Bool: enabled, Valid: true}
 	}
 	project, err := h.Queries.UpdateProject(r.Context(), params)
 	if err != nil {

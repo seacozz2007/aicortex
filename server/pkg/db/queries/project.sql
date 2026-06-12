@@ -32,6 +32,7 @@ UPDATE project SET
     lead_id = sqlc.narg('lead_id'),
     prompt = sqlc.narg('prompt'),
     pinned_workdir = COALESCE(sqlc.narg('pinned_workdir'), pinned_workdir),
+    cli_all_permissions = COALESCE(sqlc.narg('cli_all_permissions'), cli_all_permissions),
     updated_at = now()
 WHERE id = $1
 RETURNING *;

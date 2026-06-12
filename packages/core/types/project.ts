@@ -20,6 +20,8 @@ export interface Project {
   prompt: string | null;
   /** Reuse a fixed workdir per agent with auto git sync. Default false. */
   pinned_workdir?: boolean;
+  /** Dev Studio CLI launches with provider trust / bypass permission flags. */
+  cli_all_permissions?: boolean;
 }
 
 export interface CreateProjectRequest {
@@ -46,6 +48,7 @@ export interface UpdateProjectRequest {
   lead_id?: string | null;
   prompt?: string | null;
   pinned_workdir?: boolean;
+  cli_all_permissions?: boolean;
 }
 
 export interface ListProjectsResponse {

@@ -73,6 +73,25 @@ func devSessionFromCreatorListRow(row db.ListDevChatSessionsByCreatorRow) DevSes
 	}, row.HasUnread)
 }
 
+func devSessionFromWorkspaceListRow(row db.ListDevChatSessionsByWorkspaceRow) DevSessionResponse {
+	return devSessionFromRow(db.ChatSession{
+		ID:          row.ID,
+		WorkspaceID: row.WorkspaceID,
+		AgentID:     row.AgentID,
+		CreatorID:   row.CreatorID,
+		Title:       row.Title,
+		SessionID:   row.SessionID,
+		WorkDir:     row.WorkDir,
+		Status:      row.Status,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+		UnreadSince: row.UnreadSince,
+		RuntimeID:   row.RuntimeID,
+		ProjectID:   row.ProjectID,
+		SessionKind: row.SessionKind,
+	}, row.HasUnread)
+}
+
 func devSessionFromRow(s db.ChatSession, hasUnread bool) DevSessionResponse {
 	resp := DevSessionResponse{
 		ID:          uuidToString(s.ID),
@@ -140,7 +159,7 @@ func (h *Handler) resolveDevAgentID(ctx context.Context, workspaceID pgtype.UUID
 }
 
 func (h *Handler) ListDevSessions(w http.ResponseWriter, r *http.Request) {
-	userID, ok := requireUserID(w, r)
+	_, ok := requireUserID(w, r)
 	if !ok {
 		return
 	}
@@ -150,10 +169,7 @@ func (h *Handler) ListDevSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := h.Queries.ListDevChatSessionsByCreator(r.Context(), db.ListDevChatSessionsByCreatorParams{
-		WorkspaceID: wsUUID,
-		CreatorID:   parseUUID(userID),
-	})
+	rows, err := h.Queries.ListDevChatSessionsByWorkspace(r.Context(), wsUUID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list dev sessions")
 		return
@@ -161,7 +177,7 @@ func (h *Handler) ListDevSessions(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]DevSessionResponse, 0, len(rows))
 	for _, row := range rows {
-		s := devSessionFromCreatorListRow(row)
+		s := devSessionFromWorkspaceListRow(row)
 		s = h.enrichDevSession(r.Context(), s, row.ID)
 		resp = append(resp, s)
 	}

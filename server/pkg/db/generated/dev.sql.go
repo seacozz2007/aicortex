@@ -240,6 +240,78 @@ func (q *Queries) ListDevChatSessionsByProject(ctx context.Context, arg ListDevC
 	return items, nil
 }
 
+const listDevChatSessionsByWorkspace = `-- name: ListDevChatSessionsByWorkspace :many
+SELECT cs.id, cs.workspace_id, cs.agent_id, cs.creator_id, cs.title, cs.session_id, cs.work_dir, cs.status, cs.created_at, cs.updated_at, cs.unread_since, cs.runtime_id, cs.project_id, cs.session_kind, cs.design_mode, cs.design_skill_id, cs.design_system_resource_id, cs.artifact_entry,
+       (cs.unread_since IS NOT NULL)::bool AS has_unread
+FROM chat_session cs
+WHERE cs.workspace_id = $1
+  AND cs.session_kind = 'dev'
+  AND cs.status = 'active'
+ORDER BY cs.updated_at DESC
+`
+
+type ListDevChatSessionsByWorkspaceRow struct {
+	ID                     pgtype.UUID        `json:"id"`
+	WorkspaceID            pgtype.UUID        `json:"workspace_id"`
+	AgentID                pgtype.UUID        `json:"agent_id"`
+	CreatorID              pgtype.UUID        `json:"creator_id"`
+	Title                  string             `json:"title"`
+	SessionID              pgtype.Text        `json:"session_id"`
+	WorkDir                pgtype.Text        `json:"work_dir"`
+	Status                 string             `json:"status"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	UnreadSince            pgtype.Timestamptz `json:"unread_since"`
+	RuntimeID              pgtype.UUID        `json:"runtime_id"`
+	ProjectID              pgtype.UUID        `json:"project_id"`
+	SessionKind            string             `json:"session_kind"`
+	DesignMode             pgtype.Text        `json:"design_mode"`
+	DesignSkillID          pgtype.UUID        `json:"design_skill_id"`
+	DesignSystemResourceID pgtype.UUID        `json:"design_system_resource_id"`
+	ArtifactEntry          string             `json:"artifact_entry"`
+	HasUnread              bool               `json:"has_unread"`
+}
+
+func (q *Queries) ListDevChatSessionsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) ([]ListDevChatSessionsByWorkspaceRow, error) {
+	rows, err := q.db.Query(ctx, listDevChatSessionsByWorkspace, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDevChatSessionsByWorkspaceRow{}
+	for rows.Next() {
+		var i ListDevChatSessionsByWorkspaceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.AgentID,
+			&i.CreatorID,
+			&i.Title,
+			&i.SessionID,
+			&i.WorkDir,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UnreadSince,
+			&i.RuntimeID,
+			&i.ProjectID,
+			&i.SessionKind,
+			&i.DesignMode,
+			&i.DesignSkillID,
+			&i.DesignSystemResourceID,
+			&i.ArtifactEntry,
+			&i.HasUnread,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setWorkspaceDefaultDevAgent = `-- name: SetWorkspaceDefaultDevAgent :exec
 UPDATE workspace
 SET default_dev_agent_id = $2, updated_at = now()

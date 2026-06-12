@@ -67,6 +67,8 @@
     "section_header": "Agent workdir",
     "pinned_label": "Pinned agent workdir",
     "pinned_description": "Each agent reuses a fixed working directory in this project. Tasks auto-commit and push when done, and pull latest code before the next run. Enables multi-agent collaboration on the same codebase.",
+    "cli_all_permissions_label": "CLI full permissions",
+    "cli_all_permissions_description": "When enabled, Dev Studio launches the agent CLI with trust / bypass permission flags (e.g. kiro-cli --trust-all-tools, claude --dangerously-skip-permissions).",
     "toast_update_failed": "Failed to update workdir setting"
   },
   "resources": {

@@ -1875,11 +1875,23 @@ export class ApiClient {
   }
 
   // Terminal sessions
-  async listTerminalSessions(): Promise<any[]> {
-    return this.fetch("/api/terminal/sessions");
+  async listTerminalSessions(filters?: { chat_session_id?: string; scope?: string }): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (filters?.chat_session_id) params.set("chat_session_id", filters.chat_session_id);
+    if (filters?.scope) params.set("scope", filters.scope);
+    const qs = params.toString();
+    return this.fetch(`/api/terminal/sessions${qs ? `?${qs}` : ""}`);
   }
 
-  async createTerminalSession(data: { runtime_id: string; title?: string; shell?: string; cols?: number; rows?: number }): Promise<any> {
+  async createTerminalSession(data: {
+    runtime_id: string;
+    chat_session_id?: string;
+    scope?: string;
+    title?: string;
+    shell?: string;
+    cols?: number;
+    rows?: number;
+  }): Promise<any> {
     return this.fetch("/api/terminal/sessions", {
       method: "POST",
       body: JSON.stringify(data),
@@ -1890,10 +1902,14 @@ export class ApiClient {
     await this.fetch(`/api/terminal/sessions/${id}`, { method: "DELETE" });
   }
 
-  async updateTerminalSession(id: string, data: { title: string }): Promise<void> {
+  async updateTerminalSession(id: string, data: { title?: string; bootstrapped?: boolean }): Promise<void> {
     await this.fetch(`/api/terminal/sessions/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  }
+
+  async markTerminalBootstrapped(id: string): Promise<void> {
+    await this.updateTerminalSession(id, { bootstrapped: true });
   }
 }

@@ -13,6 +13,8 @@ import { create } from "zustand";
 
 import type { DevSessionLayoutByProject, DevProjectSessionLayout } from "./session-layout";
 
+export type DevStudioMainView = "chat" | "cli";
+
 export interface DevStudioStore {
   selectedProjectId: string | null;
   activeSessionId: string | null;
@@ -22,6 +24,10 @@ export interface DevStudioStore {
   sidebarOpen: boolean;
   toolsOpen: boolean;
   toolsTab: "terminal" | "files" | "preview";
+  /** Left main panel: chat composer vs embedded agent CLI terminal. */
+  mainView: DevStudioMainView;
+  /** Per chat session: whether the left panel shows CLI terminal. */
+  cliMainViewBySessionId: Record<string, boolean>;
   expandedProjectIds: string[];
   setSelectedProjectId: (id: string | null) => void;
   setActiveSession: (id: string | null) => void;
@@ -32,6 +38,9 @@ export interface DevStudioStore {
   setSidebarOpen: (open: boolean) => void;
   setToolsOpen: (open: boolean) => void;
   setToolsTab: (tab: "terminal" | "files" | "preview") => void;
+  setMainView: (view: DevStudioMainView) => void;
+  setCliMainViewForSession: (sessionId: string, open: boolean) => void;
+  setCliMainViewBySessionId: (map: Record<string, boolean>) => void;
   toggleProjectExpanded: (projectId: string) => void;
 }
 
@@ -43,6 +52,8 @@ export const useDevStudioStore = create<DevStudioStore>((set, get) => ({
   sidebarOpen: true,
   toolsOpen: true,
   toolsTab: "files",
+  mainView: "chat",
+  cliMainViewBySessionId: {},
   expandedProjectIds: [],
   setSelectedProjectId: (id) => set({ selectedProjectId: id }),
   setActiveSession: (id) => set({ activeSessionId: id }),
@@ -66,6 +77,13 @@ export const useDevStudioStore = create<DevStudioStore>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setToolsOpen: (open) => set({ toolsOpen: open }),
   setToolsTab: (tab) => set({ toolsTab: tab }),
+  setMainView: (view) => set({ mainView: view }),
+  setCliMainViewForSession: (sessionId, open) =>
+    set((state) => ({
+      cliMainViewBySessionId: { ...state.cliMainViewBySessionId, [sessionId]: open },
+      mainView: open ? "cli" : "chat",
+    })),
+  setCliMainViewBySessionId: (map) => set({ cliMainViewBySessionId: map }),
   toggleProjectExpanded: (projectId) => {
     const current = get().expandedProjectIds;
     set({

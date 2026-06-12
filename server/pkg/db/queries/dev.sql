@@ -39,6 +39,15 @@ WHERE cs.workspace_id = $1
   AND cs.status = 'active'
 ORDER BY cs.updated_at DESC;
 
+-- name: ListDevChatSessionsByWorkspace :many
+SELECT cs.*,
+       (cs.unread_since IS NOT NULL)::bool AS has_unread
+FROM chat_session cs
+WHERE cs.workspace_id = $1
+  AND cs.session_kind = 'dev'
+  AND cs.status = 'active'
+ORDER BY cs.updated_at DESC;
+
 -- name: SetWorkspaceDefaultDevAgent :exec
 UPDATE workspace
 SET default_dev_agent_id = $2, updated_at = now()

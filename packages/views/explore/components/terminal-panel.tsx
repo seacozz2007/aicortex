@@ -6,9 +6,11 @@ import { useWS } from "@aicortex/core/realtime";
 interface TerminalPanelProps {
   sessionId: string;
   onDetach?: () => void;
+  /** Fired after xterm init and terminal:attach is sent to the daemon. */
+  onAttached?: () => void;
 }
 
-export function TerminalPanel({ sessionId, onDetach }: TerminalPanelProps) {
+export function TerminalPanel({ sessionId, onDetach, onAttached }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<any>(null);
   const fitAddonRef = useRef<any>(null);
@@ -106,6 +108,7 @@ export function TerminalPanel({ sessionId, onDetach }: TerminalPanelProps) {
 
       // Attach to get scrollback
       send({ type: "terminal:attach", payload: { session_id: sessionId, cols: term.cols, rows: term.rows } });
+      onAttached?.();
     }
 
     init();
