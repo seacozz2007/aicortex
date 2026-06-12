@@ -13,6 +13,7 @@ import {
   upsertDevSessionInCache,
   useCreateDevSession,
   useDeleteDevSession,
+  useSyncDevAgentSession,
   useDevStudioStore,
 } from "@aicortex/core/dev-studio";
 import { useWorkspaceId } from "@aicortex/core/hooks";
@@ -256,6 +257,19 @@ export function DevStudioShell() {
     if (!cliLaunchCommands?.length) return;
     setCliMainViewForSession(sessionId, true);
   }, [cliLaunchCommands, mainView, sessionId, setCliMainViewForSession]);
+
+  const syncDevAgentSession = useSyncDevAgentSession(wsId, projectId ?? "");
+  const handleAgentSessionDetected = useCallback(
+    (agentSessionId: string) => {
+      if (!sessionId || !projectId || !activeRuntimeId) return;
+      syncDevAgentSession.mutate({
+        sessionId,
+        agent_session_id: agentSessionId,
+        runtime_id: activeRuntimeId,
+      });
+    },
+    [activeRuntimeId, projectId, sessionId, syncDevAgentSession],
+  );
 
   useEffect(() => {
     if (!sessionId) {
@@ -815,6 +829,9 @@ export function DevStudioShell() {
             terminalScope={TERMINAL_SCOPES.CLI_MAIN}
             bootstrapCommands={cliLaunchCommands}
             resumeSessionId={cliResumeSessionId}
+            syncAgentSessionProvider={activeRuntime?.provider ?? null}
+            knownAgentSessionId={currentSession?.agent_session_id ?? cliResumeSessionId}
+            onAgentSessionDetected={handleAgentSessionDetected}
             compactHeader
           />
         </div>

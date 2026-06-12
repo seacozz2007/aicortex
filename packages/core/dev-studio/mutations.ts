@@ -48,3 +48,21 @@ export function useDeleteDevSession(wsId: string) {
     },
   });
 }
+
+export function useSyncDevAgentSession(wsId: string, projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      sessionId: string;
+      agent_session_id: string;
+      runtime_id: string;
+    }) =>
+      api.syncDevAgentSession(projectId, input.sessionId, {
+        agent_session_id: input.agent_session_id,
+        runtime_id: input.runtime_id,
+      }) as Promise<DevSession>,
+    onSuccess: (session) => {
+      upsertDevSessionInCache(qc, wsId, session);
+    },
+  });
+}

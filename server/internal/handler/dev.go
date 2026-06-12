@@ -343,3 +343,89 @@ func (h *Handler) CreateDevSession(w http.ResponseWriter, r *http.Request) {
 	resp = h.enrichDevSession(r.Context(), resp, session.ID)
 	writeJSON(w, http.StatusCreated, resp)
 }
+
+type SyncDevAgentSessionRequest struct {
+	AgentSessionID string `json:"agent_session_id"`
+	RuntimeID      string `json:"runtime_id"`
+}
+
+// SyncDevAgentSession pins the daemon-owned resume pointer after interactive CLI use.
+func (h *Handler) SyncDevAgentSession(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := ctxWorkspaceID(r.Context())
+	project, ok := h.loadProjectForResource(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+
+	var req SyncDevAgentSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	agentSessionID := strings.TrimSpace(req.AgentSessionID)
+	runtimeID := strings.TrimSpace(req.RuntimeID)
+	if agentSessionID == "" {
+		writeError(w, http.StatusBadRequest, "agent_session_id is required")
+		return
+	}
+	if runtimeID == "" {
+		writeError(w, http.StatusBadRequest, "runtime_id is required")
+		return
+	}
+
+	sessionUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "sessionId"), "session id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, workspaceID, "workspace id")
+	if !ok {
+		return
+	}
+	runtimeUUID, ok := parseUUIDOrBadRequest(w, runtimeID, "runtime id")
+	if !ok {
+		return
+	}
+
+	session, err := h.Queries.GetChatSessionInWorkspace(r.Context(), db.GetChatSessionInWorkspaceParams{
+		ID:          sessionUUID,
+		WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		writeError(w, http.StatusNotFound, "dev session not found")
+		return
+	}
+	if session.SessionKind != "dev" || session.ProjectID != project.ID {
+		writeError(w, http.StatusNotFound, "dev session not found")
+		return
+	}
+	if uuidToString(session.CreatorID) != userID {
+		writeError(w, http.StatusForbidden, "not your session")
+		return
+	}
+
+	if err := h.Queries.UpdateChatSessionSession(r.Context(), db.UpdateChatSessionSessionParams{
+		ID:        sessionUUID,
+		SessionID: pgtype.Text{String: agentSessionID, Valid: true},
+		RuntimeID: runtimeUUID,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update agent session")
+		return
+	}
+
+	updated, err := h.Queries.GetChatSessionInWorkspace(r.Context(), db.GetChatSessionInWorkspaceParams{
+		ID:          sessionUUID,
+		WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load updated session")
+		return
+	}
+
+	resp := devSessionFromRow(updated, updated.UnreadSince.Valid)
+	resp = h.enrichDevSession(r.Context(), resp, updated.ID)
+	writeJSON(w, http.StatusOK, resp)
+}

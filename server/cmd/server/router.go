@@ -500,6 +500,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 						r.Post("/sessions", h.CreateDevSession)
 						r.Route("/sessions/{sessionId}", func(r chi.Router) {
 							r.Get("/", h.GetDevSession)
+							r.Patch("/agent-session", h.SyncDevAgentSession)
 						})
 					})
 				})

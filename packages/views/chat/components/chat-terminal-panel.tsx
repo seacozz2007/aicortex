@@ -14,7 +14,11 @@ import {
   useMarkTerminalBootstrapped,
   type TerminalSession,
 } from "@aicortex/core/terminal";
-import { needsTerminalBootstrap } from "@aicortex/core/agents";
+import {
+  appendTerminalDetectBuffer,
+  extractAgentSessionIdFromTerminalOutput,
+  needsTerminalBootstrap,
+} from "@aicortex/core/agents";
 import { TerminalPanel } from "../../explore/components/terminal-panel";
 import { useWS } from "@aicortex/core/realtime";
 import { useT } from "../../i18n";
@@ -67,6 +71,9 @@ export function ChatTerminalPanel({
   injectKey,
   terminalScope = TERMINAL_SCOPES.DEFAULT,
   compactHeader = false,
+  syncAgentSessionProvider,
+  knownAgentSessionId,
+  onAgentSessionDetected,
 }: {
   chatSessionId: string;
   runtimeId: string;
@@ -80,6 +87,10 @@ export function ChatTerminalPanel({
   injectKey?: number;
   terminalScope?: string;
   compactHeader?: boolean;
+  /** When set, scan terminal output and report newly observed agent session ids. */
+  syncAgentSessionProvider?: string | null;
+  knownAgentSessionId?: string | null;
+  onAgentSessionDetected?: (agentSessionId: string) => void;
 }) {
   const { t } = useT("chat");
   const wsId = useWorkspaceId();
@@ -102,8 +113,24 @@ export function ChatTerminalPanel({
   const lastBootstrapKeyRef = useRef<string | null>(null);
   const [terminalAttached, setTerminalAttached] = useState(false);
   const [ptyRecreated, setPtyRecreated] = useState(false);
+  const terminalDetectBufferRef = useRef("");
+  const lastSyncedAgentSessionRef = useRef<string | null>(null);
+  const detectTimerRef = useRef<number | null>(null);
 
   const normalizedResumeSessionId = resumeSessionId?.trim() || null;
+  const normalizedKnownAgentSessionId = knownAgentSessionId?.trim() || null;
+
+  const reportAgentSessionId = useCallback(
+    (agentSessionId: string) => {
+      const trimmed = agentSessionId.trim();
+      if (!trimmed || !onAgentSessionDetected) return;
+      if (trimmed === lastSyncedAgentSessionRef.current) return;
+      if (trimmed === normalizedKnownAgentSessionId) return;
+      lastSyncedAgentSessionRef.current = trimmed;
+      onAgentSessionDetected(trimmed);
+    },
+    [normalizedKnownAgentSessionId, onAgentSessionDetected],
+  );
 
   const boundSession = useMemo(
     () =>
@@ -203,6 +230,8 @@ export function ChatTerminalPanel({
     setError(null);
     setTerminalAttached(false);
     setPtyRecreated(false);
+    terminalDetectBufferRef.current = "";
+    lastSyncedAgentSessionRef.current = null;
     lastInjectKeyRef.current = null;
     lastBootstrapKeyRef.current = null;
   }, [chatSessionId, runtimeId, terminalScope]);
@@ -210,8 +239,54 @@ export function ChatTerminalPanel({
   useEffect(() => {
     setTerminalAttached(false);
     setPtyRecreated(false);
+    terminalDetectBufferRef.current = "";
     lastBootstrapKeyRef.current = null;
   }, [terminalSessionId]);
+
+  useEffect(() => {
+    lastSyncedAgentSessionRef.current = normalizedKnownAgentSessionId;
+  }, [normalizedKnownAgentSessionId, chatSessionId]);
+
+  useEffect(() => {
+    if (!onAgentSessionDetected || !terminalSessionId) return;
+    const unsub = subscribe("terminal:data" as any, (payload: any) => {
+      if (payload?.session_id !== terminalSessionId || typeof payload?.data !== "string") return;
+      try {
+        const text = new TextDecoder().decode(
+          Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0)),
+        );
+        terminalDetectBufferRef.current = appendTerminalDetectBuffer(
+          terminalDetectBufferRef.current,
+          text,
+        );
+        if (detectTimerRef.current != null) {
+          window.clearTimeout(detectTimerRef.current);
+        }
+        detectTimerRef.current = window.setTimeout(() => {
+          const detected = extractAgentSessionIdFromTerminalOutput(
+            syncAgentSessionProvider,
+            terminalDetectBufferRef.current,
+          );
+          if (detected) reportAgentSessionId(detected);
+        }, 1500);
+      } catch {
+        /* ignore decode errors */
+      }
+    });
+    return () => {
+      unsub();
+      if (detectTimerRef.current != null) {
+        window.clearTimeout(detectTimerRef.current);
+        detectTimerRef.current = null;
+      }
+    };
+  }, [
+    subscribe,
+    terminalSessionId,
+    onAgentSessionDetected,
+    syncAgentSessionProvider,
+    reportAgentSessionId,
+  ]);
 
   useEffect(() => {
     if (!chatSessionId || !runtimeId || isLoading) return;
@@ -271,6 +346,9 @@ export function ChatTerminalPanel({
           sessionId: terminalSessionId,
           bootstrapResumeId: normalizedResumeSessionId,
         });
+        if (normalizedResumeSessionId) {
+          reportAgentSessionId(normalizedResumeSessionId);
+        }
       });
     }, 300);
 
@@ -288,6 +366,7 @@ export function ChatTerminalPanel({
     bootstrapCommands,
     send,
     markBootstrapped,
+    reportAgentSessionId,
   ]);
 
   useEffect(() => {

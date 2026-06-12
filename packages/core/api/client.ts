@@ -1502,6 +1502,17 @@ export class ApiClient {
     });
   }
 
+  async syncDevAgentSession(
+    projectId: string,
+    sessionId: string,
+    data: { agent_session_id: string; runtime_id: string },
+  ): Promise<DevSession> {
+    return this.fetch(`/api/projects/${projectId}/dev/sessions/${sessionId}/agent-session`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
   async getDevSettings(): Promise<DevSettings> {
     return this.fetch("/api/dev/settings");
   }

@@ -10,7 +10,7 @@ export {
   type DevSettings,
 } from "./queries";
 export { upsertDevSessionInCache } from "./cache";
-export { useCreateDevSession, useDeleteDevSession, useUpdateDevSettings } from "./mutations";
+export { useCreateDevSession, useDeleteDevSession, useSyncDevAgentSession, useUpdateDevSettings } from "./mutations";
 export {
   emptyProjectSessionLayout,
   mergeSessionLayout,
