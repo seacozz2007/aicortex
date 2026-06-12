@@ -16,6 +16,7 @@ export interface TerminalSession {
   chat_session_id?: string | null;
   scope: string;
   bootstrapped: boolean;
+  bootstrap_resume_id?: string | null;
   title: string;
   status: "active" | "detached" | "closed";
   shell: string;

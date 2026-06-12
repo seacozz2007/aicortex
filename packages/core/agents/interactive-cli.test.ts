@@ -61,4 +61,31 @@ describe("buildAgentInteractiveCliLaunch", () => {
       }),
     ).toEqual([`cd /d ${JSON.stringify(workDir)}`, "claude"]);
   });
+
+  it("appends claude --resume when session id is provided", () => {
+    expect(
+      buildAgentInteractiveCliLaunch({
+        provider: "claude",
+        resumeSessionId: "sess-abc",
+      }),
+    ).toBe("claude --resume sess-abc");
+  });
+
+  it("appends kiro-cli --resume-id for kiro", () => {
+    expect(
+      buildAgentInteractiveCliLaunch({
+        provider: "kiro",
+        resumeSessionId: "kiro-sess",
+      }),
+    ).toBe("kiro-cli chat --resume-id kiro-sess");
+  });
+
+  it("appends cursor-agent --resume for cursor", () => {
+    expect(
+      buildAgentInteractiveCliLaunch({
+        provider: "cursor",
+        resumeSessionId: "cursor-sess",
+      }),
+    ).toBe("cursor-agent --resume cursor-sess");
+  });
 });

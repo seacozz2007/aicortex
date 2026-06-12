@@ -27,6 +27,10 @@ type DevSessionResponse struct {
 	WorkDir     string `json:"work_dir,omitempty"`
 	RuntimeID   string `json:"runtime_id,omitempty"`
 	LastTaskID  string `json:"last_task_id,omitempty"`
+	// AgentSessionID is the daemon-owned resume pointer (chat_session.session_id).
+	AgentSessionID string `json:"agent_session_id,omitempty"`
+	// LastTaskAgentSessionID is the most recent task-recorded session id for fallback resume.
+	LastTaskAgentSessionID string `json:"last_task_agent_session_id,omitempty"`
 }
 
 type CreateDevSessionRequest struct {
@@ -112,6 +116,9 @@ func devSessionFromRow(s db.ChatSession, hasUnread bool) DevSessionResponse {
 	if s.RuntimeID.Valid {
 		resp.RuntimeID = uuidToString(s.RuntimeID)
 	}
+	if s.SessionID.Valid && strings.TrimSpace(s.SessionID.String) != "" {
+		resp.AgentSessionID = strings.TrimSpace(s.SessionID.String)
+	}
 	return resp
 }
 
@@ -133,6 +140,13 @@ func (h *Handler) enrichDevSession(ctx context.Context, resp DevSessionResponse,
 		resp.LastTaskID = uuidToString(taskID)
 		if resp.WorkDir == "" && workDir.Valid && strings.TrimSpace(workDir.String) != "" {
 			resp.WorkDir = strings.TrimSpace(workDir.String)
+		}
+	}
+	if h.Queries != nil {
+		if prior, err := h.Queries.GetLastChatTaskSession(ctx, sessionID); err == nil && prior.SessionID.Valid {
+			if id := strings.TrimSpace(prior.SessionID.String); id != "" {
+				resp.LastTaskAgentSessionID = id
+			}
 		}
 	}
 	return resp

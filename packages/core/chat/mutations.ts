@@ -46,7 +46,6 @@ export function useMarkChatSessionRead() {
     },
     onMutate: async (sessionId) => {
       await qc.cancelQueries({ queryKey: chatKeys.sessions(wsId) });
-      await qc.cancelQueries({ queryKey: devKeys.sessions(wsId) });
 
       const prevSessions = qc.getQueryData<ChatSession[]>(chatKeys.sessions(wsId));
       const prevDevSessions = qc.getQueryData<ChatSession[]>(devKeys.sessions(wsId));
@@ -54,7 +53,13 @@ export function useMarkChatSessionRead() {
       const clear = (old?: ChatSession[]) =>
         old?.map((s) => (s.id === sessionId ? { ...s, has_unread: false } : s));
       qc.setQueryData<ChatSession[]>(chatKeys.sessions(wsId), clear);
-      qc.setQueryData<ChatSession[]>(devKeys.sessions(wsId), clear);
+      // Patch dev session list inline when already cached. Do not cancel the
+      // dev sessions query — an in-flight list fetch aborted here never retries
+      // while Dev Studio stays mounted, leaving the sidebar empty until a later
+      // chat:done invalidation.
+      if (prevDevSessions) {
+        qc.setQueryData<ChatSession[]>(devKeys.sessions(wsId), clear);
+      }
 
       return { prevSessions, prevDevSessions };
     },

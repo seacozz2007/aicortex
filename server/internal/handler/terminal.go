@@ -16,24 +16,25 @@ import (
 )
 
 type terminalSessionResponse struct {
-	ID             string  `json:"id"`
-	WorkspaceID    string  `json:"workspace_id"`
-	RuntimeID      string  `json:"runtime_id"`
-	UserID         string  `json:"user_id"`
-	ChatSessionID  *string `json:"chat_session_id,omitempty"`
-	Scope          string  `json:"scope"`
-	Bootstrapped   bool    `json:"bootstrapped"`
-	Title          string  `json:"title"`
-	Status         string  `json:"status"`
-	Shell          string  `json:"shell"`
-	Cols           int     `json:"cols"`
-	Rows           int     `json:"rows"`
-	CreatedAt      string  `json:"created_at"`
-	ClosedAt       *string `json:"closed_at,omitempty"`
-	LastAttachedAt string  `json:"last_attached_at"`
+	ID                 string  `json:"id"`
+	WorkspaceID        string  `json:"workspace_id"`
+	RuntimeID          string  `json:"runtime_id"`
+	UserID             string  `json:"user_id"`
+	ChatSessionID      *string `json:"chat_session_id,omitempty"`
+	Scope              string  `json:"scope"`
+	Bootstrapped       bool    `json:"bootstrapped"`
+	BootstrapResumeID  *string `json:"bootstrap_resume_id,omitempty"`
+	Title              string  `json:"title"`
+	Status             string  `json:"status"`
+	Shell              string  `json:"shell"`
+	Cols               int     `json:"cols"`
+	Rows               int     `json:"rows"`
+	CreatedAt          string  `json:"created_at"`
+	ClosedAt           *string `json:"closed_at,omitempty"`
+	LastAttachedAt     string  `json:"last_attached_at"`
 }
 
-const terminalSessionSelectCols = `id, workspace_id, runtime_id, user_id, chat_session_id, scope, bootstrapped,
+const terminalSessionSelectCols = `id, workspace_id, runtime_id, user_id, chat_session_id, scope, bootstrapped, bootstrap_resume_id,
 	title, status, shell, cols, rows, created_at, closed_at, last_attached_at`
 
 func normalizeTerminalScope(scope string) string {
@@ -50,10 +51,11 @@ func scanTerminalSessionRow(
 	var s terminalSessionResponse
 	var wsUUID, rtUUID, userUUID pgtype.UUID
 	var chatSessionUUID pgtype.UUID
+	var bootstrapResumeID pgtype.Text
 	var createdAt, lastAttached time.Time
 	var closedAt *time.Time
 	if err := rows.Scan(
-		&s.ID, &wsUUID, &rtUUID, &userUUID, &chatSessionUUID, &s.Scope, &s.Bootstrapped,
+		&s.ID, &wsUUID, &rtUUID, &userUUID, &chatSessionUUID, &s.Scope, &s.Bootstrapped, &bootstrapResumeID,
 		&s.Title, &s.Status, &s.Shell, &s.Cols, &s.Rows, &createdAt, &closedAt, &lastAttached,
 	); err != nil {
 		return terminalSessionResponse{}, err
@@ -64,6 +66,10 @@ func scanTerminalSessionRow(
 	if chatSessionUUID.Valid {
 		id := uuidToString(chatSessionUUID)
 		s.ChatSessionID = &id
+	}
+	if bootstrapResumeID.Valid && strings.TrimSpace(bootstrapResumeID.String) != "" {
+		id := strings.TrimSpace(bootstrapResumeID.String)
+		s.BootstrapResumeID = &id
 	}
 	s.CreatedAt = createdAt.Format(time.RFC3339)
 	s.LastAttachedAt = lastAttached.Format(time.RFC3339)
@@ -264,8 +270,9 @@ func (h *Handler) UpdateTerminalSession(w http.ResponseWriter, r *http.Request) 
 	wsID := uuidToString(member.WorkspaceID)
 
 	var req struct {
-		Title        *string `json:"title"`
-		Bootstrapped *bool   `json:"bootstrapped"`
+		Title               *string `json:"title"`
+		Bootstrapped        *bool   `json:"bootstrapped"`
+		BootstrapResumeID   *string `json:"bootstrap_resume_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -283,9 +290,17 @@ func (h *Handler) UpdateTerminalSession(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 	if req.Bootstrapped != nil && *req.Bootstrapped {
+		var bootstrapResume any
+		if req.BootstrapResumeID != nil {
+			trimmed := strings.TrimSpace(*req.BootstrapResumeID)
+			if trimmed != "" {
+				bootstrapResume = trimmed
+			}
+		}
 		_, err := h.DB.Exec(r.Context(),
-			`UPDATE terminal_sessions SET bootstrapped = true WHERE id = $1 AND workspace_id = $2`,
-			sessionID, wsID,
+			`UPDATE terminal_sessions SET bootstrapped = true, bootstrap_resume_id = COALESCE($3, bootstrap_resume_id)
+			 WHERE id = $1 AND workspace_id = $2`,
+			sessionID, wsID, bootstrapResume,
 		)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to update session")

@@ -427,7 +427,7 @@ func (c *client) handleFrame(raw []byte) {
 	switch msg.Type {
 	case protocol.EventDaemonHeartbeat:
 		c.handleHeartbeatFrame(msg.Payload)
-	case protocol.EventTerminalData, protocol.EventTerminalClose, protocol.EventTerminalError:
+	case protocol.EventTerminalData, protocol.EventTerminalClose, protocol.EventTerminalError, protocol.EventTerminalAttached:
 		if handler := c.hub.terminalHandler(); handler != nil {
 			handler(msg)
 		}

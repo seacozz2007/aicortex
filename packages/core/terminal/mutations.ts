@@ -29,7 +29,8 @@ export function useCloseTerminalSession() {
 export function useMarkTerminalBootstrapped() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sessionId: string) => api.markTerminalBootstrapped(sessionId),
+    mutationFn: (input: { sessionId: string; bootstrapResumeId?: string | null }) =>
+      api.markTerminalBootstrapped(input.sessionId, input.bootstrapResumeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: terminalKeys.root }),
   });
 }

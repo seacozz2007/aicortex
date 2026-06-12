@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
 } from "@aicortex/ui/components/ui/alert-dialog";
 import { Button } from "@aicortex/ui/components/ui/button";
+import { Skeleton } from "@aicortex/ui/components/ui/skeleton";
 import { useT } from "../../i18n";
 import { ProjectIcon } from "../../projects/components/project-icon";
 import { DevSessionRow } from "./dev-session-row";
@@ -47,6 +48,7 @@ import { DevSessionRow } from "./dev-session-row";
 export function DevProjectSessionSidebar({
   projects,
   sessions,
+  sessionsLoading = false,
   selectedProjectId,
   activeSessionId,
   openedProjectIds,
@@ -63,6 +65,7 @@ export function DevProjectSessionSidebar({
 }: {
   projects: Project[];
   sessions: DevSession[];
+  sessionsLoading?: boolean;
   openedProjectIds: string[];
   sessionLayoutByProject: DevSessionLayoutByProject;
   selectedProjectId: string | null;
@@ -274,9 +277,16 @@ export function DevProjectSessionSidebar({
                     {expanded && (
                       <div className="ml-5 mt-0.5 space-y-0.5 border-l pl-1">
                         {projectSessions.length === 0 ? (
-                          <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                            {t(($) => $.shell.project_empty)}
-                          </p>
+                          sessionsLoading ? (
+                            <div className="space-y-1.5 px-2 py-1">
+                              <Skeleton className="h-7 w-full" />
+                              <Skeleton className="h-7 w-4/5" />
+                            </div>
+                          ) : (
+                            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                              {t(($) => $.shell.project_empty)}
+                            </p>
+                          )
                         ) : (
                           <DndContext
                             sensors={sensors}

@@ -14,6 +14,7 @@ import {
   useMarkTerminalBootstrapped,
   type TerminalSession,
 } from "@aicortex/core/terminal";
+import { needsTerminalBootstrap } from "@aicortex/core/agents";
 import { TerminalPanel } from "../../explore/components/terminal-panel";
 import { useWS } from "@aicortex/core/realtime";
 import { useT } from "../../i18n";
@@ -61,6 +62,7 @@ export function ChatTerminalPanel({
   sessionTitle,
   bootstrapCommand,
   bootstrapCommands,
+  resumeSessionId,
   injectCommand,
   injectKey,
   terminalScope = TERMINAL_SCOPES.DEFAULT,
@@ -72,6 +74,8 @@ export function ChatTerminalPanel({
   sessionTitle?: string;
   bootstrapCommands?: string[];
   bootstrapCommand?: string;
+  /** Agent session id for `--resume` (or provider equivalent) on bootstrap. */
+  resumeSessionId?: string | null;
   injectCommand?: string | null;
   injectKey?: number;
   terminalScope?: string;
@@ -97,6 +101,9 @@ export function ChatTerminalPanel({
   const lastInjectKeyRef = useRef<number | null>(null);
   const lastBootstrapKeyRef = useRef<string | null>(null);
   const [terminalAttached, setTerminalAttached] = useState(false);
+  const [ptyRecreated, setPtyRecreated] = useState(false);
+
+  const normalizedResumeSessionId = resumeSessionId?.trim() || null;
 
   const boundSession = useMemo(
     () =>
@@ -121,6 +128,15 @@ export function ChatTerminalPanel({
     });
     return unsub;
   }, [subscribe, terminalSessionId, t]);
+
+  useEffect(() => {
+    const unsub = subscribe("terminal:attached" as any, (payload: any) => {
+      if (payload?.session_id !== terminalSessionId) return;
+      setPtyRecreated(payload?.pty_recreated === true);
+      setTerminalAttached(true);
+    });
+    return unsub;
+  }, [subscribe, terminalSessionId]);
 
   const connectTerminal = useCallback(
     async (forceCreate = false) => {
@@ -186,12 +202,14 @@ export function ChatTerminalPanel({
     setTerminalSessionId(null);
     setError(null);
     setTerminalAttached(false);
+    setPtyRecreated(false);
     lastInjectKeyRef.current = null;
     lastBootstrapKeyRef.current = null;
   }, [chatSessionId, runtimeId, terminalScope]);
 
   useEffect(() => {
     setTerminalAttached(false);
+    setPtyRecreated(false);
     lastBootstrapKeyRef.current = null;
   }, [terminalSessionId]);
 
@@ -225,15 +243,23 @@ export function ChatTerminalPanel({
     void connectTerminal(true);
   }, [connectTerminal]);
 
+  const shouldBootstrap = useMemo(() => {
+    if (!activeSession) return false;
+    return needsTerminalBootstrap({
+      bootstrapped: activeSession.bootstrapped,
+      ptyRecreated,
+    });
+  }, [activeSession, ptyRecreated]);
+
   useEffect(() => {
-    if (!terminalSessionId || !terminalAttached || activeSession?.bootstrapped) return;
+    if (!terminalSessionId || !terminalAttached || !shouldBootstrap) return;
 
     const commands =
       bootstrapCommands?.map((command) => command.trim()).filter(Boolean) ??
       (bootstrapCommand?.trim() ? [bootstrapCommand.trim()] : []);
     if (commands.length === 0) return;
 
-    const bootstrapKey = `${terminalSessionId}:${commands.join("\0")}`;
+    const bootstrapKey = `${terminalSessionId}:${normalizedResumeSessionId ?? ""}:${commands.join("\0")}:${ptyRecreated}`;
     if (lastBootstrapKeyRef.current === bootstrapKey) return;
     lastBootstrapKeyRef.current = bootstrapKey;
 
@@ -241,7 +267,10 @@ export function ChatTerminalPanel({
     const timer = window.setTimeout(() => {
       void sendTerminalCommands(send, terminalSessionId, commands).then(() => {
         if (cancelled) return;
-        markBootstrapped.mutate(terminalSessionId);
+        markBootstrapped.mutate({
+          sessionId: terminalSessionId,
+          bootstrapResumeId: normalizedResumeSessionId,
+        });
       });
     }, 300);
 
@@ -252,7 +281,9 @@ export function ChatTerminalPanel({
   }, [
     terminalSessionId,
     terminalAttached,
-    activeSession?.bootstrapped,
+    shouldBootstrap,
+    normalizedResumeSessionId,
+    ptyRecreated,
     bootstrapCommand,
     bootstrapCommands,
     send,

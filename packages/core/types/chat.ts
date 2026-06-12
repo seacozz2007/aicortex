@@ -15,6 +15,10 @@ export interface ChatSession {
   runtime_id?: string;
   /** Latest task in this session that has a work_dir — used for artifact browse. */
   last_task_id?: string;
+  /** Daemon-owned agent session id shared by chat tasks and interactive CLI. */
+  agent_session_id?: string;
+  /** Fallback resume pointer from the most recent task with a session_id. */
+  last_task_agent_session_id?: string;
   /** Design Studio fields — present when session_kind=design. */
   session_kind?: "chat" | "design" | "dev";
   design_mode?: "prototype" | "deck" | "template" | "design_system" | "hyperframes";

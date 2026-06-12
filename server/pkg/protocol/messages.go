@@ -188,6 +188,13 @@ type TerminalAttachPayload struct {
 	Rows      int    `json:"rows"`
 }
 
+// TerminalAttachedPayload is sent from daemon to browser after attach completes.
+type TerminalAttachedPayload struct {
+	SessionID     string `json:"session_id"`
+	PtyRecreated  bool   `json:"pty_recreated"`
+	ScrollbackLen int    `json:"scrollback_len"`
+}
+
 // TerminalDataPayload carries PTY I/O data (base64-encoded) in both directions.
 type TerminalDataPayload struct {
 	SessionID string `json:"session_id"`

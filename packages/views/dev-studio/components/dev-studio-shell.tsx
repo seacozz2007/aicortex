@@ -34,6 +34,7 @@ import {
   useAgentPresenceDetail,
   buildAgentInteractiveCliLaunchSteps,
   resolveAgentInteractiveCli,
+  resolveAgentResumeId,
 } from "@aicortex/core/agents";
 import { TERMINAL_SCOPES } from "@aicortex/core/terminal";
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
@@ -111,7 +112,12 @@ export function DevStudioShell() {
   const setCliMainViewForSession = useDevStudioStore((s) => s.setCliMainViewForSession);
   const setCliMainViewBySessionId = useDevStudioStore((s) => s.setCliMainViewBySessionId);
 
-  const { data: sessions = [] } = useQuery(devSessionsOptions(wsId));
+  const {
+    data: sessions = [],
+    isPending: sessionsPending,
+    isFetching: sessionsFetching,
+  } = useQuery(devSessionsOptions(wsId));
+  const sessionsLoading = sessionsPending || sessionsFetching;
   const sessionMissingFromList =
     !!sessionId && !sessions.some((s) => s.id === sessionId);
   const { data: fetchedSession } = useQuery({
@@ -206,6 +212,13 @@ export function DevStudioShell() {
     () => resolveAgentInteractiveCli(activeRuntime?.provider),
     [activeRuntime?.provider],
   );
+  const cliResumeSessionId = useMemo(
+    () =>
+      currentSession
+        ? resolveAgentResumeId(currentSession, activeRuntimeId)
+        : null,
+    [currentSession, activeRuntimeId],
+  );
   const cliLaunchCommands = useMemo(
     () =>
       cliSpec
@@ -213,11 +226,13 @@ export function DevStudioShell() {
             provider: activeRuntime?.provider,
             workDir: currentSession?.work_dir ?? null,
             allPermissions: currentProject?.cli_all_permissions === true,
+            resumeSessionId: cliResumeSessionId,
           })
         : null,
     [
       activeRuntime?.provider,
       cliSpec,
+      cliResumeSessionId,
       currentProject?.cli_all_permissions,
       currentSession?.work_dir,
     ],
@@ -435,10 +450,9 @@ export function DevStudioShell() {
   }, [sessionId, currentSession, projectId, navigateTo]);
 
   useEffect(() => {
-    if (sessionId) {
-      void markRead.mutateAsync(sessionId).catch(() => {});
-    }
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps -- once per session open, like design studio
+    if (!sessionId || !currentSession?.has_unread) return;
+    void markRead.mutateAsync(sessionId).catch(() => {});
+  }, [sessionId, currentSession?.has_unread]); // eslint-disable-line react-hooks/exhaustive-deps -- mark-read only when needed
 
   const mergePreviewComments = useCallback(
     (content: string, attachmentIds?: string[]) => {
@@ -800,6 +814,7 @@ export function DevStudioShell() {
             sessionTitle={currentSession?.title}
             terminalScope={TERMINAL_SCOPES.CLI_MAIN}
             bootstrapCommands={cliLaunchCommands}
+            resumeSessionId={cliResumeSessionId}
             compactHeader
           />
         </div>
@@ -916,6 +931,7 @@ export function DevStudioShell() {
       <DevProjectSessionSidebar
         projects={projects}
         sessions={sidebarSessions}
+        sessionsLoading={sessionsLoading}
         openedProjectIds={openedProjectIds}
         sessionLayoutByProject={sessionLayoutByProject}
         selectedProjectId={projectId}

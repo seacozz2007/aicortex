@@ -128,9 +128,10 @@ const (
 	EventForumReactionRemoved = "forum:reaction_removed"
 
 	// Terminal events (browser ↔ server ↔ daemon)
-	EventTerminalOpen   = "terminal:open"
-	EventTerminalAttach = "terminal:attach"
-	EventTerminalData   = "terminal:data"
+	EventTerminalOpen     = "terminal:open"
+	EventTerminalAttach   = "terminal:attach"
+	EventTerminalAttached = "terminal:attached"
+	EventTerminalData     = "terminal:data"
 	EventTerminalResize = "terminal:resize"
 	EventTerminalDetach = "terminal:detach"
 	EventTerminalClose  = "terminal:close"

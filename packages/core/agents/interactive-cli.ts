@@ -6,6 +6,8 @@ export type AgentInteractiveCliSpec = {
   binary: string;
   baseArgs: string[];
   allPermissionArgs: string[];
+  /** CLI flag used to resume an agent session in interactive mode, if supported. */
+  resumeFlag?: string;
 };
 
 const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
@@ -15,6 +17,7 @@ const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
     binary: "claude",
     baseArgs: [],
     allPermissionArgs: ["--dangerously-skip-permissions"],
+    resumeFlag: "--resume",
   },
   {
     provider: "kiro",
@@ -22,6 +25,7 @@ const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
     binary: "kiro-cli",
     baseArgs: ["chat"],
     allPermissionArgs: ["chat", "--skip-dangerous-all", "--trust-all-tools"],
+    resumeFlag: "--resume-id",
   },
   {
     provider: "codex",
@@ -36,6 +40,7 @@ const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
     binary: "gemini",
     baseArgs: [],
     allPermissionArgs: [],
+    resumeFlag: "-r",
   },
   {
     provider: "cursor",
@@ -43,6 +48,7 @@ const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
     binary: "cursor-agent",
     baseArgs: [],
     allPermissionArgs: [],
+    resumeFlag: "--resume",
   },
   {
     provider: "copilot",
@@ -50,6 +56,7 @@ const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
     binary: "copilot",
     baseArgs: [],
     allPermissionArgs: [],
+    resumeFlag: "--resume",
   },
   {
     provider: "opencode",
@@ -57,6 +64,7 @@ const INTERACTIVE_CLI_SPECS: AgentInteractiveCliSpec[] = [
     binary: "opencode",
     baseArgs: [],
     allPermissionArgs: [],
+    resumeFlag: "--session",
   },
   {
     provider: "openclaw",
@@ -103,6 +111,12 @@ function joinCommand(binary: string, args: string[]): string {
   return [binary, ...args].join(" ");
 }
 
+function appendResumeArgs(args: string[], spec: AgentInteractiveCliSpec, resumeSessionId?: string | null): string[] {
+  const id = resumeSessionId?.trim();
+  if (!id || !spec.resumeFlag) return args;
+  return [...args, spec.resumeFlag, id];
+}
+
 /** Shell-safe path quoting (cmd.exe, PowerShell, bash). */
 function shellQuote(value: string): string {
   return JSON.stringify(value);
@@ -130,14 +144,16 @@ export function buildAgentInteractiveCliLaunchSteps(input: {
   provider: string | null | undefined;
   workDir?: string | null;
   allPermissions?: boolean;
+  resumeSessionId?: string | null;
 }): string[] | null {
   const spec = resolveAgentInteractiveCli(input.provider);
   if (!spec) return null;
 
-  const args =
+  let args =
     input.allPermissions && spec.allPermissionArgs.length > 0
-      ? spec.allPermissionArgs
-      : spec.baseArgs;
+      ? [...spec.allPermissionArgs]
+      : [...spec.baseArgs];
+  args = appendResumeArgs(args, spec, input.resumeSessionId);
   const launch = joinCommand(spec.binary, args);
 
   const steps: string[] = [];
@@ -157,6 +173,7 @@ export function buildAgentInteractiveCliLaunch(input: {
   provider: string | null | undefined;
   workDir?: string | null;
   allPermissions?: boolean;
+  resumeSessionId?: string | null;
 }): string | null {
   const steps = buildAgentInteractiveCliLaunchSteps(input);
   if (!steps) return null;

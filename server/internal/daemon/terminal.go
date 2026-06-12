@@ -200,6 +200,10 @@ func (tm *TerminalManager) HandleAttach(payload protocol.TerminalAttachPayload) 
 		cols = 120
 	}
 
+	tm.mu.Lock()
+	_, hadInMemoryPty := tm.sessions[payload.SessionID]
+	tm.mu.Unlock()
+
 	sess, err := tm.getOrOpenSession(payload.SessionID, "", rows, cols)
 	if err != nil {
 		if errors.Is(err, errTerminalMaxSessions) {
@@ -219,7 +223,8 @@ func (tm *TerminalManager) HandleAttach(payload protocol.TerminalAttachPayload) 
 
 	sess.attached = true
 	sess.lastAttach = time.Now()
-	tm.logger.Info("terminal session attached", "session_id", payload.SessionID)
+	tm.sendAttached(payload.SessionID, !hadInMemoryPty, len(scrollback))
+	tm.logger.Info("terminal session attached", "session_id", payload.SessionID, "pty_recreated", !hadInMemoryPty)
 }
 
 func (tm *TerminalManager) HandleData(payload protocol.TerminalDataPayload) {
@@ -331,6 +336,16 @@ func (tm *TerminalManager) readLoop(sess *TerminalSession) {
 func (tm *TerminalManager) waitLoop(sess *TerminalSession) {
 	_ = sess.pty.Wait()
 	tm.closeSession(sess)
+}
+
+func (tm *TerminalManager) sendAttached(sessionID string, ptyRecreated bool, scrollbackLen int) {
+	msg := protocol.Message{Type: protocol.EventTerminalAttached}
+	msg.Payload, _ = json.Marshal(protocol.TerminalAttachedPayload{
+		SessionID:     sessionID,
+		PtyRecreated:  ptyRecreated,
+		ScrollbackLen: scrollbackLen,
+	})
+	tm.send(msg)
 }
 
 func (tm *TerminalManager) sendData(sessionID string, data []byte) {

@@ -775,6 +775,10 @@ type ChatSessionResponse struct {
 	WorkDir    string `json:"work_dir,omitempty"`
 	RuntimeID  string `json:"runtime_id,omitempty"`
 	LastTaskID string `json:"last_task_id,omitempty"`
+	// AgentSessionID is chat_session.session_id — shared resume pointer for tasks and CLI.
+	AgentSessionID string `json:"agent_session_id,omitempty"`
+	// LastTaskAgentSessionID is the most recent task-recorded session id for fallback resume.
+	LastTaskAgentSessionID string `json:"last_task_agent_session_id,omitempty"`
 }
 
 type ChatMessageResponse struct {
@@ -853,6 +857,9 @@ func (h *Handler) buildChatSessionResponse(ctx context.Context, s db.ChatSession
 	if s.RuntimeID.Valid {
 		resp.RuntimeID = uuidToString(s.RuntimeID)
 	}
+	if s.SessionID.Valid && strings.TrimSpace(s.SessionID.String) != "" {
+		resp.AgentSessionID = strings.TrimSpace(s.SessionID.String)
+	}
 	if h.DB != nil {
 		var taskID pgtype.UUID
 		err := h.DB.QueryRow(ctx,
@@ -865,6 +872,13 @@ func (h *Handler) buildChatSessionResponse(ctx context.Context, s db.ChatSession
 		).Scan(&taskID)
 		if err == nil {
 			resp.LastTaskID = uuidToString(taskID)
+		}
+	}
+	if h.Queries != nil {
+		if prior, err := h.Queries.GetLastChatTaskSession(ctx, s.ID); err == nil && prior.SessionID.Valid {
+			if id := strings.TrimSpace(prior.SessionID.String); id != "" {
+				resp.LastTaskAgentSessionID = id
+			}
 		}
 	}
 	return resp

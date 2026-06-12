@@ -1902,14 +1902,20 @@ export class ApiClient {
     await this.fetch(`/api/terminal/sessions/${id}`, { method: "DELETE" });
   }
 
-  async updateTerminalSession(id: string, data: { title?: string; bootstrapped?: boolean }): Promise<void> {
+  async updateTerminalSession(
+    id: string,
+    data: { title?: string; bootstrapped?: boolean; bootstrap_resume_id?: string | null },
+  ): Promise<void> {
     await this.fetch(`/api/terminal/sessions/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
-  async markTerminalBootstrapped(id: string): Promise<void> {
-    await this.updateTerminalSession(id, { bootstrapped: true });
+  async markTerminalBootstrapped(id: string, bootstrapResumeId?: string | null): Promise<void> {
+    await this.updateTerminalSession(id, {
+      bootstrapped: true,
+      bootstrap_resume_id: bootstrapResumeId ?? undefined,
+    });
   }
 }

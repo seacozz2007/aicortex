@@ -18,6 +18,9 @@ export function devSessionsOptions(wsId: string) {
     queryFn: () => api.listDevSessions() as Promise<DevSession[]>,
     enabled: !!wsId,
     staleTime: 30_000,
+    // Dev Studio mounts after other surfaces (Chat FAB, Agent tab) may have
+    // already kicked off mark-read mutations; always reconcile on entry.
+    refetchOnMount: "always",
   });
 }
 
