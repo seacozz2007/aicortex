@@ -354,6 +354,10 @@
 
     "export_hint": "Download packaged exports from the design session work directory.",
 
+    "fullscreen": "Full screen",
+
+    "exit_fullscreen": "Exit full screen",
+
     "download_html": "Download HTML",
 
     "download_zip": "Download ZIP",

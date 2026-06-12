@@ -17,6 +17,10 @@ import type { QueuedPreviewComment } from "../../design-studio/components/design
 import { type PreviewCommentHandler } from "../../design-studio/components/design-html-preview";
 import { useDesignPreviewSource } from "../../design-studio/components/design-preview-source-bar";
 import { DesignToolsPreviewPanel } from "../../design-studio/components/design-tools-preview-panel";
+import {
+  StudioToolsPanelShell,
+  useStudioToolsFullscreen,
+} from "../../common/studio-tools-panel-shell";
 
 export type DevToolsTab = "terminal" | "files" | "preview";
 
@@ -126,6 +130,8 @@ export function DevToolsSidebar({
     return items;
   }, [artifactBrowseEnabled, canPreview, exploreEnabled, runtimeId, taskId, t]);
 
+  const { fullscreen, toggleFullscreen } = useStudioToolsFullscreen();
+
   if (tabs.length === 0) {
     return (
       <aside className="flex h-full min-h-0 min-w-0 flex-col bg-sidebar">
@@ -140,33 +146,34 @@ export function DevToolsSidebar({
 
   const tab = tabs.some((item) => item.id === activeTab) ? activeTab : tabs[0]!.id;
 
-  return (
-    <aside className="flex h-full min-h-0 min-w-0 flex-col border-l border-border bg-sidebar">
-      <div className="flex h-10 shrink-0 items-center border-b px-2">
-        <div className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
-          {tabs.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onTabChange(item.id)}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
-                  tab === item.id
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                )}
-              >
-                <Icon className="size-3.5" />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+  const toolbar = tabs.map((item) => {
+    const Icon = item.icon;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => onTabChange(item.id)}
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+          tab === item.id
+            ? "bg-accent text-foreground"
+            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        )}
+      >
+        <Icon className="size-3.5" />
+        {item.label}
+      </button>
+    );
+  });
 
-      <div className="flex min-h-0 flex-1 flex-col">
+  return (
+    <StudioToolsPanelShell
+      fullscreen={fullscreen}
+      onToggleFullscreen={toggleFullscreen}
+      fullscreenLabel={t(($) => $.tools.fullscreen)}
+      exitFullscreenLabel={t(($) => $.tools.exit_fullscreen)}
+      toolbar={toolbar}
+    >
         {tab === "terminal" && runtimeId && session && (
           <div className="min-h-0 flex-1">
             <ChatTerminalPanel
@@ -205,7 +212,6 @@ export function DevToolsSidebar({
             queueSending={queueSending}
           />
         )}
-      </div>
-    </aside>
+    </StudioToolsPanelShell>
   );
 }

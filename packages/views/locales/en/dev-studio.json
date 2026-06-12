@@ -58,7 +58,9 @@
   },
   "tools": {
     "unavailable_explore": "Enable Explore in workspace settings to use the terminal.",
-    "unavailable_no_runtime": "Start a session and connect a runtime to use tools."
+    "unavailable_no_runtime": "Start a session and connect a runtime to use tools.",
+    "fullscreen": "Full screen",
+    "exit_fullscreen": "Exit full screen"
   },
   "session": {
     "back": "Back to Dev Studio",

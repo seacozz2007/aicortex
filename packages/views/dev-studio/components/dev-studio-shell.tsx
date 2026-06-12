@@ -13,7 +13,6 @@ import {
   upsertDevSessionInCache,
   useCreateDevSession,
   useDeleteDevSession,
-  useSyncDevAgentSession,
   useDevStudioStore,
 } from "@aicortex/core/dev-studio";
 import { useWorkspaceId } from "@aicortex/core/hooks";
@@ -35,9 +34,8 @@ import {
   useAgentPresenceDetail,
   buildAgentInteractiveCliLaunchSteps,
   resolveAgentInteractiveCli,
-  resolveAgentResumeId,
 } from "@aicortex/core/agents";
-import { TERMINAL_SCOPES, findTerminalSessionForContext, terminalSessionListOptions } from "@aicortex/core/terminal";
+import { TERMINAL_SCOPES } from "@aicortex/core/terminal";
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
 import { runtimeListOptions } from "@aicortex/core/runtimes/queries";
 import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
@@ -213,13 +211,6 @@ export function DevStudioShell() {
     () => resolveAgentInteractiveCli(activeRuntime?.provider),
     [activeRuntime?.provider],
   );
-  const cliResumeSessionId = useMemo(
-    () =>
-      currentSession
-        ? resolveAgentResumeId(currentSession, activeRuntimeId)
-        : null,
-    [currentSession, activeRuntimeId],
-  );
   const cliLaunchCommands = useMemo(
     () =>
       cliSpec
@@ -227,13 +218,11 @@ export function DevStudioShell() {
             provider: activeRuntime?.provider,
             workDir: currentSession?.work_dir ?? null,
             allPermissions: currentProject?.cli_all_permissions === true,
-            resumeSessionId: cliResumeSessionId,
           })
         : null,
     [
       activeRuntime?.provider,
       cliSpec,
-      cliResumeSessionId,
       currentProject?.cli_all_permissions,
       currentSession?.work_dir,
     ],
@@ -249,43 +238,6 @@ export function DevStudioShell() {
         ? t(($) => $.shell.cli_launch_disabled_runtime)
         : null;
 
-  const [cliReconnectKey, setCliReconnectKey] = useState(0);
-
-  const cliTerminalFilters = useMemo(
-    () =>
-      sessionId
-        ? { chat_session_id: sessionId, scope: TERMINAL_SCOPES.CLI_MAIN }
-        : undefined,
-    [sessionId],
-  );
-  const { data: cliTerminalSessions = [] } = useQuery({
-    ...terminalSessionListOptions(wsId, cliTerminalFilters),
-    enabled: !!wsId && !!sessionId,
-  });
-  const cliTerminalSession = useMemo(
-    () =>
-      sessionId && activeRuntimeId
-        ? findTerminalSessionForContext(cliTerminalSessions, {
-            chatSessionId: sessionId,
-            runtimeId: activeRuntimeId,
-            scope: TERMINAL_SCOPES.CLI_MAIN,
-          })
-        : null,
-    [activeRuntimeId, cliTerminalSessions, sessionId],
-  );
-  const cliResumeDrifted = useMemo(() => {
-    if (mainView !== "cli" || !cliResumeSessionId || !cliTerminalSession?.bootstrapped) {
-      return false;
-    }
-    const pinned = cliTerminalSession.bootstrap_resume_id?.trim();
-    if (!pinned) return false;
-    return pinned !== cliResumeSessionId;
-  }, [cliResumeSessionId, cliTerminalSession, mainView]);
-
-  const handleCliReconnect = useCallback(() => {
-    setCliReconnectKey((key) => key + 1);
-  }, []);
-
   const handleLaunchCli = useCallback(() => {
     if (!sessionId) return;
     if (mainView === "cli") {
@@ -295,19 +247,6 @@ export function DevStudioShell() {
     if (!cliLaunchCommands?.length) return;
     setCliMainViewForSession(sessionId, true);
   }, [cliLaunchCommands, mainView, sessionId, setCliMainViewForSession]);
-
-  const syncDevAgentSession = useSyncDevAgentSession(wsId, projectId ?? "");
-  const handleAgentSessionDetected = useCallback(
-    (agentSessionId: string) => {
-      if (!sessionId || !projectId || !activeRuntimeId) return;
-      syncDevAgentSession.mutate({
-        sessionId,
-        agent_session_id: agentSessionId,
-        runtime_id: activeRuntimeId,
-      });
-    },
-    [activeRuntimeId, projectId, sessionId, syncDevAgentSession],
-  );
 
   useEffect(() => {
     if (!sessionId) {
@@ -812,7 +751,7 @@ export function DevStudioShell() {
   const hasMessages = messages.length > 0 || !!pendingTaskId;
 
   const chatMain = (
-    <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+    <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
         <div className="flex min-w-0 items-center gap-2">
           <Terminal className="size-4 shrink-0 text-brand" />
@@ -858,33 +797,16 @@ export function DevStudioShell() {
       </div>
 
       {mainView === "cli" && sessionId && activeRuntimeId && cliLaunchCommands ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          {cliResumeDrifted ? (
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-amber-500/10 px-3 py-2 text-xs">
-              <span className="text-muted-foreground">
-                {t(($) => $.shell.cli_resume_drift_hint)}
-              </span>
-              <Button type="button" size="sm" variant="secondary" onClick={handleCliReconnect}>
-                {t(($) => $.shell.cli_resume_drift_reconnect)}
-              </Button>
-            </div>
-          ) : null}
-          <div className="min-h-0 flex-1">
-            <ChatTerminalPanel
-              chatSessionId={sessionId}
-              runtimeId={activeRuntimeId}
-              workDir={currentSession?.work_dir ?? undefined}
-              sessionTitle={currentSession?.title}
-              terminalScope={TERMINAL_SCOPES.CLI_MAIN}
-              bootstrapCommands={cliLaunchCommands}
-              resumeSessionId={cliResumeSessionId}
-              syncAgentSessionProvider={activeRuntime?.provider ?? null}
-              knownAgentSessionId={currentSession?.agent_session_id ?? cliResumeSessionId}
-              onAgentSessionDetected={handleAgentSessionDetected}
-              reconnectKey={cliReconnectKey}
-              compactHeader
-            />
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ChatTerminalPanel
+            chatSessionId={sessionId}
+            runtimeId={activeRuntimeId}
+            workDir={currentSession?.work_dir ?? undefined}
+            sessionTitle={currentSession?.title}
+            terminalScope={TERMINAL_SCOPES.CLI_MAIN}
+            bootstrapCommands={cliLaunchCommands}
+            compactHeader
+          />
         </div>
       ) : showSkeleton ? (
         <ChatMessageSkeleton />
@@ -1021,19 +943,20 @@ export function DevStudioShell() {
         onArchiveSession={handleArchiveSession}
       />
 
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex h-full min-h-0 min-w-0 flex-1">
         {toolsOpen ? (
           <ResizablePanelGroup
             orientation="horizontal"
-            className="min-h-0 flex-1"
+            className="h-full min-h-0 flex-1"
             defaultLayout={defaultLayout}
             onLayoutChanged={onLayoutChanged}
           >
-            <ResizablePanel defaultSize={58} minSize={35}>
-              {chatMain}
+            <ResizablePanel defaultSize={58} minSize={35} className="min-h-0 overflow-hidden">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">{chatMain}</div>
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel defaultSize={42} minSize={25}>
+            <ResizablePanel defaultSize={42} minSize={25} className="min-h-0 overflow-hidden">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">
               <DevToolsSidebar
                 session={currentSession ?? null}
                 activeTab={toolsTab}
@@ -1059,10 +982,11 @@ export function DevStudioShell() {
                 onSendQueue={() => void handleSendQueue()}
                 queueSending={queueSending}
               />
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
-          chatMain
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{chatMain}</div>
         )}
       </div>
 

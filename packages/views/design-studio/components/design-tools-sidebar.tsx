@@ -27,6 +27,10 @@ import type { QuestionForm } from "../../chat/lib/question-form-parser";
 import { useDesignPreviewSource } from "./design-preview-source-bar";
 import { DesignGenerationPreview } from "./design-generation-preview";
 import { DesignToolsPreviewPanel } from "./design-tools-preview-panel";
+import {
+  StudioToolsPanelShell,
+  useStudioToolsFullscreen,
+} from "../../common/studio-tools-panel-shell";
 
 export type DesignToolsTab = "questions" | "preview" | "files" | "terminal" | "export";
 
@@ -264,6 +268,8 @@ export function DesignToolsSidebar({
     }
   }, [tabs, tab, pendingQuestionForm]);
 
+  const { fullscreen, toggleFullscreen } = useStudioToolsFullscreen();
+
   if (showGenerationStage && generationPreview) {
     return (
       <aside className="flex h-full min-h-0 min-w-0 flex-col">
@@ -282,36 +288,37 @@ export function DesignToolsSidebar({
 
   const canDesignPreview = artifactEnabled && !!taskId && !!workspaceSlug;
 
-  return (
-    <aside className="flex h-full min-h-0 min-w-0 flex-col border-l border-border bg-sidebar">
-      <div className="flex h-10 shrink-0 items-center border-b px-2">
-        <div className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
-          {tabs.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => selectTab(item.id, true)}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
-                  tab === item.id
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                )}
-              >
-                <Icon className="size-3.5" />
-                {item.label}
-                {item.notify ? (
-                  <span className="size-1.5 rounded-full bg-destructive" aria-hidden />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+  const toolbar = tabs.map((item) => {
+    const Icon = item.icon;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => selectTab(item.id, true)}
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+          tab === item.id
+            ? "bg-accent text-foreground"
+            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        )}
+      >
+        <Icon className="size-3.5" />
+        {item.label}
+        {item.notify ? (
+          <span className="size-1.5 rounded-full bg-destructive" aria-hidden />
+        ) : null}
+      </button>
+    );
+  });
 
-      <div className="flex min-h-0 flex-1 flex-col">
+  return (
+    <StudioToolsPanelShell
+      fullscreen={fullscreen}
+      onToggleFullscreen={toggleFullscreen}
+      fullscreenLabel={t(($) => $.tools.fullscreen)}
+      exitFullscreenLabel={t(($) => $.tools.exit_fullscreen)}
+      toolbar={toolbar}
+    >
         {tab === "questions" && pendingQuestionForm && onFormSubmit && (
           <DesignQuestionsPanel form={pendingQuestionForm} onSubmit={onFormSubmit} />
         )}
@@ -402,7 +409,6 @@ export function DesignToolsSidebar({
             )}
           </div>
         )}
-      </div>
-    </aside>
+    </StudioToolsPanelShell>
   );
 }

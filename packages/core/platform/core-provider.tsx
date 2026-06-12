@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { ApiClient } from "../api/client";
 import { setApiInstance, setSchemaLogger } from "../api";
 import { createAuthStore, registerAuthStore } from "../auth";
@@ -31,35 +30,37 @@ function initCore(
   cookieAuth?: boolean,
   identity?: ClientIdentity,
 ) {
-  if (initialized) return;
+  if (!initialized) {
+    const api = new ApiClient(apiBaseUrl, {
+      logger: createLogger("api"),
+      onUnauthorized: () => {
+        storage.removeItem("aicortex_token");
+      },
+      identity,
+    });
+    setApiInstance(api);
+    setSchemaLogger(createLogger("api-schema"));
 
-  const api = new ApiClient(apiBaseUrl, {
-    logger: createLogger("api"),
-    onUnauthorized: () => {
-      storage.removeItem("aicortex_token");
-    },
-    identity,
-  });
-  setApiInstance(api);
-  setSchemaLogger(createLogger("api-schema"));
+    // In token mode, hydrate token from storage.
+    if (!cookieAuth) {
+      const token = storage.getItem("aicortex_token");
+      if (token) api.setToken(token);
+    }
+    // Workspace identity is URL-driven: the [workspaceSlug] layout resolves
+    // the slug and calls setCurrentWorkspace(slug, wsId) on mount. The api
+    // client reads the slug from that singleton for the X-Workspace-Slug
+    // header. No boot-time hydration from storage is required.
 
-  // In token mode, hydrate token from storage.
-  if (!cookieAuth) {
-    const token = storage.getItem("aicortex_token");
-    if (token) api.setToken(token);
+    authStore = createAuthStore({ api, storage, onLogin, onLogout, cookieAuth });
+    chatStore = createChatStore({ storage });
+    initialized = true;
   }
-  // Workspace identity is URL-driven: the [workspaceSlug] layout resolves
-  // the slug and calls setCurrentWorkspace(slug, wsId) on mount. The api
-  // client reads the slug from that singleton for the X-Workspace-Slug
-  // header. No boot-time hydration from storage is required.
 
-  authStore = createAuthStore({ api, storage, onLogin, onLogout, cookieAuth });
+  // Turbopack/Vite HMR can re-evaluate auth/chat index modules and reset their
+  // module singletons while this file keeps `initialized === true`. Re-bind on
+  // every CoreProvider render so descendants never hit an unregistered store.
   registerAuthStore(authStore);
-
-  chatStore = createChatStore({ storage });
   registerChatStore(chatStore);
-
-  initialized = true;
 }
 
 export function CoreProvider({
@@ -75,10 +76,8 @@ export function CoreProvider({
   resources,
   localeAdapter,
 }: CoreProviderProps) {
-  // Initialize singletons on first render only. Dependencies are read-once:
-  // apiBaseUrl, storage, and callbacks are set at app boot and never change at runtime.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useMemo(() => initCore(apiBaseUrl, storage, onLogin, onLogout, cookieAuth, identity), []);
+  // Run synchronously before children render. Re-registers stores after HMR too.
+  initCore(apiBaseUrl, storage, onLogin, onLogout, cookieAuth, identity);
 
   // I18nProvider wraps everything else: server and client must use the same
   // (locale, resources) to avoid hydration mismatch. Language switching goes

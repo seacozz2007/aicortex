@@ -130,8 +130,11 @@ export function TerminalPanel({ sessionId, onDetach, onAttached }: TerminalPanel
   }, [sessionId]);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
-      <div ref={containerRef} className="flex-1 min-h-0 [&_.xterm]:h-full" />
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <div
+        ref={containerRef}
+        className="h-full min-h-0 flex-1 [&_.xterm]:h-full [&_.xterm-viewport]:h-full"
+      />
     </div>
   );
 }

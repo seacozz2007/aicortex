@@ -58,7 +58,9 @@
   },
   "tools": {
     "unavailable_explore": "请在工作区设置中开启 Explore 以使用终端。",
-    "unavailable_no_runtime": "开始会话并连接 Runtime 后可使用工具面板。"
+    "unavailable_no_runtime": "开始会话并连接 Runtime 后可使用工具面板。",
+    "fullscreen": "全屏",
+    "exit_fullscreen": "退出全屏"
   },
   "session": {
     "back": "返回开发工作室",

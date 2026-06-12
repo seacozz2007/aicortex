@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, RotateCcw, X } from "lucide-react";
-import { cn } from "@aicortex/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@aicortex/core/hooks";
 import {
@@ -424,7 +423,7 @@ export function ChatTerminalPanel({
         </div>
       ) : null}
 
-      <div className={cn("min-h-0 flex-1 bg-[#1a1b26]", compactHeader && "h-full")}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1a1b26]">
         {booting || isLoading ? (
           <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
