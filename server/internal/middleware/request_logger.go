@@ -51,6 +51,11 @@ var softNotFoundMarkers = []string{
 	"task not found",
 }
 
+var transientDaemonMarkers = []string{
+	"daemon websocket not connected",
+	"daemon relay unavailable",
+}
+
 // RequestLogger is a structured HTTP request logger using slog.
 // It replaces Chi's built-in chimw.Logger with colored, structured output.
 func RequestLogger(next http.Handler) http.Handler {
@@ -100,6 +105,9 @@ func RequestLogger(next http.Handler) http.Handler {
 		}
 
 		switch {
+		case status == http.StatusGatewayTimeout && isTransientDaemonUnavailable(bodyPrefix.Bytes()):
+			// Daemon WS reconnecting — UI retries artifact/tunnel requests.
+			slog.Info("http request", attrs...)
 		case status >= 500:
 			slog.Error("http request", attrs...)
 		case status == http.StatusNotFound && isSoftNotFound(bodyPrefix.Bytes()):
@@ -124,6 +132,19 @@ func isSoftNotFound(body []byte) bool {
 	}
 	lower := strings.ToLower(string(body))
 	for _, marker := range softNotFoundMarkers {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func isTransientDaemonUnavailable(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+	lower := strings.ToLower(string(body))
+	for _, marker := range transientDaemonMarkers {
 		if strings.Contains(lower, marker) {
 			return true
 		}

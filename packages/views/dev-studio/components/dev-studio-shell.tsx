@@ -240,6 +240,7 @@ export function DevStudioShell() {
   );
   const canLaunchCli =
     exploreEnabled && !!sessionId && !!activeRuntimeId && !!cliLaunchCommands?.length;
+  const runtimeOnline = activeRuntime?.status === "online";
   const cliLaunchDisabledReason = !cliSpec
     ? t(($) => $.shell.cli_launch_disabled_provider)
     : !exploreEnabled
@@ -1038,6 +1039,7 @@ export function DevStudioShell() {
                 activeTab={toolsTab}
                 onTabChange={(tab: DevToolsTab) => setToolsTab(tab)}
                 lastTaskId={lastTaskId}
+                runtimeOnline={runtimeOnline}
                 commentMode={commentMode}
                 onCommentModeChange={sessionId ? handleCommentModeChange : undefined}
                 sendDisabled={

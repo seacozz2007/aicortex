@@ -1,5 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "../api";
+import {
+  isMissingTaskError,
+  isTransientDaemonError,
+  transientDaemonRetryDelay,
+} from "../api/query-errors";
 
 // NOTE on workspace scoping:
 // `wsId` is used only as part of queryKey for cache isolation per workspace.
@@ -69,9 +74,19 @@ export function pendingChatTaskOptions(sessionId: string) {
 export function taskMessagesOptions(taskId: string) {
   return queryOptions({
     queryKey: chatKeys.taskMessages(taskId),
-    queryFn: () => api.listTaskMessages(taskId),
+    queryFn: async () => {
+      try {
+        return await api.listTaskMessages(taskId);
+      } catch (err) {
+        // chat_message.task_id has no FK — orphaned ids should fall back to content.
+        if (isMissingTaskError(err)) return [];
+        throw err;
+      }
+    },
     enabled: !!taskId && !taskId.startsWith("optimistic-"),
     staleTime: Infinity,
+    retry: (count, err) => isTransientDaemonError(err) && count < 5,
+    retryDelay: transientDaemonRetryDelay,
   });
 }
 

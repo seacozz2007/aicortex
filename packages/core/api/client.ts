@@ -356,7 +356,13 @@ export class ApiClient {
       if (res.status === 401) this.handleUnauthorized();
       const { message, body } = await this.parseErrorBody(res, `API error: ${res.status} ${res.statusText}`);
       const logLevel =
-        res.status === 404 || res.status === 409 ? "warn" : "error";
+        res.status === 404 ||
+        res.status === 409 ||
+        res.status === 502 ||
+        res.status === 503 ||
+        res.status === 504
+          ? "warn"
+          : "error";
       this.logger[logLevel](`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms`, error: message });
       throw new ApiError(message, res.status, res.statusText, body);
     }

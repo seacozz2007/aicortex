@@ -158,3 +158,18 @@ func TestIsSoftNotFound(t *testing.T) {
 		}
 	}
 }
+
+func TestRequestLogger_TransientDaemon504IsInfo(t *testing.T) {
+	logs := runRequestLogger(t, http.StatusGatewayTimeout, `{"error":"daemon websocket not connected for this runtime"}`)
+	requireLogLevel(t, logs, "INFO", "WARN", "ERROR")
+}
+
+func TestIsTransientDaemonUnavailable(t *testing.T) {
+	t.Parallel()
+	if !isTransientDaemonUnavailable([]byte(`{"error":"daemon websocket not connected for this runtime"}`)) {
+		t.Fatal("expected transient daemon marker to match")
+	}
+	if isTransientDaemonUnavailable([]byte(`{"error":"internal server error"}`)) {
+		t.Fatal("expected unrelated 504 body to not match")
+	}
+}

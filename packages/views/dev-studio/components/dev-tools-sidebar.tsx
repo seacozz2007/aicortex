@@ -25,6 +25,7 @@ export function DevToolsSidebar({
   activeTab,
   onTabChange,
   lastTaskId,
+  runtimeOnline = true,
   commentMode = false,
   onCommentModeChange,
   onSendToChat,
@@ -42,6 +43,8 @@ export function DevToolsSidebar({
   activeTab: DevToolsTab;
   onTabChange: (tab: DevToolsTab) => void;
   lastTaskId: string | null;
+  /** When false, defer artifact browse until the runtime daemon WS is connected. */
+  runtimeOnline?: boolean;
   commentMode?: boolean;
   onCommentModeChange?: (enabled: boolean) => void;
   onSendToChat?: PreviewCommentHandler;
@@ -73,6 +76,7 @@ export function DevToolsSidebar({
     taskId,
     "",
     artifactBrowseEnabled && !!taskId,
+    { runtimeOnline },
   );
 
   const htmlEntries = useMemo(
