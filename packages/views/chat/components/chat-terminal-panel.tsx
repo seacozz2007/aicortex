@@ -74,6 +74,7 @@ export function ChatTerminalPanel({
   syncAgentSessionProvider,
   knownAgentSessionId,
   onAgentSessionDetected,
+  reconnectKey,
 }: {
   chatSessionId: string;
   runtimeId: string;
@@ -91,6 +92,8 @@ export function ChatTerminalPanel({
   syncAgentSessionProvider?: string | null;
   knownAgentSessionId?: string | null;
   onAgentSessionDetected?: (agentSessionId: string) => void;
+  /** Increment to force-close and recreate the bound terminal (Dev CLI resync). */
+  reconnectKey?: number;
 }) {
   const { t } = useT("chat");
   const wsId = useWorkspaceId();
@@ -111,6 +114,7 @@ export function ChatTerminalPanel({
   const bootingRef = useRef(false);
   const lastInjectKeyRef = useRef<number | null>(null);
   const lastBootstrapKeyRef = useRef<string | null>(null);
+  const lastReconnectKeyRef = useRef(0);
   const [terminalAttached, setTerminalAttached] = useState(false);
   const [ptyRecreated, setPtyRecreated] = useState(false);
   const terminalDetectBufferRef = useRef("");
@@ -317,6 +321,14 @@ export function ChatTerminalPanel({
   const handleRetry = useCallback(() => {
     void connectTerminal(true);
   }, [connectTerminal]);
+
+  useEffect(() => {
+    if (reconnectKey == null || reconnectKey === 0 || reconnectKey === lastReconnectKeyRef.current) {
+      return;
+    }
+    lastReconnectKeyRef.current = reconnectKey;
+    void connectTerminal(true);
+  }, [reconnectKey, connectTerminal]);
 
   const shouldBootstrap = useMemo(() => {
     if (!activeSession) return false;

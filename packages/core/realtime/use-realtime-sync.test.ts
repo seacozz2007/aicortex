@@ -1,8 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { chatKeys } from "../chat/queries";
+import { devKeys } from "../dev-studio/queries";
+import type { DevSession } from "../types/dev";
 import type { ChatDonePayload, ChatMessage, ChatPendingTask } from "../types";
-import { applyChatDoneToCache } from "./use-realtime-sync";
+import { applyChatDoneToCache, patchDevSessionResumePointer } from "./use-realtime-sync";
 
 const sessionId = "session-1";
 const taskId = "task-1";
@@ -113,5 +115,33 @@ describe("applyChatDoneToCache", () => {
       userMessage(),
     ]);
     expect(qc.getQueryData<ChatPendingTask>(pendingKey)).toEqual({});
+  });
+});
+
+describe("patchDevSessionResumePointer", () => {
+  it("patches agent_session_id on dev session lists", () => {
+    const qc = createQueryClient();
+    const wsId = "ws-1";
+    const devSession: DevSession = {
+      id: sessionId,
+      workspace_id: wsId,
+      project_id: "proj-1",
+      agent_id: "agent-1",
+      creator_id: "user-1",
+      title: "Dev",
+      status: "active",
+      session_kind: "dev",
+      has_unread: false,
+      created_at: "2026-05-13T05:00:00Z",
+      updated_at: "2026-05-13T05:00:00Z",
+    };
+    qc.setQueryData<DevSession[]>(devKeys.sessions(wsId), [devSession]);
+
+    patchDevSessionResumePointer(qc, wsId, sessionId, "agent-sess-new", "rt-1");
+
+    expect(qc.getQueryData<DevSession[]>(devKeys.sessions(wsId))?.[0]?.agent_session_id).toBe(
+      "agent-sess-new",
+    );
+    expect(qc.getQueryData<DevSession[]>(devKeys.sessions(wsId))?.[0]?.runtime_id).toBe("rt-1");
   });
 });

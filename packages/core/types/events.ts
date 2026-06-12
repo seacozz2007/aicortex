@@ -308,6 +308,9 @@ export interface ChatDonePayload {
   content?: string;
   elapsed_ms?: number;
   created_at?: string;
+  /** Resume pointer recorded when the task finished (for Dev CLI sync). */
+  agent_session_id?: string;
+  runtime_id?: string;
 }
 
 export interface ChatSessionReadPayload {

@@ -37,7 +37,7 @@ import {
   resolveAgentInteractiveCli,
   resolveAgentResumeId,
 } from "@aicortex/core/agents";
-import { TERMINAL_SCOPES } from "@aicortex/core/terminal";
+import { TERMINAL_SCOPES, findTerminalSessionForContext, terminalSessionListOptions } from "@aicortex/core/terminal";
 import { useFileUpload } from "@aicortex/core/hooks/use-file-upload";
 import { runtimeListOptions } from "@aicortex/core/runtimes/queries";
 import { useWorkspaceExploreEnabled } from "@aicortex/core/workspace/hooks";
@@ -247,6 +247,43 @@ export function DevStudioShell() {
       : !sessionId || !activeRuntimeId
         ? t(($) => $.shell.cli_launch_disabled_runtime)
         : null;
+
+  const [cliReconnectKey, setCliReconnectKey] = useState(0);
+
+  const cliTerminalFilters = useMemo(
+    () =>
+      sessionId
+        ? { chat_session_id: sessionId, scope: TERMINAL_SCOPES.CLI_MAIN }
+        : undefined,
+    [sessionId],
+  );
+  const { data: cliTerminalSessions = [] } = useQuery({
+    ...terminalSessionListOptions(wsId, cliTerminalFilters),
+    enabled: !!wsId && !!sessionId,
+  });
+  const cliTerminalSession = useMemo(
+    () =>
+      sessionId && activeRuntimeId
+        ? findTerminalSessionForContext(cliTerminalSessions, {
+            chatSessionId: sessionId,
+            runtimeId: activeRuntimeId,
+            scope: TERMINAL_SCOPES.CLI_MAIN,
+          })
+        : null,
+    [activeRuntimeId, cliTerminalSessions, sessionId],
+  );
+  const cliResumeDrifted = useMemo(() => {
+    if (mainView !== "cli" || !cliResumeSessionId || !cliTerminalSession?.bootstrapped) {
+      return false;
+    }
+    const pinned = cliTerminalSession.bootstrap_resume_id?.trim();
+    if (!pinned) return false;
+    return pinned !== cliResumeSessionId;
+  }, [cliResumeSessionId, cliTerminalSession, mainView]);
+
+  const handleCliReconnect = useCallback(() => {
+    setCliReconnectKey((key) => key + 1);
+  }, []);
 
   const handleLaunchCli = useCallback(() => {
     if (!sessionId) return;
@@ -820,20 +857,33 @@ export function DevStudioShell() {
       </div>
 
       {mainView === "cli" && sessionId && activeRuntimeId && cliLaunchCommands ? (
-        <div className="min-h-0 flex-1">
-          <ChatTerminalPanel
-            chatSessionId={sessionId}
-            runtimeId={activeRuntimeId}
-            workDir={currentSession?.work_dir ?? undefined}
-            sessionTitle={currentSession?.title}
-            terminalScope={TERMINAL_SCOPES.CLI_MAIN}
-            bootstrapCommands={cliLaunchCommands}
-            resumeSessionId={cliResumeSessionId}
-            syncAgentSessionProvider={activeRuntime?.provider ?? null}
-            knownAgentSessionId={currentSession?.agent_session_id ?? cliResumeSessionId}
-            onAgentSessionDetected={handleAgentSessionDetected}
-            compactHeader
-          />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {cliResumeDrifted ? (
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-amber-500/10 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
+                {t(($) => $.shell.cli_resume_drift_hint)}
+              </span>
+              <Button type="button" size="sm" variant="secondary" onClick={handleCliReconnect}>
+                {t(($) => $.shell.cli_resume_drift_reconnect)}
+              </Button>
+            </div>
+          ) : null}
+          <div className="min-h-0 flex-1">
+            <ChatTerminalPanel
+              chatSessionId={sessionId}
+              runtimeId={activeRuntimeId}
+              workDir={currentSession?.work_dir ?? undefined}
+              sessionTitle={currentSession?.title}
+              terminalScope={TERMINAL_SCOPES.CLI_MAIN}
+              bootstrapCommands={cliLaunchCommands}
+              resumeSessionId={cliResumeSessionId}
+              syncAgentSessionProvider={activeRuntime?.provider ?? null}
+              knownAgentSessionId={currentSession?.agent_session_id ?? cliResumeSessionId}
+              onAgentSessionDetected={handleAgentSessionDetected}
+              reconnectKey={cliReconnectKey}
+              compactHeader
+            />
+          </div>
         </div>
       ) : showSkeleton ? (
         <ChatMessageSkeleton />

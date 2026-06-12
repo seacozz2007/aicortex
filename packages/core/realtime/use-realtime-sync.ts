@@ -33,6 +33,7 @@ import { notificationPreferenceOptions } from "../notification-preferences/queri
 import { workspaceKeys, workspaceListOptions } from "../workspace/queries";
 import { chatKeys } from "../chat/queries";
 import { devKeys } from "../dev-studio/queries";
+import type { DevSession } from "../types/dev";
 import { mergePendingTaskOnEnqueue } from "../chat/pending-task";
 import { useChatStore } from "../chat";
 import { resolvePostAuthDestination, useHasOnboarded } from "../paths";
@@ -107,6 +108,30 @@ export function applyChatDoneToCache(
   // that took the fallback branch above.
   qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
   qc.invalidateQueries({ queryKey: chatKeys.pendingTask(sessionId) });
+}
+
+export function patchDevSessionResumePointer(
+  qc: QueryClient,
+  wsId: string,
+  chatSessionId: string,
+  agentSessionId: string,
+  runtimeId?: string,
+) {
+  const patch = (old?: DevSession[]) =>
+    old?.map((s) =>
+      s.id === chatSessionId
+        ? {
+            ...s,
+            agent_session_id: agentSessionId,
+            ...(runtimeId ? { runtime_id: runtimeId } : {}),
+          }
+        : s,
+    );
+  qc.setQueryData<DevSession[]>(devKeys.sessions(wsId), patch);
+  qc.setQueriesData<DevSession[]>(
+    { queryKey: devKeys.all(wsId), exact: false },
+    (old) => patch(old),
+  );
 }
 
 /**
@@ -696,6 +721,18 @@ export function useRealtimeSync(
       // work: they ignore the extra fields and rely on the invalidate
       // below, which keeps the old behavior alive.
       applyChatDoneToCache(qc, payload);
+      if (payload.agent_session_id) {
+        const id = getCurrentWsId();
+        if (id) {
+          patchDevSessionResumePointer(
+            qc,
+            id,
+            payload.chat_session_id,
+            payload.agent_session_id,
+            payload.runtime_id,
+          );
+        }
+      }
       invalidatePendingAggregate();
       // Assistant message just landed → has_unread may have flipped to true.
       invalidateSessionLists();

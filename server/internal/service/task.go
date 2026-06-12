@@ -1736,6 +1736,12 @@ func (s *TaskService) broadcastChatDone(ctx context.Context, task db.AgentTaskQu
 		ChatSessionID: util.UUIDToString(task.ChatSessionID),
 		TaskID:        util.UUIDToString(task.ID),
 	}
+	if task.SessionID.Valid {
+		payload.AgentSessionID = strings.TrimSpace(task.SessionID.String)
+	}
+	if task.RuntimeID.Valid {
+		payload.RuntimeID = util.UUIDToString(task.RuntimeID)
+	}
 	if msg != nil {
 		payload.MessageID = util.UUIDToString(msg.ID)
 		payload.Content = msg.Content

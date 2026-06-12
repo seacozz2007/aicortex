@@ -86,6 +86,9 @@ type ChatDonePayload struct {
 	Content       string `json:"content,omitempty"`
 	ElapsedMs     int64  `json:"elapsed_ms,omitempty"`
 	CreatedAt     string `json:"created_at,omitempty"`
+	// AgentSessionID is the resume pointer recorded on the completed task.
+	AgentSessionID string `json:"agent_session_id,omitempty"`
+	RuntimeID      string `json:"runtime_id,omitempty"`
 }
 
 // ChatSessionReadPayload is broadcast when the creator marks a session as read.

@@ -43,6 +43,8 @@
     "cli_launch_disabled_explore": "请在工作区设置中开启 Explore 以使用终端",
     "cli_launch_disabled_runtime": "会话连接 Runtime 后可打开 CLI",
     "cli_launch_disabled_provider": "当前 Runtime 暂不支持交互式 CLI",
+    "cli_resume_drift_hint": "聊天已更新 Agent 上下文，请重新连接 CLI 以恢复最新会话。",
+    "cli_resume_drift_reconnect": "重新连接 CLI",
     "no_dev_agent": "请在工作区设置中配置 Dev Agent",
     "session_drag_aria": "拖拽排序",
     "session_pin_aria": "置顶会话",
