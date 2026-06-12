@@ -172,8 +172,8 @@ export function DevToolsSidebar({
             <ChatTerminalPanel
               chatSessionId={session.id}
               runtimeId={runtimeId}
-              workDir={workDir ?? undefined}
               sessionTitle={session.title}
+              compactHeader
             />
           </div>
         )}
